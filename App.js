@@ -49,8 +49,19 @@ export default function App() {
   ]);
 
   const [shifts, setShifts] = useState([
-    { id: 'shift_1', store_id: 1, opened_by: 'staff_1', opened_by_name: 'Nguyễn Văn A', opened_at: '22/06/2026 06:30', opening_cash: 500000, status: 'CLOSED', closed_by: 'manager_1', closed_by_name: 'Quản Lý', closed_at: '22/06/2026 22:30', revenue_cash: 2500000, revenue_transfer: 3500000, closing_cash_actual: 3000000, discrepancy: 0 },
-    { id: 'shift_2', store_id: 2, opened_by: 'staff_3', opened_by_name: 'Lê Văn C', opened_at: '23/06/2026 07:00', opening_cash: 1000000, status: 'OPEN', closed_by: null, closed_by_name: null, closed_at: null, revenue_cash: 0, revenue_transfer: 0, closing_cash_actual: 0, discrepancy: 0 }
+    { 
+      id: 'shift_1', store_id: 1, opened_by: 'staff_1', opened_by_name: 'Nguyễn Văn A', opened_at: '22/06/2026 06:30', opening_cash: 450000, 
+      status: 'CLOSED', closed_by: 'manager_1', closed_by_name: 'Quản Lý', closed_at: '22/06/2026 22:30', 
+      rev_cash: 5605000, rev_momo: 1828000, rev_grab: 0, rev_shopee: 0, discount: 8000, expenses: 110000, expenses_note: 'Ly trà đá',
+      closing_cash_actual: 3769000, discrepancy: 0,
+      inventory_check: []
+    },
+    { 
+      id: 'shift_2', store_id: 2, opened_by: 'staff_3', opened_by_name: 'Lê Văn C', opened_at: '23/06/2026 07:00', opening_cash: 1000000, 
+      status: 'OPEN', closed_by: null, closed_by_name: null, closed_at: null, 
+      rev_cash: 0, rev_momo: 0, rev_grab: 0, rev_shopee: 0, discount: 0, expenses: 0, expenses_note: '', closing_cash_actual: 0, discrepancy: 0,
+      inventory_check: []
+    }
   ]);
 
   return (

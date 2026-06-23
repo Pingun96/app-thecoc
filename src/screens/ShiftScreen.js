@@ -1,12 +1,11 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
 import { AppContext } from '../../App';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function ShiftScreen({ navigation }) {
-  const { currentUser, shifts, setShifts, selectedStoreId, storeList } = useContext(AppContext);
+  const { currentUser, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory } = useContext(AppContext);
 
-  // === ROLE & STORE LOGIC ===
   const isOwner = currentUser?.role === 'OWNER';
   const isManager = currentUser?.role === 'MANAGER';
   const isStaff = currentUser?.role === 'STAFF';
@@ -20,220 +19,251 @@ export default function ShiftScreen({ navigation }) {
     storeIdToView = 'ALL';
   }
 
-  // TABS: ACTION (Current Shift), HISTORY (Past Shifts)
   const [activeTab, setActiveTab] = useState('ACTION');
-
-  // === CURRENT SHIFT LOGIC ===
-  // Tìm ca đang mở của chi nhánh hiện tại (nếu đang ở ALL thì báo lỗi không cho giao ca)
   const currentOpenShift = shifts.find(s => s.status === 'OPEN' && s.store_id === storeIdToView);
 
-  // Form Mở Ca
+  // === MỞ CA ===
   const [openingCash, setOpeningCash] = useState('');
-  
-  // Form Đóng Ca
-  const [revCash, setRevCash] = useState('');
-  const [revTransfer, setRevTransfer] = useState('');
-  const [actualCash, setActualCash] = useState('');
-
   const handleOpenShift = () => {
-    if (storeIdToView === 'ALL') {
-      alert('Vui lòng chọn 1 chi nhánh cụ thể ở màn hình chính để Mở ca!');
-      return;
-    }
-    if (!openingCash) {
-      alert('Vui lòng nhập số tiền mặt có sẵn trong két!');
-      return;
-    }
-    const val = Number(openingCash);
-    if (isNaN(val) || val < 0) {
-      alert('Số tiền không hợp lệ!'); return;
-    }
-
+    if (storeIdToView === 'ALL') { alert('Vui lòng chọn 1 chi nhánh!'); return; }
+    if (!openingCash) { alert('Nhập tiền đầu ca!'); return; }
     const newShift = {
-      id: `shift_${Date.now()}`,
-      store_id: storeIdToView,
-      opened_by: currentUser.id,
-      opened_by_name: currentUser.name,
+      id: `shift_${Date.now()}`, store_id: storeIdToView,
+      opened_by: currentUser.id, opened_by_name: currentUser.name,
       opened_at: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-      opening_cash: val,
-      status: 'OPEN',
-      closed_by: null, closed_by_name: null, closed_at: null,
-      revenue_cash: 0, revenue_transfer: 0, closing_cash_actual: 0, discrepancy: 0
+      opening_cash: Number(openingCash), status: 'OPEN',
+      rev_cash: 0, rev_momo: 0, rev_grab: 0, rev_shopee: 0, discount: 0, expenses: 0, expenses_note: '', closing_cash_actual: 0, discrepancy: 0,
+      inventory_check: []
     };
     setShifts([...shifts, newShift]);
-    alert('Mở ca thành công! Chúc bạn một ca làm việc thuận lợi.');
-    setOpeningCash('');
+    alert('Mở ca thành công!');
   };
 
+  // === CHỐT CA (MẪU 16) ===
+  const [inventoryCheck, setInventoryCheck] = useState({}); // { itemId: endStock }
+  const [revCash, setRevCash] = useState('');
+  const [revMomo, setRevMomo] = useState('');
+  const [revGrab, setRevGrab] = useState('');
+  const [revShopee, setRevShopee] = useState('');
+  const [discount, setDiscount] = useState('');
+  const [expenses, setExpenses] = useState('');
+  const [expensesNote, setExpensesNote] = useState('');
+  const [actualCash, setActualCash] = useState('');
+
+  const storeInventory = inventoryItems.filter(i => i.store_id === storeIdToView);
+  const todayStr = new Date().toLocaleDateString('vi-VN');
+  const todayAttendance = attendanceHistory.filter(a => a.date === todayStr); // Giả lập chấm công hôm nay
+
   const handleCloseShift = () => {
-    if (!revCash || !revTransfer || !actualCash) {
-      alert('Vui lòng điền đủ 3 thông số chốt ca!'); return;
-    }
-    const rCash = Number(revCash);
-    const rTrans = Number(revTransfer);
-    const aCash = Number(actualCash);
+    const rCash = Number(revCash) || 0;
+    const rMomo = Number(revMomo) || 0;
+    const rGrab = Number(revGrab) || 0;
+    const rShopee = Number(revShopee) || 0;
+    const disc = Number(discount) || 0;
+    const exp = Number(expenses) || 0;
+    const aCash = Number(actualCash) || 0;
 
-    if (isNaN(rCash) || isNaN(rTrans) || isNaN(aCash)) {
-      alert('Số tiền nhập vào phải là số!'); return;
+    if (!revCash && !actualCash) {
+      alert('Vui lòng nhập ít nhất Doanh thu tiền mặt và Tiền đếm trong két!'); return;
     }
 
-    // Tiền mặt đúng ra phải có = Tiền đầu ca + Doanh thu tiền mặt
-    const expectedCash = currentOpenShift.opening_cash + rCash;
+    // Tính Lệch Két
+    // Tổng tiền két lý thuyết = Tiền đầu giờ + Tiền mặt - Tiền chi
+    const expectedCash = currentOpenShift.opening_cash + rCash - exp;
     const discrepancy = aCash - expectedCash;
 
+    // Build inventory check data
+    const finalInvCheck = storeInventory.map(item => {
+      const endStock = inventoryCheck[item.id] !== undefined ? Number(inventoryCheck[item.id]) : item.quantity;
+      const exportQty = item.quantity - endStock; // Giả sử Tồn đầu + Nhập đã cộng sẵn vào item.quantity
+      return { item_id: item.id, name: item.name, unit: item.unit, start: item.quantity, export: exportQty, end: endStock };
+    });
+
     if (discrepancy !== 0) {
-      // Nếu lệch, cảnh báo bằng Alert thật (nhưng trên web sẽ dùng alert của trình duyệt)
-      alert(`⚠️ CẢNH BÁO LỆCH KÉT!\n\nTiền lẽ ra phải có: ${expectedCash.toLocaleString()}đ\nTiền thực tế bạn đếm: ${aCash.toLocaleString()}đ\nĐộ lệch: ${discrepancy > 0 ? '+' : ''}${discrepancy.toLocaleString()}đ\n\nHệ thống sẽ ghi nhận khoản chênh lệch này vào báo cáo.`);
+      alert(`⚠️ CẢNH BÁO LỆCH KÉT!\nTiền lý thuyết: ${expectedCash.toLocaleString()}đ\nTiền thực đếm: ${aCash.toLocaleString()}đ\nLệch: ${discrepancy.toLocaleString()}đ`);
     }
 
     const updatedShift = {
       ...currentOpenShift,
       status: 'CLOSED',
-      closed_by: currentUser.id,
-      closed_by_name: currentUser.name,
-      closed_at: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-      revenue_cash: rCash,
-      revenue_transfer: rTrans,
-      closing_cash_actual: aCash,
-      discrepancy: discrepancy
+      closed_by: currentUser.id, closed_by_name: currentUser.name,
+      closed_at: todayStr + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
+      rev_cash: rCash, rev_momo: rMomo, rev_grab: rGrab, rev_shopee: rShopee,
+      discount: disc, expenses: exp, expenses_note: expensesNote,
+      closing_cash_actual: aCash, discrepancy: discrepancy,
+      inventory_check: finalInvCheck
     };
 
+    // Update global shifts
     setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
-    alert('Đã chốt ca thành công! Báo cáo đã được gửi tới Quản lý.');
-    setRevCash(''); setRevTransfer(''); setActualCash('');
+    
+    // Update global inventory stock based on inventory check
+    const updatedInventoryItems = inventoryItems.map(item => {
+      if (item.store_id === storeIdToView && inventoryCheck[item.id] !== undefined) {
+        return { ...item, quantity: Number(inventoryCheck[item.id]) };
+      }
+      return item;
+    });
+    setInventoryItems(updatedInventoryItems);
+
+    alert('Đã nộp Báo Cáo Chốt Ca (Mẫu 16)!');
+    // Reset form
+    setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({});
   };
 
-  // === HISTORY LOGIC ===
   const historyShifts = shifts.filter(s => s.status === 'CLOSED' && (storeIdToView === 'ALL' || s.store_id === storeIdToView)).reverse();
 
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#1f2937" />
-        </TouchableOpacity>
-        <Text style={styles.header}>Quản Lý Ca & Két Tiền</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><Ionicons name="arrow-back" size={24} color="#1f2937" /></TouchableOpacity>
+        <Text style={styles.header}>Báo Cáo Mẫu 16</Text>
       </View>
 
       <View style={styles.tabContainer}>
         <TouchableOpacity style={[styles.tabBtn, activeTab === 'ACTION' && styles.tabBtnActive]} onPress={() => setActiveTab('ACTION')}>
-          <Text style={[styles.tabText, activeTab === 'ACTION' && styles.tabTextActive]}>Giao Ca Hiện Tại</Text>
+          <Text style={[styles.tabText, activeTab === 'ACTION' && styles.tabTextActive]}>Phiếu Chốt Ca</Text>
         </TouchableOpacity>
         {(!isStaff) && (
           <TouchableOpacity style={[styles.tabBtn, activeTab === 'HISTORY' && styles.tabBtnActive]} onPress={() => setActiveTab('HISTORY')}>
-            <Text style={[styles.tabText, activeTab === 'HISTORY' && styles.tabTextActive]}>Báo Cáo Doanh Thu</Text>
+            <Text style={[styles.tabText, activeTab === 'HISTORY' && styles.tabTextActive]}>Lịch Sử Báo Cáo</Text>
           </TouchableOpacity>
         )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        
-        {/* === TAB 1: ACTION === */}
         {activeTab === 'ACTION' && (
           <View>
             {storeIdToView === 'ALL' ? (
+              <View style={styles.section}><Text style={{textAlign:'center', color:'#f44336'}}>Vui lòng chọn 1 chi nhánh để Giao Ca!</Text></View>
+            ) : !currentOpenShift ? (
               <View style={styles.section}>
-                <Text style={{textAlign: 'center', color: '#f44336', fontWeight: 'bold'}}>Bạn đang ở chế độ "Tất cả chi nhánh". Hãy quay ra Dashboard và chọn 1 chi nhánh cụ thể để Giao Ca!</Text>
+                <View style={{alignItems: 'center', marginBottom: 20}}><MaterialCommunityIcons name="cash-register" size={60} color="#9ca3af" /><Text style={styles.sectionTitle}>CHƯA MỞ CA LÀM VIỆC</Text></View>
+                <Text style={styles.label}>Tiền mặt đầu ca có trong két (VNĐ):</Text>
+                <TextInput style={styles.input} keyboardType="numeric" placeholder="Nhập số tiền..." value={openingCash} onChangeText={setOpeningCash} />
+                <TouchableOpacity style={styles.openBtn} onPress={handleOpenShift}><Text style={styles.btnText}>KHỞI TẠO CA MỚI</Text></TouchableOpacity>
               </View>
             ) : (
-              !currentOpenShift ? (
-                // CHƯA MỞ CA
-                <View style={styles.section}>
-                  <View style={{alignItems: 'center', marginBottom: 20}}>
-                    <MaterialCommunityIcons name="cash-register" size={60} color="#9ca3af" />
-                    <Text style={styles.sectionTitle}>CHƯA MỞ CA LÀM VIỆC</Text>
-                    <Text style={{color: '#666'}}>Chi nhánh: {storeList.find(s=>s.id===storeIdToView)?.name}</Text>
-                  </View>
-                  
-                  <Text style={styles.label}>Tiền mặt đầu ca có trong két (VNĐ):</Text>
-                  <TextInput 
-                    style={styles.input} 
-                    keyboardType="numeric" 
-                    placeholder="Nhập số tiền lẻ có sẵn..." 
-                    value={openingCash} 
-                    onChangeText={setOpeningCash} 
-                  />
-                  
-                  <TouchableOpacity style={styles.openBtn} onPress={handleOpenShift}>
-                    <Text style={styles.btnText}>KHỞI TẠO CA MỚI</Text>
-                  </TouchableOpacity>
+              <View>
+                <View style={[styles.section, {backgroundColor: '#e8f5e9'}]}>
+                  <Text style={{color: '#2e7d32', fontWeight: 'bold'}}>🟢 ĐANG TRONG CA: {storeList.find(s=>s.id===storeIdToView)?.name}</Text>
+                  <Text style={{color: '#555'}}>Mở lúc: {currentOpenShift.opened_at} bởi {currentOpenShift.opened_by_name}</Text>
                 </View>
-              ) : (
-                // ĐANG TRONG CA -> CHỐT CA
+
+                {/* PHẦN 1: KIỂM KHO */}
                 <View style={styles.section}>
-                  <View style={{backgroundColor: '#e8f5e9', padding: 15, borderRadius: 10, marginBottom: 20}}>
-                    <Text style={{color: '#2e7d32', fontWeight: 'bold', fontSize: 16, marginBottom: 5}}>🟢 ĐANG TRONG CA</Text>
-                    <Text style={{color: '#555'}}>Chi nhánh: {storeList.find(s=>s.id===currentOpenShift.store_id)?.name}</Text>
-                    <Text style={{color: '#555'}}>Mở lúc: {currentOpenShift.opened_at} bởi {currentOpenShift.opened_by_name}</Text>
-                    <Text style={{color: '#555', fontWeight: 'bold', marginTop: 5}}>Tiền đầu ca: {currentOpenShift.opening_cash.toLocaleString()}đ</Text>
+                  <Text style={styles.sectionTitle}>PHẦN 1: KIỂM KÊ KHO HÀNG</Text>
+                  <View style={styles.tableHeader}>
+                    <Text style={[styles.cell, {flex: 2}]}>Tên Hàng</Text>
+                    <Text style={[styles.cell, {flex: 1}]}>Tồn Đầu</Text>
+                    <Text style={[styles.cell, {flex: 1.5}]}>Tồn Cuối</Text>
+                  </View>
+                  {storeInventory.map(item => (
+                    <View key={item.id} style={styles.tableRow}>
+                      <Text style={[styles.cell, {flex: 2}]} numberOfLines={1}>{item.name}</Text>
+                      <Text style={[styles.cell, {flex: 1}]}>{item.quantity}</Text>
+                      <View style={{flex: 1.5, paddingHorizontal: 5}}>
+                        <TextInput 
+                          style={styles.smallInput} keyboardType="numeric" placeholder="Nhập"
+                          value={inventoryCheck[item.id] !== undefined ? String(inventoryCheck[item.id]) : ''}
+                          onChangeText={(val) => setInventoryCheck({...inventoryCheck, [item.id]: val})}
+                        />
+                      </View>
+                    </View>
+                  ))}
+                </View>
+
+                {/* PHẦN 2: DOANH THU & KÉT */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>PHẦN 2: DOANH THU & KÉT TIỀN</Text>
+                  <Text style={styles.infoText}>Tiền đầu giờ (1): {currentOpenShift.opening_cash.toLocaleString()}đ</Text>
+                  
+                  <Text style={styles.label}>Doanh thu Tiền Mặt (3):</Text>
+                  <TextInput style={styles.input} keyboardType="numeric" value={revCash} onChangeText={setRevCash} />
+
+                  <Text style={styles.label}>Tổng tiền giảm bill (4):</Text>
+                  <TextInput style={styles.input} keyboardType="numeric" value={discount} onChangeText={setDiscount} />
+
+                  <Text style={styles.label}>Tổng tiền MOMO:</Text>
+                  <TextInput style={styles.input} keyboardType="numeric" value={revMomo} onChangeText={setRevMomo} />
+
+                  <Text style={styles.label}>Tổng tiền GRAB:</Text>
+                  <TextInput style={styles.input} keyboardType="numeric" value={revGrab} onChangeText={setRevGrab} />
+
+                  <Text style={styles.label}>Tổng tiền SHOPEE FOOD:</Text>
+                  <TextInput style={styles.input} keyboardType="numeric" value={revShopee} onChangeText={setRevShopee} />
+
+                  <View style={{flexDirection: 'row', gap: 10}}>
+                    <View style={{flex: 1}}>
+                      <Text style={styles.label}>Tiền chi trong ngày (5):</Text>
+                      <TextInput style={styles.input} keyboardType="numeric" value={expenses} onChangeText={setExpenses} />
+                    </View>
+                    <View style={{flex: 2}}>
+                      <Text style={styles.label}>Ghi chú chi:</Text>
+                      <TextInput style={styles.input} placeholder="Mua đá, trà..." value={expensesNote} onChangeText={setExpensesNote} />
+                    </View>
                   </View>
 
-                  <Text style={[styles.sectionTitle, {color: '#f44336'}]}>BÁO CÁO & CHỐT CA</Text>
-                  
-                  <Text style={styles.label}>1. Doanh thu Tiền Mặt (VNĐ):</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" placeholder="Tiền khách đưa mặt..." value={revCash} onChangeText={setRevCash} />
-                  
-                  <Text style={styles.label}>2. Doanh thu Chuyển Khoản (VNĐ):</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" placeholder="Momo, VNPay, Banking..." value={revTransfer} onChangeText={setRevTransfer} />
-                  
-                  <View style={{height: 1, backgroundColor: '#eee', marginVertical: 15}} />
+                  <Text style={[styles.label, {color: '#f44336'}]}>TIỀN TRONG KÉT THỰC ĐẾM (2):</Text>
+                  <TextInput style={[styles.input, {borderColor: '#f44336', borderWidth: 2}]} keyboardType="numeric" placeholder="Đếm két..." value={actualCash} onChangeText={setActualCash} />
 
-                  <Text style={styles.label}>3. Tiền Thực Tế Đếm Được Trong Két (VNĐ):</Text>
-                  <TextInput style={[styles.input, {borderColor: '#f44336', borderWidth: 2}]} keyboardType="numeric" placeholder="Đếm két và nhập số chính xác..." value={actualCash} onChangeText={setActualCash} />
-                  <Text style={{fontSize: 12, color: '#f44336', marginTop: -5, marginBottom: 20}}>*Hệ thống sẽ đối soát tự động tiền bạn đếm với số tiền lý thuyết.</Text>
-
-                  <TouchableOpacity style={styles.closeBtn} onPress={handleCloseShift}>
-                    <Text style={styles.btnText}>ĐÓNG CA & CHỐT KÉT</Text>
-                  </TouchableOpacity>
+                  {/* Auto Preview */}
+                  <View style={styles.previewBox}>
+                    <Text style={{fontWeight: 'bold', marginBottom: 5}}>Xem Trước Báo Cáo:</Text>
+                    <Text>Doanh thu tổng: {((Number(revCash)||0) + (Number(revMomo)||0) + (Number(revGrab)||0) + (Number(revShopee)||0) - (Number(discount)||0)).toLocaleString()}đ</Text>
+                    <Text>Lệch két: {((Number(actualCash)||0) - (currentOpenShift.opening_cash + (Number(revCash)||0) - (Number(expenses)||0))).toLocaleString()}đ</Text>
+                  </View>
                 </View>
-              )
+
+                {/* PHẦN 3: CHẤM CÔNG */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>PHẦN 3: CHẤM CÔNG CA</Text>
+                  {todayAttendance.length > 0 ? todayAttendance.map(a => (
+                    <Text key={a.id} style={{marginBottom: 5}}>• Nhân viên {a.user_id}: Vào {a.checkIn} - Ra {a.checkOut || 'Chưa ra'}</Text>
+                  )) : <Text style={{color: '#888'}}>Chưa có dữ liệu chấm công hôm nay.</Text>}
+                </View>
+
+                <TouchableOpacity style={styles.closeBtn} onPress={handleCloseShift}>
+                  <Text style={styles.btnText}>NỘP BÁO CÁO (CHỐT CA)</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         )}
 
-        {/* === TAB 2: HISTORY === */}
         {activeTab === 'HISTORY' && !isStaff && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Lịch Sử Doanh Thu & Đối Soát Két</Text>
-            {historyShifts.length === 0 && <Text style={{color: '#888'}}>Chưa có dữ liệu ca làm việc nào.</Text>}
+            <Text style={styles.sectionTitle}>Lịch Sử Báo Cáo Chốt Ca</Text>
+            {historyShifts.length === 0 && <Text style={{color: '#888'}}>Chưa có báo cáo nào.</Text>}
             {historyShifts.map(shift => {
-              const totalRev = shift.revenue_cash + shift.revenue_transfer;
+              const totalRev = shift.rev_cash + shift.rev_momo + shift.rev_grab + shift.rev_shopee - shift.discount;
               return (
                 <View key={shift.id} style={styles.historyCard}>
                   <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10}}>
-                    <Text style={{fontWeight: 'bold', fontSize: 16, color: '#1f2937'}}>{shift.opened_at.split(' ')[0]}</Text>
+                    <Text style={{fontWeight: 'bold', fontSize: 16}}>{shift.opened_at.split(' ')[0]}</Text>
                     <Text style={{color: '#1976d2', fontWeight: 'bold'}}>{storeList.find(s=>s.id===shift.store_id)?.name}</Text>
                   </View>
-                  
                   <Text style={styles.hText}>Ca mở: {shift.opened_at.split(' ')[1]} ({shift.opened_by_name})</Text>
                   <Text style={styles.hText}>Ca đóng: {shift.closed_at.split(' ')[1]} ({shift.closed_by_name})</Text>
                   
-                  <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 10}}>
-                    <Text style={{fontWeight: 'bold'}}>Tổng doanh thu:</Text>
-                    <Text style={{fontWeight: 'bold', color: '#4caf50', fontSize: 16}}>{totalRev.toLocaleString()}đ</Text>
-                  </View>
-                  <Text style={{fontSize: 12, color: '#666', textAlign: 'right'}}>(TM: {shift.revenue_cash.toLocaleString()} - CK: {shift.revenue_transfer.toLocaleString()})</Text>
-
                   <View style={{backgroundColor: '#f5f5f5', padding: 10, borderRadius: 8, marginTop: 10}}>
-                    <Text style={styles.hText}>Tiền đầu ca: {shift.opening_cash.toLocaleString()}đ</Text>
-                    <Text style={styles.hText}>Tiền két thực tế: {shift.closing_cash_actual.toLocaleString()}đ</Text>
-                    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 5}}>
-                      <Text style={{fontWeight: 'bold', color: '#333'}}>Kết quả đối soát:</Text>
-                      {shift.discrepancy === 0 ? (
-                        <Text style={{fontWeight: 'bold', color: '#4caf50'}}>Khớp 100%</Text>
-                      ) : (
-                        <Text style={{fontWeight: 'bold', color: '#f44336'}}>
-                          Lệch {shift.discrepancy > 0 ? '+' : ''}{shift.discrepancy.toLocaleString()}đ
-                        </Text>
-                      )}
-                    </View>
+                    <Text style={{fontWeight: 'bold'}}>TỔNG DOANH THU: {totalRev.toLocaleString()}đ</Text>
+                    <Text style={styles.hText}>- Tiền mặt: {shift.rev_cash.toLocaleString()}đ</Text>
+                    <Text style={styles.hText}>- Momo/Grab/Shopee: {(shift.rev_momo+shift.rev_grab+shift.rev_shopee).toLocaleString()}đ</Text>
+                    <Text style={styles.hText}>- Chi phí: {shift.expenses.toLocaleString()}đ ({shift.expenses_note})</Text>
+                    
+                    <View style={{height: 1, backgroundColor: '#ddd', marginVertical: 8}}/>
+                    <Text style={styles.hText}>Tiền đầu giờ: {shift.opening_cash.toLocaleString()}đ</Text>
+                    <Text style={styles.hText}>Tiền trong két: {shift.closing_cash_actual.toLocaleString()}đ</Text>
+                    <Text style={{fontWeight: 'bold', color: shift.discrepancy===0?'#4caf50':'#f44336'}}>
+                      Lệch két: {shift.discrepancy.toLocaleString()}đ
+                    </Text>
                   </View>
                 </View>
               );
             })}
           </View>
         )}
-
       </ScrollView>
     </View>
   );
@@ -250,12 +280,18 @@ const styles = StyleSheet.create({
   tabText: { fontWeight: 'bold', color: '#6b7280' },
   tabTextActive: { color: '#1976d2' },
   section: { backgroundColor: '#fff', padding: 20, borderRadius: 12, marginBottom: 20, elevation: 3 },
-  sectionTitle: { fontSize: 18, fontWeight: '900', marginBottom: 15, color: '#374151', textAlign: 'center' },
-  label: { fontSize: 14, fontWeight: 'bold', color: '#4b5563', marginBottom: 8, marginTop: 10 },
-  input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 15, fontSize: 16, backgroundColor: '#f9fafb', marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '900', marginBottom: 15, color: '#1976d2' },
+  label: { fontSize: 13, fontWeight: 'bold', color: '#4b5563', marginBottom: 5, marginTop: 10 },
+  input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: '#f9fafb', marginBottom: 5 },
+  smallInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 5, fontSize: 13, textAlign: 'center' },
   openBtn: { backgroundColor: '#4caf50', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   closeBtn: { backgroundColor: '#f44336', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   historyCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee', padding: 15, borderRadius: 10, marginBottom: 15 },
-  hText: { color: '#555', marginBottom: 3 }
+  hText: { color: '#555', marginBottom: 3, fontSize: 13 },
+  infoText: { fontSize: 14, fontWeight: 'bold', marginBottom: 10, color: '#333' },
+  previewBox: { backgroundColor: '#fff3e0', padding: 10, borderRadius: 8, marginTop: 15 },
+  tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 5, marginBottom: 5 },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
+  cell: { fontSize: 13, color: '#333' }
 });
