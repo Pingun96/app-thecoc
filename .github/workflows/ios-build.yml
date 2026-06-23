@@ -16,6 +16,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Install Build Tools
+        run: brew install ninja
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -64,7 +67,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            ENABLE_USER_SCRIPT_SANDBOXING=NO
+            ENABLE_USER_SCRIPT_SANDBOXING=NO | xcpretty
 
       - name: Package to IPA
         run: |
