@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView } from 'react-native';
 import { AppContext } from '../../App';
 
 export default function StaffHistoryScreen({ navigation }) {
@@ -27,7 +27,7 @@ export default function StaffHistoryScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backText}>{'< Trở lại'}</Text>
@@ -63,15 +63,16 @@ export default function StaffHistoryScreen({ navigation }) {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 80 }}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', padding: 20 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 30, marginBottom: 20 },
+  container: { flex: 1, backgroundColor: '#f0f2f5', paddingHorizontal: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 20 },
   backBtn: { padding: 10, marginRight: 10 },
   backText: { color: '#2196F3', fontSize: 16, fontWeight: 'bold' },
   header: { fontSize: 22, fontWeight: 'bold', color: '#333' },
