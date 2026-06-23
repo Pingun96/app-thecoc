@@ -1,41 +1,67 @@
-name: Build iOS (macOS Runner)
+name: iOS Build (Unsigned IPA)
 
 on:
   push:
     branches:
       - main
+      - master
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build iOS IPA on macOS
+    name: Build iOS App
     runs-on: macos-latest
 
     steps:
-      - name: 1. Clone Source Code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: 2. Setup Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
 
-      - name: 3. Setup EAS CLI
-        run: npm install -g eas-cli
-        
-      - name: 4. Install dependencies
+      - name: Install Dependencies
         run: npm install
+        working-directory: ./thecoc-mobile
 
-      - name: 5. Build iOS App
-        run: eas build --platform ios --local --non-interactive --output thecoc-app.ipa
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      - name: Generate Native iOS Project
+        run: npx expo prebuild --platform ios
+        working-directory: ./thecoc-mobile
 
-      - name: 6. Upload IPA
+      - name: Build iOS (Xcode)
+        working-directory: ./thecoc-mobile/ios
+        run: |
+          # Tìm tên Workspace do Expo tạo ra
+          WORKSPACE_NAME=$(ls | grep .xcworkspace)
+          # Tên Scheme thường trùng với tên thư mục dự án
+          SCHEME_NAME="thecocmobile"
+          
+          xcodebuild clean build \
+            -workspace "$WORKSPACE_NAME" \
+            -scheme "$SCHEME_NAME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package to IPA
+        working-directory: ./thecoc-mobile
+        run: |
+          mkdir -p Payload
+          # Tìm file .app sau khi build xong
+          APP_PATH=$(find ios/build/Build/Products/Release-iphoneos -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: Không tìm thấy file .app"
+            exit 1
+          fi
+          cp -r "$APP_PATH" Payload/
+          zip -qr TheCoc-App.ipa Payload
+
+      - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TheCoc-iOS-App
-          path: thecoc-app.ipa
-          retention-days: 7
+          name: TheCoc-iOS
+          path: thecoc-mobile/TheCoc-App.ipa
