@@ -33,6 +33,10 @@ jobs:
           echo "export NODE_BINARY=$(which node)" > .xcode.env
           sudo ln -s $(which node) /usr/local/bin/node || true
 
+      - name: Install CocoaPods
+        working-directory: ./ios
+        run: pod install
+
       - name: Build iOS (Xcode)
         working-directory: ./ios
         run: |
