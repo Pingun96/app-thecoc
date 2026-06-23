@@ -1,5 +1,5 @@
 import React, { useState, useRef, useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ActivityIndicator, ScrollView, SafeAreaView } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera'; 
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,60 +77,62 @@ export default function StaffCheckinScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#1976d2" />
-        </TouchableOpacity>
-        <Text style={styles.header}>Chấm Công (GPS & Camera)</Text>
-      </View>
-      
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Hôm nay: {today}</Text>
-        <Text style={{color: '#666', marginBottom: 15}}>Vui lòng cho phép ứng dụng truy cập Định vị và Camera để xác thực chấm công.</Text>
-        <View style={styles.buttonRow}>
-          {!isCheckedIn ? (
-            <TouchableOpacity style={[styles.button, styles.btnCheckIn, { flex: 1 }]} onPress={() => handleAttendancePress('check-in')}>
-              <Text style={styles.buttonText}>CHECK-IN VÀO CA</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={[styles.button, styles.btnCheckOut, { flex: 1 }]} onPress={() => handleAttendancePress('check-out')}>
-              <Text style={styles.buttonText}>CHECK-OUT KẾT THÚC</Text>
-              <Text style={{color:'#fff', marginTop: 5, fontSize: 12}}>Đã vào ca lúc: {currentRecord.checkIn}</Text>
-            </TouchableOpacity>
-          )}
+    <SafeAreaView style={styles.container}>
+      <ScrollView keyboardShouldPersistTaps="handled">
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color="#1976d2" />
+          </TouchableOpacity>
+          <Text style={styles.header}>Chấm Công (GPS & Camera)</Text>
         </View>
-      </View>
+        
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Hôm nay: {today}</Text>
+          <Text style={{color: '#666', marginBottom: 15}}>Vui lòng cho phép ứng dụng truy cập Định vị và Camera để xác thực chấm công.</Text>
+          <View style={styles.buttonRow}>
+            {!isCheckedIn ? (
+              <TouchableOpacity style={[styles.button, styles.btnCheckIn, { flex: 1 }]} onPress={() => handleAttendancePress('check-in')}>
+                <Text style={styles.buttonText}>CHECK-IN VÀO CA</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={[styles.button, styles.btnCheckOut, { flex: 1 }]} onPress={() => handleAttendancePress('check-out')}>
+                <Text style={styles.buttonText}>CHECK-OUT KẾT THÚC</Text>
+                <Text style={{color:'#fff', marginTop: 5, fontSize: 12}}>Đã vào ca lúc: {currentRecord.checkIn}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
-      <Modal visible={showCamera} animationType="slide">
-        <View style={{ flex: 1 }}>
-          {cameraPermission?.granted && (
-            <CameraView style={{ flex: 1 }} facing="front" ref={cameraRef}>
-              <View style={styles.cameraOverlay}>
-                {isLoading ? (
-                  <ActivityIndicator size="large" color="#4CAF50" />
-                ) : (
-                  <>
-                    <TouchableOpacity style={styles.captureBtn} onPress={takePictureAndSubmit}>
-                      <Text style={styles.buttonText}>Chụp Ảnh & {actionType === 'check-in' ? 'Vào ca' : 'Kết thúc ca'}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowCamera(false)}>
-                      <Text style={styles.buttonText}>Hủy thao tác</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
-            </CameraView>
-          )}
-        </View>
-      </Modal>
-    </ScrollView>
+        <Modal visible={showCamera} animationType="slide">
+          <View style={{ flex: 1 }}>
+            {cameraPermission?.granted && (
+              <CameraView style={{ flex: 1 }} facing="front" ref={cameraRef}>
+                <View style={styles.cameraOverlay}>
+                  {isLoading ? (
+                    <ActivityIndicator size="large" color="#4CAF50" />
+                  ) : (
+                    <>
+                      <TouchableOpacity style={styles.captureBtn} onPress={takePictureAndSubmit}>
+                        <Text style={styles.buttonText}>Chụp Ảnh & {actionType === 'check-in' ? 'Vào ca' : 'Kết thúc ca'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowCamera(false)}>
+                        <Text style={styles.buttonText}>Hủy thao tác</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              </CameraView>
+            )}
+          </View>
+        </Modal>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', padding: 20 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 30, marginBottom: 20 },
+  container: { flex: 1, backgroundColor: '#f0f2f5', paddingHorizontal: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 20 },
   backBtn: { padding: 5, marginRight: 10 },
   header: { fontSize: 24, fontWeight: 'bold', color: '#1f2937' },
   section: { backgroundColor: '#fff', padding: 20, borderRadius: 12, marginBottom: 20, elevation: 3 },

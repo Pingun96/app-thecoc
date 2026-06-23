@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import { AppContext } from '../../App';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -118,8 +118,9 @@ export default function InventoryScreen({ navigation }) {
 
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerRow}>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
+        <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#1976d2" />
         </TouchableOpacity>
@@ -314,13 +315,14 @@ export default function InventoryScreen({ navigation }) {
         </View>
       </Modal>
 
-    </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', padding: 20 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 30, marginBottom: 10 },
+  container: { flex: 1, backgroundColor: '#f0f2f5', paddingHorizontal: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 10 },
   backBtn: { padding: 5, marginRight: 10 },
   header: { fontSize: 24, fontWeight: 'bold', color: '#1f2937' },
   
