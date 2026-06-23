@@ -1,0 +1,41 @@
+name: Build iOS (macOS Runner)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build iOS IPA on macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: 1. Clone Source Code
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 3. Setup EAS CLI
+        run: npm install -g eas-cli
+        
+      - name: 4. Install dependencies
+        run: npm install
+
+      - name: 5. Build iOS App
+        run: eas build --platform ios --local --non-interactive --output thecoc-app.ipa
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+
+      - name: 6. Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheCoc-iOS-App
+          path: thecoc-app.ipa
+          retention-days: 7

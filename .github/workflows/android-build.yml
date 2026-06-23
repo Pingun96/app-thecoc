@@ -1,0 +1,39 @@
+name: Build Android APK (Ubuntu Runner)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android APK on Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Clone Source Code
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 3. Setup EAS CLI
+        run: npm install -g eas-cli
+        
+      - name: 4. Install dependencies
+        run: npm install
+
+      - name: 5. Build Android APK
+        run: eas build --platform android --profile preview --local --non-interactive --output thecoc-app.apk
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 6. Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheCoc-Android-APK
+          path: thecoc-app.apk
+          retention-days: 7
