@@ -25,7 +25,7 @@ jobs:
         run: npm install
 
       - name: Generate Native iOS Project
-        run: npx expo prebuild --platform ios
+        run: npx expo prebuild --platform ios --clean
 
       - name: Setup Node for Xcode
         working-directory: ./ios
@@ -36,7 +36,15 @@ jobs:
       - name: Build iOS (Xcode)
         working-directory: ./ios
         run: |
-          WORKSPACE_NAME=$(ls | grep '\.xcworkspace' | head -1)
+          echo "==== THƯ MỤC IOS ===="
+          ls -la
+          
+          WORKSPACE_NAME=$(find . -maxdepth 1 -name "*.xcworkspace" | head -n 1 | sed 's|^\./||')
+          if [ -z "$WORKSPACE_NAME" ]; then
+            echo "Error: Không tìm thấy file .xcworkspace!"
+            exit 1
+          fi
+          
           SCHEME_NAME=$(echo "$WORKSPACE_NAME" | sed 's/\.xcworkspace//')
           
           echo "Using Workspace: $WORKSPACE_NAME"
