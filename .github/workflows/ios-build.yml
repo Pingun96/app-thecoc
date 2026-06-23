@@ -57,7 +57,7 @@ jobs:
           echo "Using Workspace: $WORKSPACE_NAME"
           echo "Using Scheme: $SCHEME_NAME"
           
-          set -o pipefail
+          set +e
           xcodebuild clean build \
             -workspace "$WORKSPACE_NAME" \
             -scheme "$SCHEME_NAME" \
@@ -67,7 +67,21 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            ENABLE_USER_SCRIPT_SANDBOXING=NO | xcpretty
+            ENABLE_USER_SCRIPT_SANDBOXING=NO | xcpretty > ../xcodebuild.log
+          
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
+          
+          if [ $BUILD_EXIT_CODE -ne 0 ]; then
+            echo "## ❌ Xcode Build Thất Bại" >> $GITHUB_STEP_SUMMARY
+            echo "Dưới đây là nguyên nhân chính xác gây ra lỗi:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`text" >> $GITHUB_STEP_SUMMARY
+            tail -n 50 ../xcodebuild.log >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            
+            echo "==== CHI TIẾT LỖI XCODEBUILD ===="
+            tail -n 50 ../xcodebuild.log
+            exit $BUILD_EXIT_CODE
+          fi
 
       - name: Package to IPA
         run: |
