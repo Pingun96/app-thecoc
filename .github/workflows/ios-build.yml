@@ -10,7 +10,7 @@ on:
 jobs:
   build:
     name: Build iOS App
-    runs-on: macos-latest
+    runs-on: macos-14
 
     steps:
       - name: Checkout Code
@@ -27,14 +27,22 @@ jobs:
       - name: Generate Native iOS Project
         run: npx expo prebuild --platform ios
 
+      - name: Setup Node for Xcode
+        working-directory: ./ios
+        run: |
+          echo "export NODE_BINARY=$(which node)" > .xcode.env
+          sudo ln -s $(which node) /usr/local/bin/node || true
+
       - name: Build iOS (Xcode)
         working-directory: ./ios
         run: |
-          # Tìm tên Workspace do Expo tạo ra
-          WORKSPACE_NAME=$(ls | grep .xcworkspace)
-          # Tên Scheme thường trùng với tên thư mục dự án
-          SCHEME_NAME="thecocmobile"
+          WORKSPACE_NAME=$(ls | grep '\.xcworkspace' | head -1)
+          SCHEME_NAME=$(echo "$WORKSPACE_NAME" | sed 's/\.xcworkspace//')
           
+          echo "Using Workspace: $WORKSPACE_NAME"
+          echo "Using Scheme: $SCHEME_NAME"
+          
+          set -o pipefail
           xcodebuild clean build \
             -workspace "$WORKSPACE_NAME" \
             -scheme "$SCHEME_NAME" \
@@ -43,22 +51,21 @@ jobs:
             -derivedDataPath build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO | xcpretty
 
       - name: Package to IPA
         run: |
           mkdir -p Payload
-          # Tìm file .app sau khi build xong
           APP_PATH=$(find ios/build/Build/Products/Release-iphoneos -name "*.app" | head -n 1)
           if [ -z "$APP_PATH" ]; then
             echo "Error: Không tìm thấy file .app"
             exit 1
           fi
           cp -r "$APP_PATH" Payload/
-          zip -qr TheCoc-App.ipa Payload
+          zip -qr TheCoc-iOS.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: TheCoc-iOS
-          path: thecoc-mobile/TheCoc-App.ipa
+          path: TheCoc-iOS.ipa
