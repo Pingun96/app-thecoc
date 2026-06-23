@@ -235,10 +235,6 @@ export default function ShiftScreen({ navigation }) {
                     <Text key={a.id} style={{marginBottom: 5}}>• Nhân viên {a.user_id}: Vào {a.checkIn} - Ra {a.checkOut || 'Chưa ra'}</Text>
                   )) : <Text style={{color: '#888'}}>Chưa có dữ liệu chấm công hôm nay.</Text>}
                 </View>
-
-                <TouchableOpacity style={styles.closeBtn} onPress={handleCloseShift}>
-                  <Text style={styles.btnText}>NỘP BÁO CÁO (CHỐT CA)</Text>
-                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -278,6 +274,16 @@ export default function ShiftScreen({ navigation }) {
           </View>
         )}
       </ScrollView>
+
+      {/* FIXED BOTTOM BUTTON FOR CLOSING SHIFT */}
+      {activeTab === 'ACTION' && currentOpenShift && storeIdToView !== 'ALL' && (
+        <View style={styles.fixedBottomBar}>
+          <TouchableOpacity style={styles.closeBtnFixed} onPress={handleCloseShift}>
+            <Text style={styles.btnText}>XÁC NHẬN NỘP BÁO CÁO (CHỐT CA)</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -299,7 +305,8 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: '#f9fafb', marginBottom: 5 },
   smallInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 5, fontSize: 13, textAlign: 'center' },
   openBtn: { backgroundColor: '#4caf50', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
-  closeBtn: { backgroundColor: '#f44336', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
+  fixedBottomBar: { padding: 15, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#eee', elevation: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
+  closeBtnFixed: { backgroundColor: '#f44336', padding: 15, borderRadius: 8, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   historyCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee', padding: 15, borderRadius: 10, marginBottom: 15 },
   hText: { color: '#555', marginBottom: 3, fontSize: 13 },
