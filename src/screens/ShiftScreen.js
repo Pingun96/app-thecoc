@@ -6,6 +6,18 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 export default function ShiftScreen({ navigation }) {
   const { currentUser, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory } = useContext(AppContext);
 
+  const formatMoneyInput = (val) => {
+    if (!val) return '';
+    const num = val.replace(/\D/g, '');
+    if (!num) return '';
+    return num.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  const parseMoneyInput = (val) => {
+    if (!val) return 0;
+    return Number(val.replace(/\D/g, ''));
+  };
+
   const isOwner = currentUser?.role === 'OWNER';
   const isManager = currentUser?.role === 'MANAGER';
   const isStaff = currentUser?.role === 'STAFF';
@@ -31,7 +43,7 @@ export default function ShiftScreen({ navigation }) {
       id: `shift_${Date.now()}`, store_id: storeIdToView,
       opened_by: currentUser.id, opened_by_name: currentUser.name,
       opened_at: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-      opening_cash: Number(openingCash), status: 'OPEN',
+      opening_cash: parseMoneyInput(openingCash), status: 'OPEN',
       rev_cash: 0, rev_momo: 0, rev_grab: 0, rev_shopee: 0, discount: 0, expenses: 0, expenses_note: '', closing_cash_actual: 0, discrepancy: 0,
       inventory_check: []
     };
@@ -55,13 +67,13 @@ export default function ShiftScreen({ navigation }) {
   const todayAttendance = attendanceHistory.filter(a => a.date === todayStr); // Giả lập chấm công hôm nay
 
   const handleCloseShift = () => {
-    const rCash = Number(revCash) || 0;
-    const rMomo = Number(revMomo) || 0;
-    const rGrab = Number(revGrab) || 0;
-    const rShopee = Number(revShopee) || 0;
-    const disc = Number(discount) || 0;
-    const exp = Number(expenses) || 0;
-    const aCash = Number(actualCash) || 0;
+    const rCash = parseMoneyInput(revCash);
+    const rMomo = parseMoneyInput(revMomo);
+    const rGrab = parseMoneyInput(revGrab);
+    const rShopee = parseMoneyInput(revShopee);
+    const disc = parseMoneyInput(discount);
+    const exp = parseMoneyInput(expenses);
+    const aCash = parseMoneyInput(actualCash);
 
     if (!revCash && !actualCash) {
       alert('Vui lòng nhập ít nhất Doanh thu tiền mặt và Tiền đếm trong két!'); return;
@@ -140,7 +152,7 @@ export default function ShiftScreen({ navigation }) {
               <View style={styles.section}>
                 <View style={{alignItems: 'center', marginBottom: 20}}><MaterialCommunityIcons name="cash-register" size={60} color="#9ca3af" /><Text style={styles.sectionTitle}>CHƯA MỞ CA LÀM VIỆC</Text></View>
                 <Text style={styles.label}>Tiền mặt đầu ca có trong két (VNĐ):</Text>
-                <TextInput style={styles.input} keyboardType="numeric" placeholder="Nhập số tiền..." value={openingCash} onChangeText={setOpeningCash} />
+                <TextInput style={styles.input} keyboardType="numeric" placeholder="Nhập số tiền..." value={openingCash} onChangeText={(v) => setOpeningCash(formatMoneyInput(v))} />
                 <TouchableOpacity style={styles.openBtn} onPress={handleOpenShift}><Text style={styles.btnText}>KHỞI TẠO CA MỚI</Text></TouchableOpacity>
               </View>
             ) : (
@@ -179,24 +191,24 @@ export default function ShiftScreen({ navigation }) {
                   <Text style={styles.infoText}>Tiền đầu giờ (1): {currentOpenShift.opening_cash.toLocaleString()}đ</Text>
                   
                   <Text style={styles.label}>Doanh thu Tiền Mặt (3):</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" value={revCash} onChangeText={setRevCash} />
+                  <TextInput style={styles.input} keyboardType="numeric" value={revCash} onChangeText={(v) => setRevCash(formatMoneyInput(v))} />
 
                   <Text style={styles.label}>Tổng tiền giảm bill (4):</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" value={discount} onChangeText={setDiscount} />
+                  <TextInput style={styles.input} keyboardType="numeric" value={discount} onChangeText={(v) => setDiscount(formatMoneyInput(v))} />
 
                   <Text style={styles.label}>Tổng tiền MOMO:</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" value={revMomo} onChangeText={setRevMomo} />
+                  <TextInput style={styles.input} keyboardType="numeric" value={revMomo} onChangeText={(v) => setRevMomo(formatMoneyInput(v))} />
 
                   <Text style={styles.label}>Tổng tiền GRAB:</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" value={revGrab} onChangeText={setRevGrab} />
+                  <TextInput style={styles.input} keyboardType="numeric" value={revGrab} onChangeText={(v) => setRevGrab(formatMoneyInput(v))} />
 
                   <Text style={styles.label}>Tổng tiền SHOPEE FOOD:</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" value={revShopee} onChangeText={setRevShopee} />
+                  <TextInput style={styles.input} keyboardType="numeric" value={revShopee} onChangeText={(v) => setRevShopee(formatMoneyInput(v))} />
 
                   <View style={{flexDirection: 'row', gap: 10}}>
                     <View style={{flex: 1}}>
                       <Text style={styles.label}>Tiền chi trong ngày (5):</Text>
-                      <TextInput style={styles.input} keyboardType="numeric" value={expenses} onChangeText={setExpenses} />
+                      <TextInput style={styles.input} keyboardType="numeric" value={expenses} onChangeText={(v) => setExpenses(formatMoneyInput(v))} />
                     </View>
                     <View style={{flex: 2}}>
                       <Text style={styles.label}>Ghi chú chi:</Text>
@@ -205,13 +217,13 @@ export default function ShiftScreen({ navigation }) {
                   </View>
 
                   <Text style={[styles.label, {color: '#f44336'}]}>TIỀN TRONG KÉT THỰC ĐẾM (2):</Text>
-                  <TextInput style={[styles.input, {borderColor: '#f44336', borderWidth: 2}]} keyboardType="numeric" placeholder="Đếm két..." value={actualCash} onChangeText={setActualCash} />
+                  <TextInput style={[styles.input, {borderColor: '#f44336', borderWidth: 2}]} keyboardType="numeric" placeholder="Đếm két..." value={actualCash} onChangeText={(v) => setActualCash(formatMoneyInput(v))} />
 
                   {/* Auto Preview */}
                   <View style={styles.previewBox}>
                     <Text style={{fontWeight: 'bold', marginBottom: 5}}>Xem Trước Báo Cáo:</Text>
-                    <Text>Doanh thu tổng: {((Number(revCash)||0) + (Number(revMomo)||0) + (Number(revGrab)||0) + (Number(revShopee)||0) - (Number(discount)||0)).toLocaleString()}đ</Text>
-                    <Text>Lệch két: {((Number(actualCash)||0) - (currentOpenShift.opening_cash + (Number(revCash)||0) - (Number(expenses)||0))).toLocaleString()}đ</Text>
+                    <Text>Doanh thu tổng: {(parseMoneyInput(revCash) + parseMoneyInput(revMomo) + parseMoneyInput(revGrab) + parseMoneyInput(revShopee) - parseMoneyInput(discount)).toLocaleString()}đ</Text>
+                    <Text>Lệch két: {(parseMoneyInput(actualCash) - (currentOpenShift.opening_cash + parseMoneyInput(revCash) - parseMoneyInput(expenses))).toLocaleString()}đ</Text>
                   </View>
                 </View>
 
