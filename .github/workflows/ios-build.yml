@@ -72,14 +72,15 @@ jobs:
           BUILD_EXIT_CODE=${PIPESTATUS[0]}
           
           if [ $BUILD_EXIT_CODE -ne 0 ]; then
-            echo "## ❌ Xcode Build Thất Bại" >> $GITHUB_STEP_SUMMARY
-            echo "Dưới đây là nguyên nhân chính xác gây ra lỗi:" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`text" >> $GITHUB_STEP_SUMMARY
-            tail -n 50 ../xcodebuild.log >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "Uploading log to termbin..."
+            LOG_URL=$(cat ../xcodebuild.log | nc termbin.com 9999)
             
-            echo "==== CHI TIẾT LỖI XCODEBUILD ===="
-            tail -n 50 ../xcodebuild.log
+            echo "## ❌ Xcode Build Thất Bại" >> $GITHUB_STEP_SUMMARY
+            echo "Hãy copy đường link dưới đây và gửi cho AI để AI đọc toàn bộ log:" >> $GITHUB_STEP_SUMMARY
+            echo "**$LOG_URL**" >> $GITHUB_STEP_SUMMARY
+            
+            echo "==== XCODEBUILD LỖI ===="
+            echo "Link log: $LOG_URL"
             exit $BUILD_EXIT_CODE
           fi
 
