@@ -23,14 +23,12 @@ jobs:
 
       - name: Install Dependencies
         run: npm install
-        working-directory: ./thecoc-mobile
 
       - name: Generate Native iOS Project
         run: npx expo prebuild --platform ios
-        working-directory: ./thecoc-mobile
 
       - name: Build iOS (Xcode)
-        working-directory: ./thecoc-mobile/ios
+        working-directory: ./ios
         run: |
           # Tìm tên Workspace do Expo tạo ra
           WORKSPACE_NAME=$(ls | grep .xcworkspace)
@@ -48,7 +46,6 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
 
       - name: Package to IPA
-        working-directory: ./thecoc-mobile
         run: |
           mkdir -p Payload
           # Tìm file .app sau khi build xong
