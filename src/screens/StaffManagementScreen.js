@@ -118,7 +118,7 @@ export default function StaffManagementScreen({ navigation }) {
           <Text style={styles.header}>Quản Lý Nhân Sự</Text>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }} style={{ flex: 1 }}>
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               DANH SÁCH NHÂN SỰ {displayStoreId === 'ALL' ? '(TẤT CẢ CHI NHÁNH)' : `(CHI NHÁNH ${displayStoreId})`}

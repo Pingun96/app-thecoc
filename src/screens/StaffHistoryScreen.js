@@ -58,13 +58,15 @@ export default function StaffHistoryScreen({ navigation }) {
       {myHistory.length === 0 ? (
         <Text style={{textAlign: 'center', color: '#888', marginTop: 20}}>Chưa có dữ liệu chấm công</Text>
       ) : (
-        <FlatList
-          data={myHistory}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 80 }}
-        />
+        <View style={{ flex: 1 }}>
+          <FlatList
+            data={myHistory}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 80 }}
+          />
+        </View>
       )}
     </SafeAreaView>
   );
