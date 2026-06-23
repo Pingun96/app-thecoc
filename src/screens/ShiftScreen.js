@@ -144,7 +144,7 @@ export default function ShiftScreen({ navigation }) {
         )}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         {activeTab === 'ACTION' && (
           <View>
             {storeIdToView === 'ALL' ? (

@@ -78,7 +78,7 @@ export default function StaffCheckinScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView keyboardShouldPersistTaps="handled">
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 80 }}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#1976d2" />

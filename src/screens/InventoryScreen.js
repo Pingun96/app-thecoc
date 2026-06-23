@@ -144,7 +144,7 @@ export default function InventoryScreen({ navigation }) {
         )}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         
         {/* === TAB 1: OVERVIEW === */}
         {activeTab === 'OVERVIEW' && !isStaff && (
