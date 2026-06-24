@@ -1,6 +1,8 @@
 import React, { useState, createContext, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import StaffHistoryScreen from './src/screens/StaffHistoryScreen';
@@ -13,6 +15,31 @@ import { supabase } from './src/services/supabaseClient';
 export const AppContext = createContext();
 
 const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
+
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === 'HomeTab') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'ScheduleTab') {
+            iconName = focused ? 'calendar' : 'calendar-outline';
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#e91e63',
+        tabBarInactiveTintColor: 'gray',
+      })}
+    >
+      <Tab.Screen name="HomeTab" component={DashboardScreen} options={{ title: 'Trang Chủ' }} />
+      <Tab.Screen name="ScheduleTab" component={ShiftScheduleScreen} options={{ title: 'Lịch Làm' }} />
+    </Tab.Navigator>
+  );
+}
 
 export default function App() {
   const [storeList, setStoreList] = useState([]);
@@ -72,7 +99,7 @@ export default function App() {
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
+          <Stack.Screen name="Dashboard" component={MainTabs} />
           <Stack.Screen name="StaffHistory" component={StaffHistoryScreen} />
           <Stack.Screen name="StaffManagement" component={StaffManagementScreen} />
           <Stack.Screen name="Inventory" component={InventoryScreen} />
