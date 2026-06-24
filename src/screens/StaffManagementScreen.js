@@ -103,6 +103,11 @@ export default function StaffManagementScreen({ navigation }) {
     if (!editingStaff.name || !editingStaff.phone || !editingStaff.wage) {
       alert('Không được để trống thông tin!'); return;
     }
+    const cleanPhone = editingStaff.phone.replace(/\s/g, '');
+    if (staffList.some((s) => s.phone === cleanPhone && s.id !== editingStaff.id)) {
+      Alert.alert('Lỗi', 'Số điện thoại này đã được sử dụng cho nhân viên khác!');
+      return;
+    }
     
     let finalViewableStores = editingStaff.role === 'MANAGER' 
       ? [...new Set([...(editingStaff.permissions.viewable_stores || []), editingStaff.store_id])] 
@@ -182,9 +187,11 @@ export default function StaffManagementScreen({ navigation }) {
                     )}
                   </View>
                 </View>
-                <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(staff)}>
-                  <Text style={styles.editBtnText}>Sửa</Text>
-                </TouchableOpacity>
+                {currentUser?.role === 'OWNER' && (
+                  <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(staff)}>
+                    <Text style={styles.editBtnText}>Sửa</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
           </View>
@@ -289,6 +296,9 @@ export default function StaffManagementScreen({ navigation }) {
                 
                 <Text style={styles.label}>Tên:</Text>
                 <TextInput style={styles.input} value={editingStaff?.name} onChangeText={(t) => setEditingStaff({...editingStaff, name: t})} />
+
+                <Text style={styles.label}>Số điện thoại (SĐT đăng nhập):</Text>
+                <TextInput style={styles.input} keyboardType="phone-pad" value={editingStaff?.phone} onChangeText={(t) => setEditingStaff({...editingStaff, phone: t})} />
 
                 <Text style={styles.label}>Lương (đ/h):</Text>
                 <TextInput style={styles.input} keyboardType="numeric" value={String(editingStaff?.wage || '')} onChangeText={(t) => setEditingStaff({...editingStaff, wage: Number(t)})} />
