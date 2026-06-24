@@ -399,11 +399,11 @@ export default function ShiftScheduleScreen({ navigation }) {
                 
                 {/* Danh sách đã duyệt */}
                 {approved.map(r => (
-                  <View key={r.id} style={styles.staffItemRow}>
-                    <Text style={styles.staffItemText}>• {getStaffName(r.user_id)}</Text>
+                  <View key={r.id} style={[styles.staffItemRow, { backgroundColor: '#f0fdfa', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#5eead4' }]}>
+                    <Text style={[styles.staffItemText, {fontWeight: 'bold', color: '#0f766e'}]} numberOfLines={1}>{getStaffName(r.user_id)}</Text>
                     {isManagerOrOwner && (
                       <TouchableOpacity style={styles.iconActionBtn} onPress={() => handleManagerDeleteShift(r.id, getStaffName(r.user_id))}>
-                        <Ionicons name="trash-outline" size={18} color="#d32f2f" />
+                        <Ionicons name="trash-outline" size={18} color="#ef4444" />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -411,15 +411,15 @@ export default function ShiftScheduleScreen({ navigation }) {
                 
                 {/* Danh sách chờ duyệt */}
                 {pending.map(r => (
-                  <View key={r.id} style={[styles.staffItemRow, {backgroundColor: '#fff8e1', padding: 6, borderRadius: 6, marginTop: 4}]}>
-                    <Text style={[styles.staffItemText, {color: '#f57c00'}]} numberOfLines={1}>⏳ {getStaffName(r.user_id)}</Text>
+                  <View key={r.id} style={[styles.staffItemRow, {backgroundColor: '#fffbeb', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#fde047'}]}>
+                    <Text style={[styles.staffItemText, {fontWeight: 'bold', color: '#b45309'}]} numberOfLines={1}>⏳ {getStaffName(r.user_id)}</Text>
                     {isManagerOrOwner && (
                       <View style={{flexDirection: 'row', gap: 8}}>
                         <TouchableOpacity onPress={() => handleApproveShift(r.id, r.user_id)}>
-                          <Ionicons name="checkmark-circle" size={24} color="#388e3c" />
+                          <Ionicons name="checkmark-circle" size={24} color="#22c55e" />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => handleRejectShift(r.id, r.user_id)}>
-                          <Ionicons name="close-circle" size={24} color="#d32f2f" />
+                          <Ionicons name="close-circle" size={24} color="#ef4444" />
                         </TouchableOpacity>
                       </View>
                     )}
@@ -558,8 +558,8 @@ const styles = StyleSheet.create({
   shiftHeaderTitle: { fontWeight: 'bold', color: '#1976d2', fontSize: 13 },
   shiftHeaderCount: { fontWeight: 'bold', color: '#1976d2', fontSize: 14, backgroundColor: 'rgba(255,255,255,0.7)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, overflow: 'hidden' },
   shiftStaffList: { padding: 10 },
-  staffItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  staffItemText: { fontSize: 14, color: '#333', flex: 1 },
+  staffItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  staffItemText: { fontSize: 13, color: '#333', flex: 1 },
   iconActionBtn: { padding: 4 },
   emptyStaff: { fontSize: 14, color: '#aaa', fontStyle: 'italic', textAlign: 'center', marginTop: 10 },
   verticalDivider: { width: 1, backgroundColor: '#eee' },
