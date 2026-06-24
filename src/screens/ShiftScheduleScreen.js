@@ -6,10 +6,22 @@ import { supabase } from '../services/supabaseClient';
 import { scheduleShiftReminder, getManagersPushTokens, sendPushNotification } from '../services/NotificationService';
 
 export default function ShiftScheduleScreen({ navigation }) {
-  const { currentUser, shiftRegistrations, setShiftRegistrations, storeList, staffList, refreshData, isDataLoading } = useContext(AppContext);
+  const { currentUser, selectedStoreId, shiftRegistrations, setShiftRegistrations, storeList, staffList, refreshData, isDataLoading } = useContext(AppContext);
   
-  const myStoreId = currentUser?.store_id;
-  const isManagerOrOwner = currentUser?.role === 'MANAGER' || currentUser?.role === 'OWNER';
+  const isOwner = currentUser?.role === 'OWNER';
+  const isManager = currentUser?.role === 'MANAGER';
+  const isStaff = currentUser?.role === 'STAFF';
+  const viewableStores = currentUser?.permissions?.viewable_stores || [];
+
+  let myStoreId = currentUser?.store_id;
+  if (isOwner || viewableStores.includes(selectedStoreId)) myStoreId = selectedStoreId;
+  if (isOwner && selectedStoreId === 'ALL') myStoreId = 'ALL';
+
+  const storeName = myStoreId === 'ALL'
+    ? 'Tất cả chi nhánh'
+    : storeList.find((store) => store.id === myStoreId)?.name || `Chi nhánh ${myStoreId || '--'}`;
+
+  const isManagerOrOwner = isOwner || isManager;
 
   const [activeTab, setActiveTab] = useState('SCHEDULE');
   const [weekOffset, setWeekOffset] = useState(0);
@@ -316,7 +328,7 @@ export default function ShiftScheduleScreen({ navigation }) {
       contentContainerStyle={{paddingBottom: 80}}
       refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
     >
-      <Text style={styles.sectionTitle}>Lịch Tổng Chi Nhánh {myStoreId === 'ALL' ? '(Tất cả)' : myStoreId}</Text>
+      <Text style={styles.sectionTitle}>Lịch Tổng - {storeName}</Text>
 
       <View style={styles.weekSelector}>
         <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>

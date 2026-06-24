@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Platform, View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -145,18 +146,34 @@ export default function App() {
       shifts, setShifts,
       isDataLoading, dataError, refreshData
     }}>
-      <NavigationContainer>
-        <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Dashboard" component={MainTabs} />
-          <Stack.Screen name="StaffHistory" component={StaffHistoryScreen} />
-          <Stack.Screen name="StaffManagement" component={StaffManagementScreen} />
-          <Stack.Screen name="Inventory" component={InventoryScreen} />
-          <Stack.Screen name="StaffCheckin" component={StaffCheckinScreen} />
-          <Stack.Screen name="ShiftSchedule" component={ShiftScheduleScreen} />
-          <Stack.Screen name="Shifts" component={require('./src/screens/ShiftScreen').default} />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <View style={styles.webContainer}>
+        <View style={styles.webWrapper}>
+          <NavigationContainer>
+            <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Dashboard" component={MainTabs} />
+              <Stack.Screen name="StaffHistory" component={StaffHistoryScreen} />
+              <Stack.Screen name="StaffManagement" component={StaffManagementScreen} />
+              <Stack.Screen name="Inventory" component={InventoryScreen} />
+              <Stack.Screen name="StaffCheckin" component={StaffCheckinScreen} />
+              <Stack.Screen name="ShiftSchedule" component={ShiftScheduleScreen} />
+              <Stack.Screen name="Shifts" component={require('./src/screens/ShiftScreen').default} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </View>
+      </View>
     </AppContext.Provider>
   );
 }
+
+const styles = StyleSheet.create({
+  webContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  webWrapper: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: '#fff',
+  }
+});
