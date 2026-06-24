@@ -4,6 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../../App';
+import { supabase } from '../services/supabaseClient';
 
 export default function StaffCheckinScreen({ navigation }) {
   const { currentUser, attendanceHistory, setAttendanceHistory } = useContext(AppContext);
@@ -48,18 +49,26 @@ export default function StaffCheckinScreen({ navigation }) {
           id: `att_${Date.now()}`,
           user_id: currentUser.id,
           date: today,
-          checkIn: time,
-          checkOut: null,
-          hours: 0
+          check_in: time,
+          check_out: null,
+          hours: 0,
+          check_in_location: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
         };
-        setAttendanceHistory([...attendanceHistory, newRecord]);
+        await supabase.from('attendance_logs').insert([newRecord]);
+        setAttendanceHistory([...attendanceHistory, { ...newRecord, checkIn: newRecord.check_in, checkOut: newRecord.check_out }]);
         alert(`Đã CHECK-IN lúc ${time}\nTọa độ: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
       } else {
         const simulatedHours = Number((Math.random() * 4 + 4).toFixed(2));
         
+        await supabase.from('attendance_logs').update({ 
+          check_out: time, 
+          hours: simulatedHours,
+          check_out_location: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+        }).eq('id', currentRecord.id);
+
         const updatedHistory = attendanceHistory.map(r => {
           if (r.id === currentRecord.id) {
-            return { ...r, checkOut: time, hours: simulatedHours };
+            return { ...r, check_out: time, checkOut: time, hours: simulatedHours };
           }
           return r;
         });
@@ -97,7 +106,7 @@ export default function StaffCheckinScreen({ navigation }) {
             ) : (
               <TouchableOpacity style={[styles.button, styles.btnCheckOut, { flex: 1 }]} onPress={() => handleAttendancePress('check-out')}>
                 <Text style={styles.buttonText}>CHECK-OUT KẾT THÚC</Text>
-                <Text style={{color:'#fff', marginTop: 5, fontSize: 12}}>Đã vào ca lúc: {currentRecord.checkIn}</Text>
+                <Text style={{color:'#fff', marginTop: 5, fontSize: 12}}>Đã vào ca lúc: {currentRecord.checkIn || currentRecord.check_in}</Text>
               </TouchableOpacity>
             )}
           </View>

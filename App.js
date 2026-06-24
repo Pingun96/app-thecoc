@@ -7,6 +7,7 @@ import StaffHistoryScreen from './src/screens/StaffHistoryScreen';
 import StaffManagementScreen from './src/screens/StaffManagementScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
 import StaffCheckinScreen from './src/screens/StaffCheckinScreen';
+import ShiftScheduleScreen from './src/screens/ShiftScheduleScreen';
 import { supabase } from './src/services/supabaseClient';
 
 export const AppContext = createContext();
@@ -21,19 +22,22 @@ export default function App() {
   const [inventoryItems, setInventoryItems] = useState([]);
   const [inventoryLogs, setInventoryLogs] = useState([]);
   const [inventoryRequests, setInventoryRequests] = useState([]);
-  const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [shifts, setShifts] = useState([]);
+  const [attendanceHistory, setAttendanceHistory] = useState([]);
+  const [shiftRegistrations, setShiftRegistrations] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [storesRes, usersRes, itemsRes, logsRes, reqsRes, shiftsRes] = await Promise.all([
+        const [storesRes, usersRes, itemsRes, logsRes, reqsRes, shiftsRes, attendanceRes, regRes] = await Promise.all([
           supabase.from('stores').select('*'),
           supabase.from('users').select('*'),
           supabase.from('inventory_items').select('*'),
           supabase.from('inventory_logs').select('*'),
           supabase.from('inventory_requests').select('*'),
-          supabase.from('shifts').select('*')
+          supabase.from('shifts').select('*'),
+          supabase.from('attendance_logs').select('*'),
+          supabase.from('shift_registrations').select('*')
         ]);
 
         if (storesRes.data) setStoreList(storesRes.data);
@@ -42,12 +46,8 @@ export default function App() {
         if (logsRes.data) setInventoryLogs(logsRes.data.map(l => ({...l, itemId: l.itemid !== undefined ? l.itemid : l.itemId})));
         if (reqsRes.data) setInventoryRequests(reqsRes.data.map(r => ({...r, itemId: r.itemid !== undefined ? r.itemid : r.itemId})));
         if (shiftsRes.data) setShifts(shiftsRes.data);
-        
-        // Mock attendance history until we create a table for it
-        setAttendanceHistory([
-          { id: '1', user_id: 'staff_1', date: '23/06/2026', checkIn: '07:00', checkOut: '15:15', hours: 8.25 },
-          { id: '2', user_id: 'staff_2', date: '23/06/2026', checkIn: '07:10', checkOut: '15:00', hours: 7.83 },
-        ]);
+        if (attendanceRes.data) setAttendanceHistory(attendanceRes.data);
+        if (regRes.data) setShiftRegistrations(regRes.data);
       } catch (error) {
         console.error("Lỗi khi kéo dữ liệu từ Supabase:", error);
       }
@@ -59,10 +59,11 @@ export default function App() {
   return (
     <AppContext.Provider value={{ 
       staffList, setStaffList, 
-      storeList, 
+      storeList, setStoreList,
       selectedStoreId, setSelectedStoreId,
       currentUser, setCurrentUser,
       attendanceHistory, setAttendanceHistory,
+      shiftRegistrations, setShiftRegistrations,
       inventoryItems, setInventoryItems,
       inventoryLogs, setInventoryLogs,
       inventoryRequests, setInventoryRequests,
@@ -76,6 +77,7 @@ export default function App() {
           <Stack.Screen name="StaffManagement" component={StaffManagementScreen} />
           <Stack.Screen name="Inventory" component={InventoryScreen} />
           <Stack.Screen name="StaffCheckin" component={StaffCheckinScreen} />
+          <Stack.Screen name="ShiftSchedule" component={ShiftScheduleScreen} />
           <Stack.Screen name="Shifts" component={require('./src/screens/ShiftScreen').default} />
         </Stack.Navigator>
       </NavigationContainer>

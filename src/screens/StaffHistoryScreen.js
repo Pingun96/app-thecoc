@@ -19,8 +19,8 @@ export default function StaffHistoryScreen({ navigation }) {
     <View style={styles.historyCard}>
       <Text style={styles.dateText}>{item.date}</Text>
       <View style={styles.timeRow}>
-        <Text style={styles.timeLabel}>In: {item.checkIn}</Text>
-        <Text style={styles.timeLabel}>Out: {item.checkOut || 'Đang ca'}</Text>
+        <Text style={styles.timeLabel}>In: {item.check_in || item.checkIn}</Text>
+        <Text style={styles.timeLabel}>Out: {item.check_out || item.checkOut || 'Đang ca'}</Text>
       </View>
       <Text style={styles.hoursText}>Tổng: {item.hours ? item.hours + ' giờ' : '...'}</Text>
     </View>

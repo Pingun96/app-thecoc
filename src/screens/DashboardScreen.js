@@ -97,10 +97,14 @@ export default function DashboardScreen({ navigation }) {
             source={{ uri: currentUser?.role === 'STAFF' ? 'https://i.pravatar.cc/100?img=33' : 'https://i.pravatar.cc/100?img=12' }} 
             style={styles.avatar} 
           />
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.greetingText}>Xin chào,</Text>
-            <Text style={styles.nameText}>{currentUser?.name || 'User'}</Text>
-          </View>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('StaffManagement')}>
+            <Ionicons name="people" size={32} color="#4CAF50" />
+            <Text style={styles.menuText}>Nhân sự</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('ShiftSchedule')}>
+            <Ionicons name="calendar" size={32} color="#e91e63" />
+            <Text style={styles.menuText}>Lịch Làm Việc</Text>
+          </TouchableOpacity>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={() => navigation.replace('Login')}>
           <MaterialCommunityIcons name="logout" size={24} color="#ff5252" />
