@@ -101,9 +101,9 @@ export default function DashboardScreen({ navigation }) {
             <Ionicons name="people" size={32} color="#4CAF50" />
             <Text style={styles.menuText}>Nhân sự</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('ScheduleTab')}>
-            <Ionicons name="calendar" size={32} color="#e91e63" />
-            <Text style={styles.menuText}>Lịch Làm Việc</Text>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Inventory')}>
+            <Ionicons name="cube" size={32} color="#FF9800" />
+            <Text style={styles.menuText}>Kho hàng</Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={() => navigation.replace('Login')}>
