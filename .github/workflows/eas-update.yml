@@ -32,4 +32,4 @@ jobs:
         run: npm ci
 
       - name: Publish EAS Update
-        run: eas update --branch preview --environment preview --message "Auto update from GitHub Actions (${{ github.sha }})" --non-interactive
+        run: eas update --branch production --environment production --message "Auto update from GitHub Actions (${{ github.sha }})" --non-interactive
