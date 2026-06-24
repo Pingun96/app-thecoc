@@ -28,29 +28,6 @@
     },
     "plugins": [
       [
-        "expo-build-properties",
-        {
-          "android": {
-            "enableProguardInReleaseBuilds": true,
-            "extraProguardRules": "-keep class com.facebook.react.turbomodule.** { *; }"
-          }
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Cho phép The Cốc sử dụng camera để chụp ảnh xác thực chấm công.",
-          "recordAudioAndroid": false,
-          "barcodeScannerEnabled": false
-        }
-      ],
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Cho phép The Cốc sử dụng vị trí khi bạn chấm công."
-        }
-      ],
-      [
         "expo-splash-screen",
         {
           "backgroundColor": "#208AEF",

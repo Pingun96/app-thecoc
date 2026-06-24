@@ -61,6 +61,8 @@ export default function App() {
   const [shifts, setShifts] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [shiftRegistrations, setShiftRegistrations] = useState([]);
+  const [payrollAdjustments, setPayrollAdjustments] = useState([]);
+  const [payrollApprovals, setPayrollApprovals] = useState([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [dataError, setDataError] = useState('');
 
@@ -78,6 +80,8 @@ export default function App() {
         supabase.from('shifts').select('*'),
         supabase.from('attendance_logs').select('*'),
         supabase.from('shift_registrations').select('*'),
+        supabase.from('payroll_adjustments').select('*'),
+        supabase.from('payroll_approvals').select('*'),
       ]);
 
       const failedResult = results.find((result) => result.error);
@@ -92,6 +96,8 @@ export default function App() {
         shiftsRes,
         attendanceRes,
         regRes,
+        adjustmentsRes,
+        approvalsRes,
       ] = results;
 
       setStoreList(storesRes.data || []);
@@ -102,6 +108,8 @@ export default function App() {
       setShifts(shiftsRes.data || []);
       setAttendanceHistory((attendanceRes.data || []).map(normalizeAttendance));
       setShiftRegistrations(regRes.data || []);
+      setPayrollAdjustments(adjustmentsRes.data || []);
+      setPayrollApprovals(approvalsRes.data || []);
     } catch (error) {
       console.error('Lỗi khi tải dữ liệu từ Supabase:', error);
       setDataError(error?.message || 'Không thể tải dữ liệu. Vui lòng kiểm tra kết nối.');
@@ -145,6 +153,8 @@ export default function App() {
       inventoryLogs, setInventoryLogs,
       inventoryRequests, setInventoryRequests,
       shifts, setShifts,
+      payrollAdjustments, setPayrollAdjustments,
+      payrollApprovals, setPayrollApprovals,
       isDataLoading, dataError, refreshData
     }}>
       <View style={styles.webContainer}>

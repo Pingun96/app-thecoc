@@ -137,7 +137,7 @@ export default function LoginScreen({ navigation }) {
 
       <Text style={styles.footer}>
         Dữ liệu vận hành được đồng bộ bảo mật qua Supabase.{'\n'}
-        {Updates.updateId ? `OTA Phiên bản: ${Updates.updateId.substring(0,8)}` : 'Phiên bản gốc (Không có OTA)'}
+        {Updates.updateId ? `Phiên bản: v1.0.0 (OTA: ${Updates.updateId.substring(0,8)})` : 'Phiên bản: v1.0.0 (Gốc)'}
       </Text>
     </KeyboardAvoidingView>
   );

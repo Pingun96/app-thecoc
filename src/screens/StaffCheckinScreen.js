@@ -2,7 +2,6 @@ import React, { useContext, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -10,8 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import {
@@ -35,13 +32,8 @@ export default function StaffCheckinScreen({ navigation }) {
     setAttendanceHistory,
     shiftRegistrations,
   } = useContext(AppContext);
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
-  const [showCamera, setShowCamera] = useState(false);
   const [actionType, setActionType] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCameraReady, setIsCameraReady] = useState(false);
-  const cameraRef = useRef(null);
 
   const today = getLocalDateKey();
   const currentRecord = useMemo(
@@ -61,27 +53,6 @@ export default function StaffCheckinScreen({ navigation }) {
   );
 
   const requestAttendancePermissions = async () => {
-    const cameraResult = cameraPermission?.granted
-      ? cameraPermission
-      : await requestCameraPermission();
-    const locationResult = locationPermission?.granted
-      ? locationPermission
-      : await requestLocationPermission();
-
-    if (!cameraResult?.granted || !locationResult?.granted) {
-      Alert.alert(
-        'Cần cấp quyền',
-        'Vui lòng cho phép Camera và Vị trí để xác thực chấm công.',
-      );
-      return false;
-    }
-
-    const locationEnabled = await Location.hasServicesEnabledAsync();
-    if (!locationEnabled) {
-      Alert.alert('Chưa bật định vị', 'Vui lòng bật GPS/Dịch vụ vị trí rồi thử lại.');
-      return false;
-    }
-
     return true;
   };
 
@@ -113,11 +84,8 @@ export default function StaffCheckinScreen({ navigation }) {
             { 
               text: 'Vẫn Check-in', 
               onPress: async () => {
-                const hasPermission = await requestAttendancePermissions();
-                if (!hasPermission) return;
                 setActionType(type);
-                setIsCameraReady(false);
-                setShowCamera(true);
+                takePictureAndSubmit('check-in');
               }
             }
           ]
@@ -126,50 +94,24 @@ export default function StaffCheckinScreen({ navigation }) {
       }
     }
 
-    const hasPermission = await requestAttendancePermissions();
-    if (!hasPermission) return;
-
     setActionType(type);
-    setIsCameraReady(false);
-    setShowCamera(true);
+    takePictureAndSubmit(type);
   };
 
-  const takePictureAndSubmit = async () => {
-    if (!cameraRef.current || !isCameraReady || isSubmitting) return;
+  const takePictureAndSubmit = async (currentAction) => {
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
-      const [photo, currentLocation] = await Promise.all([
-        cameraRef.current.takePictureAsync({
-          quality: 0.55,
-          skipProcessing: false,
-        }),
-        Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-        }),
-      ]);
-
       const now = new Date();
       const time = getLocalTime(now);
       const timestamp = now.toISOString();
-      const { latitude, longitude, accuracy } = currentLocation.coords;
+      const latitude = 0;
+      const longitude = 0;
+      const act = currentAction || actionType;
 
-      if (typeof accuracy === 'number' && accuracy > 150) {
-        Alert.alert(
-          'GPS chưa đủ chính xác',
-          `Độ chính xác hiện tại khoảng ${Math.round(accuracy)} m. Hãy di chuyển ra vị trí thoáng và thử lại.`,
-        );
-        return;
-      }
-
-      if (actionType === 'check-in') {
+      if (act === 'check-in') {
         const recordId = `att_${Date.now()}`;
-        const photoResult = await uploadAttendancePhoto({
-          photoUri: photo.uri,
-          userId: currentUser.id,
-          recordId,
-          action: 'check-in',
-        });
 
         const savedRecord = await createAttendanceRecord({
           id: recordId,
@@ -180,7 +122,7 @@ export default function StaffCheckinScreen({ navigation }) {
           timestamp,
           latitude,
           longitude,
-          photoPath: photoResult.path,
+          photoPath: '',
         });
 
         const normalizedRecord = normalizeAttendance({
@@ -188,24 +130,15 @@ export default function StaffCheckinScreen({ navigation }) {
           check_in_at: timestamp,
           check_in_lat: latitude,
           check_in_lng: longitude,
-          check_in_photo_path: photoResult.path,
+          check_in_photo_path: '',
         });
         setAttendanceHistory((current) => [...current, normalizedRecord]);
-        setShowCamera(false);
 
         Alert.alert(
           'Check-in thành công',
-          `${time} • GPS ${latitude.toFixed(5)}, ${longitude.toFixed(5)}${
-            photoResult.error ? '\nẢnh chưa được đồng bộ lên kho lưu trữ.' : '\nẢnh xác thực đã được lưu.'
-          }`,
+          `${time} • Đã lưu dữ liệu chấm công.`,
         );
       } else {
-        const photoResult = await uploadAttendancePhoto({
-          photoUri: photo.uri,
-          userId: currentUser.id,
-          recordId: currentRecord.id,
-          action: 'check-out',
-        });
         const workedHours = calculateWorkedHours({
           date: currentRecord.date,
           checkIn: currentRecord.checkIn || currentRecord.check_in,
@@ -221,7 +154,7 @@ export default function StaffCheckinScreen({ navigation }) {
           hours: workedHours,
           latitude,
           longitude,
-          photoPath: photoResult.path,
+          photoPath: '',
         });
 
         setAttendanceHistory((current) => current.map((record) => (
@@ -232,24 +165,21 @@ export default function StaffCheckinScreen({ navigation }) {
                 check_out_at: timestamp,
                 check_out_lat: latitude,
                 check_out_lng: longitude,
-                check_out_photo_path: photoResult.path,
+                check_out_photo_path: '',
               })
             : record
         )));
-        setShowCamera(false);
 
         Alert.alert(
           'Check-out thành công',
-          `${time} • Tổng thời gian: ${formatDuration(workedHours)}${
-            photoResult.error ? '\nẢnh chưa được đồng bộ lên kho lưu trữ.' : ''
-          }`,
+          `${time} • Tổng thời gian: ${formatDuration(workedHours)}`,
         );
       }
     } catch (error) {
       console.error('Lỗi chấm công:', error);
       Alert.alert(
         'Không thể chấm công',
-        error?.message || 'Đã có lỗi khi chụp ảnh, lấy GPS hoặc lưu dữ liệu.',
+        error?.message || 'Đã có lỗi khi lưu dữ liệu.',
       );
     } finally {
       setIsSubmitting(false);
@@ -267,7 +197,7 @@ export default function StaffCheckinScreen({ navigation }) {
           </TouchableOpacity>
           <View>
             <Text style={styles.header}>Chấm công</Text>
-            <Text style={styles.headerCaption}>Xác thực bằng GPS và camera</Text>
+            <Text style={styles.headerCaption}>Xác thực thời gian làm việc</Text>
           </View>
         </View>
 
@@ -306,8 +236,7 @@ export default function StaffCheckinScreen({ navigation }) {
         <View style={styles.infoCard}>
           <Ionicons name="shield-checkmark-outline" size={24} color="#1565c0" />
           <Text style={styles.infoText}>
-            Ảnh khuôn mặt và vị trí hiện tại được ghi nhận cùng thời điểm thao tác.
-            Hãy đứng ở nơi đủ sáng và bật GPS chính xác.
+            Thời gian bắt đầu và kết thúc ca làm việc sẽ được ghi nhận.
           </Text>
         </View>
 
@@ -333,58 +262,6 @@ export default function StaffCheckinScreen({ navigation }) {
           Mỗi nhân viên chỉ có một ca đang mở tại một thời điểm.
         </Text>
       </ScrollView>
-
-      <Modal
-        visible={showCamera}
-        animationType="slide"
-        onRequestClose={() => !isSubmitting && setShowCamera(false)}
-      >
-        <View style={styles.cameraContainer}>
-          <CameraView
-            style={StyleSheet.absoluteFill}
-            facing="front"
-            mirror
-            ref={cameraRef}
-            onCameraReady={() => setIsCameraReady(true)}
-            onMountError={(event) => {
-              Alert.alert('Lỗi camera', event?.message || 'Không thể khởi động camera.');
-              setShowCamera(false);
-            }}
-          />
-          <View style={styles.cameraTop}>
-            <TouchableOpacity
-              style={styles.cameraClose}
-              onPress={() => !isSubmitting && setShowCamera(false)}
-              disabled={isSubmitting}
-            >
-              <Ionicons name="close" size={28} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.cameraTitle}>Đặt khuôn mặt trong khung hình</Text>
-          </View>
-
-          <View style={styles.faceGuide} />
-
-          <View style={styles.cameraBottom}>
-            {isSubmitting ? (
-              <View style={styles.processingBox}>
-                <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.processingText}>Đang xác thực và lưu dữ liệu...</Text>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.captureButton, !isCameraReady && styles.buttonDisabled]}
-                onPress={takePictureAndSubmit}
-                disabled={!isCameraReady}
-              >
-                <Ionicons name="camera" size={25} color="#fff" />
-                <Text style={styles.captureButtonText}>
-                  {actionType === 'check-in' ? 'Chụp ảnh & vào ca' : 'Chụp ảnh & kết thúc ca'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
