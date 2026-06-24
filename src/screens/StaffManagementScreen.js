@@ -43,7 +43,7 @@ export default function StaffManagementScreen({ navigation }) {
     }
     
     // Mặc định luôn có store_id gốc trong viewable_stores
-    let finalViewableStores = role === 'MANAGER' ? [...new Set([...perms.viewable_stores, storeId])] : [storeId];
+    let finalViewableStores = [...new Set([...perms.viewable_stores, storeId])];
 
     const newStaff = {
       id: `staff_${Date.now()}`,
@@ -55,7 +55,7 @@ export default function StaffManagementScreen({ navigation }) {
       hasAppAccess: hasAccess,
       permissions: role === 'MANAGER' 
         ? { reports: true, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: finalViewableStores } 
-        : { ...perms, viewable_stores: [storeId] }
+        : { ...perms, viewable_stores: finalViewableStores }
     };
     
     const { error } = await supabase.from('users').insert([{
@@ -109,9 +109,7 @@ export default function StaffManagementScreen({ navigation }) {
       return;
     }
     
-    let finalViewableStores = editingStaff.role === 'MANAGER' 
-      ? [...new Set([...(editingStaff.permissions.viewable_stores || []), editingStaff.store_id])] 
-      : [editingStaff.store_id];
+    let finalViewableStores = [...new Set([...(editingStaff.permissions.viewable_stores || []), editingStaff.store_id])];
 
     const finalStaff = {
       ...editingStaff,
@@ -180,9 +178,13 @@ export default function StaffManagementScreen({ navigation }) {
                     <Text style={{fontSize: 12, color: staff.hasAppAccess ? '#4CAF50' : '#F44336', fontWeight: 'bold'}}>
                       {staff.hasAppAccess ? '🟢 App Mở' : '🔴 App Khóa'}
                     </Text>
-                    {staff.role === 'MANAGER' && (
+                    {staff.role === 'MANAGER' ? (
                        <Text style={{fontSize: 12, color: '#e91e63', marginLeft: 15, fontWeight: 'bold'}}>
                          Quản lý: {staff.permissions?.viewable_stores?.length || 1} cửa hàng
+                       </Text>
+                    ) : (
+                       <Text style={{fontSize: 12, color: '#1976d2', marginLeft: 15, fontWeight: 'bold'}}>
+                         Làm việc: {staff.permissions?.viewable_stores?.length || 1} cửa hàng
                        </Text>
                     )}
                   </View>
@@ -242,9 +244,11 @@ export default function StaffManagementScreen({ navigation }) {
                   ))}
                 </View>
 
-                {role === 'MANAGER' && (currentUser?.role === 'OWNER') && (
-                  <View style={[styles.permBox, {borderColor: '#e91e63'}]}>
-                    <Text style={{fontWeight: 'bold', color: '#e91e63', marginBottom: 10}}>🌐 Cấp quyền xem chi nhánh khác:</Text>
+                {(currentUser?.role === 'OWNER' || currentUser?.role === 'MANAGER') && (
+                  <View style={[styles.permBox, {borderColor: role === 'MANAGER' ? '#e91e63' : '#1976d2'}]}>
+                    <Text style={{fontWeight: 'bold', color: role === 'MANAGER' ? '#e91e63' : '#1976d2', marginBottom: 10}}>
+                      {role === 'MANAGER' ? '🌐 Cấp quyền xem dữ liệu chi nhánh khác:' : '🌐 Cấp quyền làm việc tại chi nhánh khác:'}
+                    </Text>
                     {storeList.map(store => {
                       const isHomeStore = store.id === storeId;
                       return (
@@ -254,12 +258,12 @@ export default function StaffManagementScreen({ navigation }) {
                             value={isHomeStore ? true : perms.viewable_stores.includes(store.id)} 
                             disabled={isHomeStore}
                             onValueChange={()=>toggleViewableStore(store.id)} 
-                            trackColor={{true: '#e91e63'}} 
+                            trackColor={{true: role === 'MANAGER' ? '#e91e63' : '#1976d2'}} 
                           />
                         </View>
                       );
                     })}
-                    <Text style={{fontSize: 12, color: '#666', marginTop: 10}}>*Quản lý luôn được xem dữ liệu của chi nhánh gốc.</Text>
+                    <Text style={{fontSize: 12, color: '#666', marginTop: 10}}>*Nhân sự luôn được gắn quyền với chi nhánh gốc.</Text>
                   </View>
                 )}
 
@@ -318,9 +322,11 @@ export default function StaffManagementScreen({ navigation }) {
                   <Switch value={editingStaff?.hasAppAccess} onValueChange={(v) => setEditingStaff({...editingStaff, hasAppAccess: v})} />
                 </View>
 
-                {editingStaff?.role === 'MANAGER' && (currentUser?.role === 'OWNER') && (
-                  <View style={[styles.permBox, {borderColor: '#e91e63'}]}>
-                    <Text style={{fontWeight: 'bold', color: '#e91e63', marginBottom: 10}}>🌐 Cấp quyền xem chi nhánh khác:</Text>
+                {(currentUser?.role === 'OWNER' || currentUser?.role === 'MANAGER') && (
+                  <View style={[styles.permBox, {borderColor: editingStaff?.role === 'MANAGER' ? '#e91e63' : '#1976d2'}]}>
+                    <Text style={{fontWeight: 'bold', color: editingStaff?.role === 'MANAGER' ? '#e91e63' : '#1976d2', marginBottom: 10}}>
+                      {editingStaff?.role === 'MANAGER' ? '🌐 Cấp quyền xem dữ liệu chi nhánh khác:' : '🌐 Cấp quyền làm việc tại chi nhánh khác:'}
+                    </Text>
                     {storeList.map(store => {
                       const isHomeStore = store.id === editingStaff.store_id;
                       return (
@@ -330,12 +336,12 @@ export default function StaffManagementScreen({ navigation }) {
                             value={isHomeStore ? true : editingStaff.permissions?.viewable_stores?.includes(store.id)} 
                             disabled={isHomeStore}
                             onValueChange={()=>toggleEditViewableStore(store.id)} 
-                            trackColor={{true: '#e91e63'}} 
+                            trackColor={{true: editingStaff?.role === 'MANAGER' ? '#e91e63' : '#1976d2'}} 
                           />
                         </View>
                       );
                     })}
-                    <Text style={{fontSize: 12, color: '#666', marginTop: 10}}>*Quản lý luôn được xem dữ liệu của chi nhánh gốc.</Text>
+                    <Text style={{fontSize: 12, color: '#666', marginTop: 10}}>*Nhân sự luôn được gắn quyền với chi nhánh gốc.</Text>
                   </View>
                 )}
 

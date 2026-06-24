@@ -25,8 +25,13 @@ export default function ShiftScheduleScreen({ navigation }) {
 
   const [activeTab, setActiveTab] = useState('SCHEDULE');
   const [weekOffset, setWeekOffset] = useState(0);
-  const [draftShifts, setDraftShifts] = useState([]); // [{date, shiftType}]
+  const [draftShifts, setDraftShifts] = useState([]); // [{date, shiftType, storeId}]
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const staffAllowedStores = currentUser?.permissions?.viewable_stores?.length > 0 
+    ? currentUser.permissions.viewable_stores 
+    : [currentUser?.store_id];
+  const [registerStoreId, setRegisterStoreId] = useState(staffAllowedStores[0] || currentUser?.store_id);
 
   // Modal Xếp Ca
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -87,16 +92,16 @@ export default function ShiftScheduleScreen({ navigation }) {
       return;
     }
 
-    // Kiểm tra sức khỏe (không làm 2 ca/ngày)
+    // Kiểm tra sức khỏe (không làm 2 ca/ngày ở BẤT KỲ chi nhánh nào)
     const myShiftsThatDay = shiftRegistrations.filter(r => r.user_id === currentUser.id && r.date === date && (r.status === 'APPROVED' || r.status === 'PENDING'));
     const myDraftsThatDay = draftShifts.filter(d => d.date === date);
     
     if (myShiftsThatDay.length + myDraftsThatDay.length >= 1) {
-      Alert.alert('Cảnh báo', 'Mỗi ngày bạn chỉ được đăng ký tối đa 1 ca làm việc!');
+      Alert.alert('Cảnh báo', 'Mỗi ngày bạn chỉ được đăng ký tối đa 1 ca làm việc trên toàn hệ thống!');
       return;
     }
 
-    setDraftShifts([...draftShifts, { date, shiftType }]);
+    setDraftShifts([...draftShifts, { date, shiftType, storeId: registerStoreId }]);
   };
 
   const handleSubmitDrafts = async () => {
@@ -106,7 +111,7 @@ export default function ShiftScheduleScreen({ navigation }) {
     const newRegs = draftShifts.map((draft, index) => ({
       id: `reg_${Date.now()}_${index}`,
       user_id: currentUser.id,
-      store_id: myStoreId,
+      store_id: draft.storeId,
       date: draft.date,
       shift_type: draft.shiftType,
       status: 'PENDING'
@@ -125,13 +130,16 @@ export default function ShiftScheduleScreen({ navigation }) {
       }
 
       // 2. Gửi Push Notification cho Quản Lý chi nhánh
-      const managerTokens = await getManagersPushTokens(myStoreId);
-      for (const token of managerTokens) {
-        await sendPushNotification(
-          token, 
-          'Lịch Làm Việc Mới', 
-          `Nhân viên ${currentUser?.name} vừa gửi đăng ký ${draftShifts.length} ca làm việc. Đang chờ bạn duyệt.`
-        );
+      const uniqueStoreIds = [...new Set(draftShifts.map(d => d.storeId))];
+      for (const sId of uniqueStoreIds) {
+        const managerTokens = await getManagersPushTokens(sId);
+        for (const token of managerTokens) {
+          await sendPushNotification(
+            token, 
+            'Lịch Làm Việc Mới', 
+            `Nhân viên ${currentUser?.name} vừa gửi đăng ký ca làm việc. Đang chờ bạn duyệt.`
+          );
+        }
       }
 
       Alert.alert('Thành công', `Đã gửi thành công ${newRegs.length} ca làm việc. Vui lòng chờ quản lý duyệt!`);
@@ -242,6 +250,29 @@ export default function ShiftScheduleScreen({ navigation }) {
       >
         <Text style={styles.sectionTitle}>Đăng ký lịch làm việc (Tối đa 4 người/ca)</Text>
         
+        {staffAllowedStores.length > 1 && (
+          <View style={{marginBottom: 15}}>
+            <Text style={{fontWeight: 'bold', color: '#555', marginBottom: 8}}>📍 Chọn chi nhánh đăng ký:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {staffAllowedStores.map(sid => {
+                const sName = storeList.find(s => s.id === sid)?.name || `CN ${sid}`;
+                return (
+                  <TouchableOpacity 
+                    key={sid} 
+                    style={[styles.storeChip, registerStoreId === sid && styles.storeChipActive]} 
+                    onPress={() => {
+                      setRegisterStoreId(sid);
+                      setDraftShifts([]); // Xóa giỏ hàng khi đổi chi nhánh
+                    }}
+                  >
+                    <Text style={[styles.storeChipText, registerStoreId === sid && styles.storeChipTextActive]}>{sName}</Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         <View style={styles.weekSelector}>
           <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
             <Ionicons name="chevron-back" size={24} color="#1976d2" />
@@ -253,8 +284,8 @@ export default function ShiftScheduleScreen({ navigation }) {
         </View>
 
         {weekDates.map(date => {
-          const morningRegs = getApprovedRegistrations(date, 'MORNING');
-          const afternoonRegs = getApprovedRegistrations(date, 'AFTERNOON');
+          const morningRegs = shiftRegistrations.filter(r => r.date === date && r.shift_type === 'MORNING' && r.store_id === registerStoreId && r.status === 'APPROVED');
+          const afternoonRegs = shiftRegistrations.filter(r => r.date === date && r.shift_type === 'AFTERNOON' && r.store_id === registerStoreId && r.status === 'APPROVED');
           
           const myMorningSubmitted = shiftRegistrations.find(r => r.date === date && r.shift_type === 'MORNING' && r.user_id === currentUser.id);
           const myAfternoonSubmitted = shiftRegistrations.find(r => r.date === date && r.shift_type === 'AFTERNOON' && r.user_id === currentUser.id);
@@ -265,6 +296,8 @@ export default function ShiftScheduleScreen({ navigation }) {
           const morningFull = morningRegs.length >= 4;
           const afternoonFull = afternoonRegs.length >= 4;
 
+          const getStoreAbbr = (sid) => storeList.find(s => s.id === sid)?.name || `CN ${sid}`;
+
           return (
             <View key={date} style={styles.card}>
               <Text style={styles.dateText}>{getDayName(date)}</Text>
@@ -272,7 +305,8 @@ export default function ShiftScheduleScreen({ navigation }) {
                 {/* CA SÁNG */}
                 {myMorningSubmitted ? (
                   <View style={[styles.shiftBtn, myMorningSubmitted.status === 'APPROVED' ? styles.shiftSubmitted : styles.shiftPending]}>
-                    <Text style={[styles.shiftBtnText, styles.textWhite]}>SÁNG ({myMorningSubmitted.status === 'APPROVED' ? 'Đã Duyệt 🔒' : 'Chờ Duyệt ⏳'})</Text>
+                    <Text style={[styles.shiftBtnText, styles.textWhite]}>SÁNG - {getStoreAbbr(myMorningSubmitted.store_id)}</Text>
+                    <Text style={[styles.shiftBtnText, styles.textWhite, {fontSize: 10}]}>({myMorningSubmitted.status === 'APPROVED' ? 'Đã Duyệt' : 'Chờ Duyệt'})</Text>
                   </View>
                 ) : (
                   <TouchableOpacity 
@@ -281,7 +315,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                     disabled={morningFull && !myMorningDraft}
                   >
                     <Text style={[styles.shiftBtnText, myMorningDraft ? styles.textWhite : (morningFull ? styles.textFull : {})]}>
-                      {myMorningDraft ? 'SÁNG (Đang chọn)' : (morningFull ? 'SÁNG (Đã kín chỗ)' : `SÁNG (${morningRegs.length}/4)`)}
+                      {myMorningDraft ? 'SÁNG (Đang chọn)' : (morningFull ? 'SÁNG (Kín chỗ)' : `SÁNG (${morningRegs.length}/4)`)}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -289,7 +323,8 @@ export default function ShiftScheduleScreen({ navigation }) {
                 {/* CA CHIỀU */}
                 {myAfternoonSubmitted ? (
                   <View style={[styles.shiftBtn, myAfternoonSubmitted.status === 'APPROVED' ? styles.shiftSubmitted : styles.shiftPending]}>
-                    <Text style={[styles.shiftBtnText, styles.textWhite]}>CHIỀU ({myAfternoonSubmitted.status === 'APPROVED' ? 'Đã Duyệt 🔒' : 'Chờ Duyệt ⏳'})</Text>
+                    <Text style={[styles.shiftBtnText, styles.textWhite]}>CHIỀU - {getStoreAbbr(myAfternoonSubmitted.store_id)}</Text>
+                    <Text style={[styles.shiftBtnText, styles.textWhite, {fontSize: 10}]}>({myAfternoonSubmitted.status === 'APPROVED' ? 'Đã Duyệt' : 'Chờ Duyệt'})</Text>
                   </View>
                 ) : (
                   <TouchableOpacity 
@@ -298,7 +333,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                     disabled={afternoonFull && !myAfternoonDraft}
                   >
                     <Text style={[styles.shiftBtnText, myAfternoonDraft ? styles.textWhite : (afternoonFull ? styles.textFull : {})]}>
-                      {myAfternoonDraft ? 'CHIỀU (Đang chọn)' : (afternoonFull ? 'CHIỀU (Đã kín chỗ)' : `CHIỀU (${afternoonRegs.length}/4)`)}
+                      {myAfternoonDraft ? 'CHIỀU (Đang chọn)' : (afternoonFull ? 'CHIỀU (Kín chỗ)' : `CHIỀU (${afternoonRegs.length}/4)`)}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -501,9 +536,14 @@ const styles = StyleSheet.create({
   shiftSubmitted: { backgroundColor: '#4CAF50', borderColor: '#4CAF50' },
   shiftPending: { backgroundColor: '#ff9800', borderColor: '#ff9800' },
   shiftFull: { backgroundColor: '#f5f5f5', borderColor: '#ccc' },
-  shiftBtnText: { color: '#1976d2', fontWeight: 'bold', fontSize: 13 },
+  shiftBtnText: { color: '#1976d2', fontWeight: 'bold', fontSize: 13, textAlign: 'center' },
   textWhite: { color: '#fff' },
   textFull: { color: '#aaa' },
+  
+  storeChip: { backgroundColor: '#e0e0e0', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10 },
+  storeChipActive: { backgroundColor: '#4CAF50' },
+  storeChipText: { color: '#555', fontWeight: 'bold' },
+  storeChipTextActive: { color: '#fff' },
   
   footerContainer: { position: 'absolute', bottom: 10, left: 0, right: 0 },
   submitBtn: { backgroundColor: '#e91e63', padding: 15, borderRadius: 10, alignItems: 'center', elevation: 3 },
