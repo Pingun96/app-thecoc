@@ -11,6 +11,7 @@ import StaffManagementScreen from './src/screens/StaffManagementScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
 import StaffCheckinScreen from './src/screens/StaffCheckinScreen';
 import ShiftScheduleScreen from './src/screens/ShiftScheduleScreen';
+import PayrollScreen from './src/screens/PayrollScreen';
 import { supabase } from './src/services/supabaseClient';
 import { registerForPushNotificationsAsync, savePushTokenToDB } from './src/services/NotificationService';
 import {
@@ -157,6 +158,7 @@ export default function App() {
               <Stack.Screen name="Inventory" component={InventoryScreen} />
               <Stack.Screen name="StaffCheckin" component={StaffCheckinScreen} />
               <Stack.Screen name="ShiftSchedule" component={ShiftScheduleScreen} />
+              <Stack.Screen name="Payroll" component={PayrollScreen} />
               <Stack.Screen name="Shifts" component={require('./src/screens/ShiftScreen').default} />
             </Stack.Navigator>
           </NavigationContainer>

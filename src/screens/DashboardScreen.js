@@ -234,7 +234,7 @@ export default function DashboardScreen({ navigation }) {
           {renderGridItem('Giao Ca & Doanh Thu', 'Quản lý Két & Chốt Ca', 'cash-register', 'Material', '#e8f5e9', 'cashier', 'Shifts', 'Shifts')}
           {renderGridItem('Kho Hàng', 'Kiểm kê & Xuất nhập', 'warehouse', 'Material', '#fce4ec', 'inventory', 'Inventory')}
           {renderGridItem(currentUser?.role === 'STAFF' ? 'Chấm Công' : 'Nhân Sự', currentUser?.role === 'STAFF' ? 'Định vị GPS / Camera' : 'Hồ sơ & Phân quyền', currentUser?.role === 'STAFF' ? "scan-circle" : "id-card", 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
-          {renderGridItem(currentUser?.role === 'STAFF' ? 'Lịch Sử Lương' : 'Tính Lương', currentUser?.role === 'STAFF' ? 'Bảng lương cá nhân' : 'Bảng lương tổng hợp', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'ALERT', 'StaffHistory', () => alert('Chi tiết bảng lương nằm trong Nhân Sự'))}
+          {renderGridItem('Bảng Lương', 'Bảng lương chi tiết', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'Payroll', 'Payroll')}
         </View>
 
       </ScrollView>

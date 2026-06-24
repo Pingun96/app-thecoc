@@ -33,6 +33,7 @@ export default function StaffCheckinScreen({ navigation }) {
     currentUser,
     attendanceHistory,
     setAttendanceHistory,
+    shiftRegistrations,
   } = useContext(AppContext);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
@@ -96,6 +97,33 @@ export default function StaffCheckinScreen({ navigation }) {
     if (type === 'check-out' && !currentRecord) {
       Alert.alert('Không có ca đang mở', 'Không tìm thấy lượt check-in cần kết thúc.');
       return;
+    }
+
+    if (type === 'check-in') {
+      const myApprovedShiftsToday = shiftRegistrations.filter(
+        (r) => r.user_id === currentUser.id && r.date === today && r.status === 'APPROVED'
+      );
+      
+      if (myApprovedShiftsToday.length === 0) {
+        Alert.alert(
+          'Không có lịch làm việc',
+          'Quản lý chưa duyệt ca nào cho bạn trong ngày hôm nay.\n\nBạn có chắc chắn muốn Check-in làm ngoài ca không?',
+          [
+            { text: 'Hủy', style: 'cancel' },
+            { 
+              text: 'Vẫn Check-in', 
+              onPress: async () => {
+                const hasPermission = await requestAttendancePermissions();
+                if (!hasPermission) return;
+                setActionType(type);
+                setIsCameraReady(false);
+                setShowCamera(true);
+              }
+            }
+          ]
+        );
+        return; // Dừng lại chờ người dùng confirm
+      }
     }
 
     const hasPermission = await requestAttendancePermissions();
