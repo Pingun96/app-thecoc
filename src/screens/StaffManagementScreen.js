@@ -282,7 +282,7 @@ export default function StaffManagementScreen({ navigation }) {
                   <TouchableOpacity style={[styles.createBtn, {flex: 1, marginRight: 10, backgroundColor: '#F44336'}]} onPress={() => setShowCreateModal(false)}>
                     <Text style={styles.btnText}>Hủy</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.createBtn, {flex: 1, marginTop: 0}]} onPress={handleCreateStaff}>
+                  <TouchableOpacity style={[styles.createBtn, {flex: 1}]} onPress={handleCreateStaff}>
                     <Text style={styles.btnText}>Tạo Mới</Text>
                   </TouchableOpacity>
                 </View>
@@ -361,7 +361,7 @@ export default function StaffManagementScreen({ navigation }) {
                     <TouchableOpacity style={[styles.createBtn, {flex: 1, marginRight: 10, backgroundColor: '#F44336'}]} onPress={() => setEditingStaff(null)}>
                       <Text style={styles.btnText}>Hủy</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.createBtn, {flex: 1, marginTop: 0}]} onPress={saveEditStaff}>
+                    <TouchableOpacity style={[styles.createBtn, {flex: 1}]} onPress={saveEditStaff}>
                       <Text style={styles.btnText}>Lưu Thay Đổi</Text>
                     </TouchableOpacity>
                   </View>
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   permBox: { backgroundColor: '#f9fafb', padding: 15, borderRadius: 8, marginTop: 15, borderWidth: 1, borderColor: '#eee' },
   permRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
   accessRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 15 },
-  createBtn: { backgroundColor: '#4CAF50', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 25 },
+  createBtn: { backgroundColor: '#4CAF50', padding: 15, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   staffCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
   staffName: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 5 },
