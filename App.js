@@ -21,10 +21,10 @@ export default function App() {
   const [selectedStoreId, setSelectedStoreId] = useState(1);
 
   const [staffList, setStaffList] = useState([
-    { id: 'manager_1', name: 'Quản Lý (Admin 1)', phone: '0907654321', wage: 30000, store_id: 1, role: 'MANAGER', hasAppAccess: true, permissions: { reports: true, inventory: true, hr: true, payroll: true, viewable_stores: [1] } },
-    { id: 'staff_1', name: 'Nguyễn Văn A (Barista)', phone: '0901112223', wage: 25000, store_id: 1, role: 'STAFF', hasAppAccess: true, permissions: { reports: false, inventory: true, hr: true, payroll: true, viewable_stores: [1] } },
-    { id: 'staff_2', name: 'Trần Thị B (Thu ngân)', phone: '0901112224', wage: 22000, store_id: 1, role: 'STAFF', hasAppAccess: false, permissions: { reports: false, inventory: true, hr: true, payroll: true, viewable_stores: [1] } },
-    { id: 'staff_3', name: 'Lê Văn C (Pha chế)', phone: '0901112225', wage: 26000, store_id: 2, role: 'STAFF', hasAppAccess: true, permissions: { reports: false, inventory: false, hr: true, payroll: true, viewable_stores: [2] } }
+    { id: 'manager_1', name: 'Quản Lý (Admin 1)', phone: '0907654321', wage: 30000, store_id: 1, role: 'MANAGER', hasAppAccess: true, permissions: { reports: true, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: [1] } },
+    { id: 'staff_1', name: 'Nguyễn Văn A (Kiểm kho)', phone: '0901112223', wage: 25000, store_id: 1, role: 'STAFF', hasAppAccess: true, permissions: { reports: false, inventory: true, cashier: false, hr: true, payroll: true, viewable_stores: [1] } },
+    { id: 'staff_2', name: 'Trần Thị B (Thu ngân)', phone: '0901112224', wage: 22000, store_id: 1, role: 'STAFF', hasAppAccess: false, permissions: { reports: false, inventory: false, cashier: true, hr: true, payroll: true, viewable_stores: [1] } },
+    { id: 'staff_3', name: 'Lê Văn C (Pha chế)', phone: '0901112225', wage: 26000, store_id: 2, role: 'STAFF', hasAppAccess: true, permissions: { reports: false, inventory: false, cashier: false, hr: true, payroll: true, viewable_stores: [2] } }
   ]);
 
   const [currentUser, setCurrentUser] = useState(null);
@@ -41,6 +41,10 @@ export default function App() {
     { id: 'log_2', itemId: 'item_1', type: 'EXPORT', amount: 3, date: '2026-06-21', store_id: 1 },
     { id: 'log_3', itemId: 'item_2', type: 'EXPORT', amount: 15, date: '2026-06-22', store_id: 1 },
     { id: 'log_4', itemId: 'item_2', type: 'IMPORT', amount: 20, date: '2026-06-20', store_id: 1 }, 
+  ]);
+
+  const [inventoryRequests, setInventoryRequests] = useState([
+    { id: 'req_1', itemId: 'item_1', type: 'IMPORT', amount: 5, date: '2026-06-23', store_id: 1, requested_by_name: 'Nguyễn Văn A', status: 'PENDING_MANAGER' }
   ]);
 
   const [attendanceHistory, setAttendanceHistory] = useState([
@@ -73,6 +77,7 @@ export default function App() {
       attendanceHistory, setAttendanceHistory,
       inventoryItems, setInventoryItems,
       inventoryLogs, setInventoryLogs,
+      inventoryRequests, setInventoryRequests,
       shifts, setShifts
     }}>
       <NavigationContainer>

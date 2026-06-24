@@ -4,7 +4,7 @@ import { AppContext } from '../../App';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function InventoryScreen({ navigation }) {
-  const { currentUser, inventoryItems, setInventoryItems, inventoryLogs, setInventoryLogs, selectedStoreId, storeList } = useContext(AppContext);
+  const { currentUser, inventoryItems, setInventoryItems, inventoryLogs, setInventoryLogs, inventoryRequests, setInventoryRequests, selectedStoreId, storeList } = useContext(AppContext);
 
   // === ROLE & PERMISSION LOGIC ===
   const isOwner = currentUser?.role === 'OWNER';
@@ -52,6 +52,10 @@ export default function InventoryScreen({ navigation }) {
       alert('Số lượng không hợp lệ!'); return;
     }
 
+    let status = 'PENDING_MANAGER';
+    if (isManager) status = 'PENDING_OWNER';
+    if (isOwner) status = 'APPROVED';
+
     // Nếu là STOCKTAKE (Kiểm kê cân bằng kho)
     if (actionType === 'STOCKTAKE') {
       const itemData = stockData.find(i => i.id === selectedItemAction);
@@ -60,34 +64,78 @@ export default function InventoryScreen({ navigation }) {
         alert('Số lượng khớp với phần mềm. Không cần cân bằng!'); return;
       }
       const type = diff > 0 ? 'ADJUST_UP' : 'ADJUST_DOWN';
-      const newLog = {
-        id: `log_${Date.now()}`,
-        itemId: selectedItemAction,
-        type: type,
-        amount: Math.abs(diff),
-        date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-        store_id: storeIdToView === 'ALL' ? itemData.store_id : storeIdToView,
-        user_name: currentUser.name
-      };
-      setInventoryLogs([...inventoryLogs, newLog]);
-      alert(`Đã kiểm kê! Chênh lệch: ${diff > 0 ? '+' : ''}${diff}. Đã tạo bút toán cân bằng kho.`);
+      
+      if (isOwner) {
+        const newLog = {
+          id: `log_${Date.now()}`, itemId: selectedItemAction, type: type, amount: Math.abs(diff),
+          date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
+          store_id: storeIdToView === 'ALL' ? itemData.store_id : storeIdToView, user_name: currentUser.name
+        };
+        setInventoryLogs([newLog, ...inventoryLogs]);
+        alert(`Đã kiểm kê! Chênh lệch: ${diff > 0 ? '+' : ''}${diff}. Đã cập nhật sổ kho.`);
+      } else {
+        const newReq = {
+          id: `req_${Date.now()}`, itemId: selectedItemAction, type: type, amount: Math.abs(diff),
+          date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
+          store_id: storeIdToView === 'ALL' ? itemData.store_id : storeIdToView, requested_by_name: currentUser.name, status
+        };
+        setInventoryRequests([newReq, ...inventoryRequests]);
+        alert('Đã gửi Phiếu Yêu Cầu Kiểm Kê chờ duyệt!');
+      }
       setAmountAction('');
       return;
     }
 
     // Nếu là EXPORT / IMPORT
-    const newLog = {
-      id: `log_${Date.now()}`,
-      itemId: selectedItemAction,
-      type: actionType,
-      amount: val,
-      date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-      store_id: storeIdToView === 'ALL' ? myItems.find(i=>i.id===selectedItemAction)?.store_id : storeIdToView,
-      user_name: currentUser.name
-    };
-    setInventoryLogs([newLog, ...inventoryLogs]);
-    alert('Đã ghi nhận giao dịch kho!');
+    if (isOwner) {
+      const newLog = {
+        id: `log_${Date.now()}`, itemId: selectedItemAction, type: actionType, amount: val,
+        date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
+        store_id: storeIdToView === 'ALL' ? myItems.find(i=>i.id===selectedItemAction)?.store_id : storeIdToView, user_name: currentUser.name
+      };
+      setInventoryLogs([newLog, ...inventoryLogs]);
+      alert('Đã ghi nhận giao dịch kho lập tức!');
+    } else {
+      const newReq = {
+        id: `req_${Date.now()}`, itemId: selectedItemAction, type: actionType, amount: val,
+        date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
+        store_id: storeIdToView === 'ALL' ? myItems.find(i=>i.id===selectedItemAction)?.store_id : storeIdToView, requested_by_name: currentUser.name, status
+      };
+      setInventoryRequests([newReq, ...inventoryRequests]);
+      alert('Đã tạo Phiếu Yêu Cầu Giao Dịch, vui lòng chờ duyệt!');
+    }
     setAmountAction('');
+  };
+
+  // Hàm Duyệt / Từ Chối phiếu
+  const handleReviewRequest = (reqId, action) => {
+    const req = inventoryRequests.find(r => r.id === reqId);
+    if (!req) return;
+
+    if (action === 'REJECT') {
+      const updated = inventoryRequests.map(r => r.id === reqId ? { ...r, status: 'REJECTED' } : r);
+      setInventoryRequests(updated);
+      alert('Đã từ chối phiếu yêu cầu.');
+      return;
+    }
+
+    if (action === 'APPROVE') {
+      if (isManager && req.status === 'PENDING_MANAGER') {
+        const updated = inventoryRequests.map(r => r.id === reqId ? { ...r, status: 'PENDING_OWNER' } : r);
+        setInventoryRequests(updated);
+        alert('Đã duyệt phiếu (Chờ Chủ cửa hàng duyệt bước cuối).');
+      } else if (isOwner) {
+        const updated = inventoryRequests.map(r => r.id === reqId ? { ...r, status: 'APPROVED' } : r);
+        setInventoryRequests(updated);
+        const newLog = {
+          id: `log_${Date.now()}`, itemId: req.itemId, type: req.type, amount: req.amount,
+          date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
+          store_id: req.store_id, user_name: req.requested_by_name + ' (Đã duyệt)'
+        };
+        setInventoryLogs([newLog, ...inventoryLogs]);
+        alert('Đã duyệt phiếu! Tồn kho đã được cập nhật.');
+      }
+    }
   };
 
   // === TAB 3: DANH MỤC & SỔ KHO ===
@@ -138,8 +186,13 @@ export default function InventoryScreen({ navigation }) {
           <Text style={[styles.tabText, activeTab === 'ACTION' && styles.tabTextActive]}>Thao Tác</Text>
         </TouchableOpacity>
         {(!isStaff) && (
+          <TouchableOpacity style={[styles.tabBtn, activeTab === 'APPROVALS' && styles.tabBtnActive]} onPress={() => setActiveTab('APPROVALS')}>
+            <Text style={[styles.tabText, activeTab === 'APPROVALS' && styles.tabTextActive]}>Duyệt Phiếu</Text>
+          </TouchableOpacity>
+        )}
+        {(!isStaff) && (
           <TouchableOpacity style={[styles.tabBtn, activeTab === 'LOGS' && styles.tabBtnActive]} onPress={() => setActiveTab('LOGS')}>
-            <Text style={[styles.tabText, activeTab === 'LOGS' && styles.tabTextActive]}>Sổ Kho & Danh Mục</Text>
+            <Text style={[styles.tabText, activeTab === 'LOGS' && styles.tabTextActive]}>Danh Mục</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -230,8 +283,72 @@ export default function InventoryScreen({ navigation }) {
             />
 
             <TouchableOpacity style={styles.submitBtn} onPress={handleSubmitAction}>
-              <Text style={styles.submitBtnText}>Xác Nhận</Text>
+              <Text style={styles.submitBtnText}>{isOwner ? 'Xác Nhận (Cập nhật liền)' : 'Gửi Phiếu Yêu Cầu'}</Text>
             </TouchableOpacity>
+
+            {isStaff && (
+              <View style={{marginTop: 20}}>
+                <Text style={styles.sectionTitle}>Phiếu Của Tôi</Text>
+                {inventoryRequests.filter(r => r.requested_by_name === currentUser.name).map(req => {
+                  const item = inventoryItems.find(i => i.id === req.itemId);
+                  let statusTxt = 'Chờ Quản lý duyệt'; let statusColor = '#ff9800';
+                  if (req.status === 'PENDING_OWNER') { statusTxt = 'Chờ Chủ duyệt'; statusColor = '#2196f3'; }
+                  if (req.status === 'REJECTED') { statusTxt = 'Bị từ chối'; statusColor = '#f44336'; }
+                  if (req.status === 'APPROVED') { statusTxt = 'Đã duyệt'; statusColor = '#4caf50'; }
+
+                  let typeTxt = 'NHẬP'; if(req.type === 'EXPORT') typeTxt = 'XUẤT'; else if(req.type === 'ADJUST_UP') typeTxt = 'KIỂM KÊ (+)'; else if(req.type === 'ADJUST_DOWN') typeTxt = 'KIỂM KÊ (-)';
+                  
+                  return (
+                    <View key={req.id} style={styles.logCard}>
+                      <Text style={{fontWeight: 'bold'}}>{typeTxt} {item?.name} - {req.amount} {item?.unit}</Text>
+                      <Text style={{fontSize: 12, color: statusColor, fontWeight: 'bold'}}>{statusTxt}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* === TAB DUYỆT PHIẾU === */}
+        {activeTab === 'APPROVALS' && !isStaff && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Phiếu Yêu Cầu Chờ Duyệt</Text>
+            {inventoryRequests.filter(req => {
+              if (storeIdToView !== 'ALL' && req.store_id !== storeIdToView) return false;
+              if (req.status === 'APPROVED' || req.status === 'REJECTED') return false;
+              if (isManager && req.status !== 'PENDING_MANAGER') return false;
+              return true;
+            }).length === 0 && <Text style={{color: '#888'}}>Không có phiếu nào cần duyệt.</Text>}
+
+            {inventoryRequests.filter(req => {
+              if (storeIdToView !== 'ALL' && req.store_id !== storeIdToView) return false;
+              if (req.status === 'APPROVED' || req.status === 'REJECTED') return false;
+              if (isManager && req.status !== 'PENDING_MANAGER') return false;
+              return true;
+            }).map(req => {
+              const item = inventoryItems.find(i => i.id === req.itemId);
+              let typeTxt = 'NHẬP'; if(req.type === 'EXPORT') typeTxt = 'XUẤT'; else if(req.type === 'ADJUST_UP') typeTxt = 'KIỂM KÊ (+)'; else if(req.type === 'ADJUST_DOWN') typeTxt = 'KIỂM KÊ (-)';
+              let statusTxt = req.status === 'PENDING_MANAGER' ? 'Quản lý duyệt' : 'Chủ duyệt';
+              
+              return (
+                <View key={req.id} style={[styles.logCard, {backgroundColor: '#fffbe6', borderRadius: 8, marginBottom: 10}]}>
+                  <Text style={{fontWeight: 'bold', fontSize: 16}}>{typeTxt} {item?.name}</Text>
+                  <Text style={{color: '#e91e63', fontWeight: 'bold'}}>Số lượng: {req.amount} {item?.unit}</Text>
+                  <Text style={{fontSize: 12, color: '#666'}}>Người tạo: {req.requested_by_name} | {req.date}</Text>
+                  <Text style={{fontSize: 12, color: '#ff9800', fontWeight: 'bold'}}>Đang chờ: {statusTxt}</Text>
+                  
+                  <View style={{flexDirection: 'row', marginTop: 10}}>
+                    <TouchableOpacity style={[styles.submitBtn, {flex: 1, marginRight: 10, backgroundColor: '#f44336', padding: 10}]} onPress={() => handleReviewRequest(req.id, 'REJECT')}>
+                      <Text style={styles.submitBtnText}>Từ chối</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.submitBtn, {flex: 1, backgroundColor: '#4caf50', padding: 10}]} onPress={() => handleReviewRequest(req.id, 'APPROVE')}>
+                      <Text style={styles.submitBtnText}>Duyệt</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
           </View>
         )}
 

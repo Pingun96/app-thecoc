@@ -21,6 +21,7 @@ export default function ShiftScreen({ navigation }) {
   const isOwner = currentUser?.role === 'OWNER';
   const isManager = currentUser?.role === 'MANAGER';
   const isStaff = currentUser?.role === 'STAFF';
+  const hasCashierPerm = !isStaff || currentUser?.permissions?.cashier;
 
   const viewableStores = currentUser?.permissions?.viewable_stores || [];
   let storeIdToView = currentUser?.store_id;
@@ -145,7 +146,12 @@ export default function ShiftScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }} style={{ flex: 1 }}>
-        {activeTab === 'ACTION' && (
+        {!hasCashierPerm ? (
+          <View style={{padding: 20, alignItems: 'center', marginTop: 50}}>
+            <Ionicons name="lock-closed" size={60} color="#ccc" />
+            <Text style={{fontSize: 18, color: '#888', marginTop: 15, textAlign: 'center'}}>Bạn không được cấp quyền Thu Ngân / Bán Hàng để thực hiện chức năng này.</Text>
+          </View>
+        ) : activeTab === 'ACTION' && (
           <View>
             {storeIdToView === 'ALL' ? (
               <View style={styles.section}><Text style={{textAlign:'center', color:'#f44336'}}>Vui lòng chọn 1 chi nhánh để Giao Ca!</Text></View>

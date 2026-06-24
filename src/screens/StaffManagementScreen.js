@@ -27,7 +27,7 @@ export default function StaffManagementScreen({ navigation }) {
   const [storeId, setStoreId] = useState(storeList[0]?.id || 1);
   const [role, setRole] = useState('STAFF');
   const [hasAccess, setHasAccess] = useState(true);
-  const [perms, setPerms] = useState({ reports: false, inventory: true, hr: true, payroll: true, viewable_stores: [] });
+  const [perms, setPerms] = useState({ reports: false, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: [] });
 
   const handleCreateStaff = () => {
     if (!fullName || !phone || !password || !wage) {
@@ -46,7 +46,7 @@ export default function StaffManagementScreen({ navigation }) {
       role: role,
       hasAppAccess: hasAccess,
       permissions: role === 'MANAGER' 
-        ? { reports: true, inventory: true, hr: true, payroll: true, viewable_stores: finalViewableStores } 
+        ? { reports: true, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: finalViewableStores } 
         : { ...perms, viewable_stores: [storeId] }
     };
     setStaffList([...staffList, newStaff]);
@@ -71,7 +71,7 @@ export default function StaffManagementScreen({ navigation }) {
   const openEditModal = (staff) => {
     setEditingStaff({ 
       ...staff,
-      permissions: staff.permissions || { reports: false, inventory: true, hr: true, payroll: true, viewable_stores: [staff.store_id] }
+      permissions: staff.permissions || { reports: false, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: [staff.store_id] }
     });
   };
 
@@ -87,7 +87,7 @@ export default function StaffManagementScreen({ navigation }) {
     const finalStaff = {
       ...editingStaff,
       permissions: editingStaff.role === 'MANAGER' 
-        ? { reports: true, inventory: true, hr: true, payroll: true, viewable_stores: finalViewableStores } 
+        ? { reports: true, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: finalViewableStores } 
         : { ...editingStaff.permissions, viewable_stores: finalViewableStores }
     };
 
@@ -218,7 +218,8 @@ export default function StaffManagementScreen({ navigation }) {
                 {role === 'STAFF' && (
                   <View style={styles.permBox}>
                     <Text style={[styles.label, {marginTop:0}]}>Cấp quyền sử dụng tính năng:</Text>
-                    <View style={styles.permRow}><Text>📦 Kho hàng</Text><Switch value={perms.inventory} onValueChange={()=>togglePerm('inventory')} /></View>
+                    <View style={styles.permRow}><Text>💵 Thu ngân / Bán hàng</Text><Switch value={perms.cashier} onValueChange={()=>togglePerm('cashier')} /></View>
+                    <View style={styles.permRow}><Text>📦 Kiểm Kho / Nhập xuất</Text><Switch value={perms.inventory} onValueChange={()=>togglePerm('inventory')} /></View>
                     <View style={styles.permRow}><Text>⏱️ Chấm công</Text><Switch value={perms.hr} onValueChange={()=>togglePerm('hr')} /></View>
                     <View style={styles.permRow}><Text>💰 Xem lương</Text><Switch value={perms.payroll} onValueChange={()=>togglePerm('payroll')} /></View>
                     <View style={styles.permRow}><Text>📊 Xem Báo cáo</Text><Switch value={perms.reports} onValueChange={()=>togglePerm('reports')} /></View>
@@ -290,7 +291,8 @@ export default function StaffManagementScreen({ navigation }) {
                 {editingStaff?.role === 'STAFF' && editingStaff?.permissions && (
                   <View style={styles.permBox}>
                     <Text style={[styles.label, {marginTop:0}]}>Phân quyền hiển thị:</Text>
-                    <View style={styles.permRow}><Text>📦 Kho hàng</Text><Switch value={editingStaff.permissions.inventory} onValueChange={()=>toggleEditPerm('inventory')} /></View>
+                    <View style={styles.permRow}><Text>💵 Thu ngân / Bán hàng</Text><Switch value={editingStaff.permissions.cashier} onValueChange={()=>toggleEditPerm('cashier')} /></View>
+                    <View style={styles.permRow}><Text>📦 Kiểm Kho / Nhập xuất</Text><Switch value={editingStaff.permissions.inventory} onValueChange={()=>toggleEditPerm('inventory')} /></View>
                     <View style={styles.permRow}><Text>⏱️ Chấm công</Text><Switch value={editingStaff.permissions.hr} onValueChange={()=>toggleEditPerm('hr')} /></View>
                     <View style={styles.permRow}><Text>💰 Xem lương</Text><Switch value={editingStaff.permissions.payroll} onValueChange={()=>toggleEditPerm('payroll')} /></View>
                     <View style={styles.permRow}><Text>📊 Xem Báo cáo</Text><Switch value={editingStaff.permissions.reports} onValueChange={()=>toggleEditPerm('reports')} /></View>
