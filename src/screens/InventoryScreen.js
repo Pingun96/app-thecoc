@@ -28,6 +28,7 @@ import {
   normalizeInventoryRequest,
 } from '../services/dataMappers';
 import { getLocalDateKey } from '../utils/dateTime';
+import { sendPushNotification, getManagersPushTokens } from '../services/NotificationService';
 
 const ACTIONS = {
   IMPORT: { label: 'Nhập kho', shortLabel: 'NHẬP', color: '#16a34a', sign: '+' },
@@ -66,6 +67,7 @@ const getRequestStatus = (status) => {
 export default function InventoryScreen({ navigation }) {
   const {
     currentUser,
+    staffList,
     inventoryItems,
     setInventoryItems,
     inventoryLogs,
@@ -218,6 +220,11 @@ export default function InventoryScreen({ navigation }) {
       };
       await createInventoryRequest(request);
       setInventoryRequests((current) => [normalizeInventoryRequest(request), ...current]);
+
+      getManagersPushTokens(selectedStock.store_id).then(tokens => {
+        tokens.forEach(token => sendPushNotification(token, 'Phiếu Kho Mới', `${request.requested_by_name} vừa tạo 1 phiếu ${ACTIONS[finalType].label}`));
+      });
+
       Alert.alert('Đã gửi phiếu', 'Yêu cầu đã được lưu và chuyển đến cấp duyệt tiếp theo.');
     }
     setAmount('');
@@ -229,6 +236,12 @@ export default function InventoryScreen({ navigation }) {
       setInventoryRequests((current) => current.map((item) => (
         item.id === request.id ? { ...item, status: 'REJECTED' } : item
       )));
+
+      const creator = staffList?.find(s => s.name === request.requested_by_name);
+      if (creator?.push_token) {
+        sendPushNotification(creator.push_token, 'Phiếu Bị Từ Chối', `Phiếu ${ACTIONS[request.type]?.label || request.type} của bạn đã bị từ chối.`);
+      }
+
       Alert.alert('Đã từ chối', 'Phiếu yêu cầu đã được đóng.');
       return;
     }
@@ -241,6 +254,12 @@ export default function InventoryScreen({ navigation }) {
       setInventoryRequests((current) => current.map((item) => (
         item.id === request.id ? { ...item, status: 'PENDING_OWNER' } : item
       )));
+
+      const creator = staffList?.find(s => s.name === request.requested_by_name);
+      if (creator?.push_token) {
+        sendPushNotification(creator.push_token, 'Đang Xử Lý Phiếu', `Phiếu ${ACTIONS[request.type]?.label || request.type} đã qua bước quản lý, chờ duyệt cuối.`);
+      }
+
       Alert.alert('Đã duyệt bước 1', 'Phiếu đang chờ chủ cửa hàng phê duyệt cuối.');
       return;
     }
@@ -262,6 +281,12 @@ export default function InventoryScreen({ navigation }) {
     } else {
       await refreshData?.();
     }
+
+    const creator = staffList?.find(s => s.name === request.requested_by_name);
+    if (creator?.push_token) {
+      sendPushNotification(creator.push_token, 'Phiếu Đã Duyệt ✅', `Phiếu ${ACTIONS[request.type]?.label || request.type} của bạn đã được duyệt thành công!`);
+    }
+
     Alert.alert('Đã duyệt phiếu', 'Giao dịch đã được ghi vào sổ kho.');
   });
 

@@ -11,6 +11,7 @@ import InventoryScreen from './src/screens/InventoryScreen';
 import StaffCheckinScreen from './src/screens/StaffCheckinScreen';
 import ShiftScheduleScreen from './src/screens/ShiftScheduleScreen';
 import { supabase } from './src/services/supabaseClient';
+import { registerForPushNotificationsAsync, savePushTokenToDB } from './src/services/NotificationService';
 import {
   normalizeAttendance,
   normalizeInventoryItem,
@@ -118,6 +119,17 @@ export default function App() {
       setSelectedStoreId(storeList[0].id);
     }
   }, [storeList, selectedStoreId]);
+
+  // Đăng ký Push Notification khi có currentUser
+  useEffect(() => {
+    if (currentUser) {
+      registerForPushNotificationsAsync().then(token => {
+        if (token) {
+          savePushTokenToDB(currentUser.id, token);
+        }
+      });
+    }
+  }, [currentUser]);
 
   return (
     <AppContext.Provider value={{ 

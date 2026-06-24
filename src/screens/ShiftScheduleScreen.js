@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Ref
 import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
+import { scheduleShiftReminder, getManagersPushTokens, sendPushNotification } from '../services/NotificationService';
 
 export default function ShiftScheduleScreen({ navigation }) {
   const { currentUser, shiftRegistrations, setShiftRegistrations, storeList, staffList, refreshData, isDataLoading } = useContext(AppContext);
@@ -96,6 +97,22 @@ export default function ShiftScheduleScreen({ navigation }) {
       
       setShiftRegistrations([...shiftRegistrations, ...newRegs]);
       setDraftShifts([]); // Xóa giỏ hàng
+
+      // 1. Lên lịch báo thức cho nhân viên (trước 60 phút)
+      for (const draft of draftShifts) {
+        await scheduleShiftReminder(draft.date, draft.shiftType, 60);
+      }
+
+      // 2. Gửi Push Notification cho Quản Lý chi nhánh
+      const managerTokens = await getManagersPushTokens(myStoreId);
+      for (const token of managerTokens) {
+        await sendPushNotification(
+          token, 
+          'Lịch Làm Việc Mới', 
+          `Nhân viên ${currentUser?.name} vừa chốt ${draftShifts.length} ca làm việc.`
+        );
+      }
+
       Alert.alert('Thành công', `Đã gửi thành công ${newRegs.length} ca làm việc!`);
     } catch (e) {
       Alert.alert('Lỗi gửi đăng ký', e.message);
