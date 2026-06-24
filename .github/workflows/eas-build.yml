@@ -1,0 +1,47 @@
+name: EAS Build (APK/IPA)
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to build (all, android, ios)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - android
+        - ios
+
+jobs:
+  build:
+    name: Build Native Apps
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for EXPO_TOKEN
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "You must provide an EXPO_TOKEN secret in GitHub to authenticate with Expo."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          cache: npm
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run EAS Build
+        run: eas build --platform ${{ github.event.inputs.platform }} --profile preview --non-interactive
