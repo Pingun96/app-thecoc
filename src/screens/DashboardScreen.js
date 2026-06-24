@@ -1,13 +1,22 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { AppContext } from '../../App';
+import { AppContext } from '../context/AppContext';
 import * as Updates from 'expo-updates';
+import { getLocalDateKey, isDateInCurrentMonth } from '../utils/dateTime';
 
 const { width } = Dimensions.get('window');
 
 export default function DashboardScreen({ navigation }) {
-  const { currentUser, staffList, attendanceHistory, storeList, selectedStoreId, setSelectedStoreId } = useContext(AppContext);
+  const {
+    currentUser,
+    setCurrentUser,
+    staffList,
+    attendanceHistory,
+    storeList,
+    selectedStoreId,
+    setSelectedStoreId,
+  } = useContext(AppContext);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   const handleManualUpdate = async () => {
@@ -47,14 +56,16 @@ export default function DashboardScreen({ navigation }) {
   const filteredStaff = staffList.filter(s => displayStoreId === 'ALL' || s.store_id === displayStoreId);
   const activeStaffCount = filteredStaff.length;
 
-  const today = new Date().toLocaleDateString('vi-VN');
+  const today = getLocalDateKey();
   const todaysHistory = attendanceHistory.filter(r => r.date === today && filteredStaff.some(s => s.id === r.user_id));
   const todaysEstimatedCost = todaysHistory.reduce((sum, record) => {
     const staff = filteredStaff.find(s => s.id === record.user_id);
     return sum + ((record.hours || 0) * (staff?.wage || 0));
   }, 0);
 
-  const myHistory = attendanceHistory.filter(r => r.user_id === currentUser?.id);
+  const myHistory = attendanceHistory.filter(
+    r => r.user_id === currentUser?.id && isDateInCurrentMonth(r.date)
+  );
   const totalMyHours = myHistory.reduce((sum, r) => sum + (r.hours || 0), 0);
   const totalMyWage = totalMyHours * (currentUser?.wage || 0);
 
@@ -119,28 +130,28 @@ export default function DashboardScreen({ navigation }) {
             source={{ uri: currentUser?.role === 'STAFF' ? 'https://i.pravatar.cc/100?img=33' : 'https://i.pravatar.cc/100?img=12' }} 
             style={styles.avatar} 
           />
-          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('StaffManagement')}>
-            <Ionicons name="people" size={32} color="#4CAF50" />
-            <Text style={styles.menuText}>Nhân sự</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Inventory')}>
-            <Ionicons name="cube" size={32} color="#FF9800" />
-            <Text style={styles.menuText}>Kho hàng</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={{alignItems: 'center', marginTop: 20}}>
-          <TouchableOpacity 
-            style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#e3f2fd', padding: 12, borderRadius: 30}}
-            onPress={handleManualUpdate}
-            disabled={isCheckingUpdate}
-          >
-            {isCheckingUpdate ? <ActivityIndicator color="#1976d2" style={{marginRight: 10}} /> : <Ionicons name="cloud-download-outline" size={24} color="#1976d2" style={{marginRight: 10}} />}
-            <Text style={{color: '#1976d2', fontWeight: 'bold'}}>Kiểm tra Cập nhật OTA</Text>
-          </TouchableOpacity>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.greetingText}>Xin chào,</Text>
+            <Text style={styles.nameText} numberOfLines={1}>
+              {currentUser?.name || 'Thành viên The Cốc'}
+            </Text>
+            <Text style={styles.roleText}>
+              {currentUser?.role === 'OWNER'
+                ? 'Chủ cửa hàng'
+                : currentUser?.role === 'MANAGER'
+                  ? 'Quản lý'
+                  : 'Nhân viên'}
+            </Text>
+          </View>
         </View>
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={() => navigation.replace('Login')}>
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={() => {
+            setCurrentUser(null);
+            navigation.replace('Login');
+          }}
+        >
           <MaterialCommunityIcons name="logout" size={24} color="#ff5252" />
         </TouchableOpacity>
       </View>
@@ -176,6 +187,18 @@ export default function DashboardScreen({ navigation }) {
       )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <TouchableOpacity
+          style={styles.updateButton}
+          onPress={handleManualUpdate}
+          disabled={isCheckingUpdate}
+        >
+          {isCheckingUpdate
+            ? <ActivityIndicator color="#1565c0" />
+            : <Ionicons name="cloud-download-outline" size={20} color="#1565c0" />}
+          <Text style={styles.updateButtonText}>
+            {isCheckingUpdate ? 'Đang kiểm tra...' : 'Kiểm tra cập nhật ứng dụng'}
+          </Text>
+        </TouchableOpacity>
         
         {/* QUICK STATS */}
         <Text style={styles.sectionTitle}>Tổng quan {currentUser?.role === 'STAFF' ? 'cá nhân' : 'hôm nay'}</Text>
@@ -224,9 +247,10 @@ const styles = StyleSheet.create({
   headerContainer: { backgroundColor: '#1f2937', paddingTop: 50, paddingBottom: 25, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 25, borderBottomRightRadius: 25, elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10 },
   headerProfile: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: '#fff' },
-  headerTextContainer: { marginLeft: 15 },
+  headerTextContainer: { marginLeft: 13, maxWidth: width - 135 },
   greetingText: { color: '#9ca3af', fontSize: 14 },
-  nameText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  nameText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  roleText: { color: '#86efac', fontSize: 12, fontWeight: '700', marginTop: 2 },
   logoutBtn: { padding: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
   storeSelector: { flexDirection: 'row' },
   storeChip: { backgroundColor: '#e5e7eb', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 10, height: 36, justifyContent: 'center' },
@@ -234,6 +258,8 @@ const styles = StyleSheet.create({
   storeChipText: { color: '#4b5563', fontWeight: 'bold', fontSize: 13 },
   storeChipTextActive: { color: '#fff' },
   scrollContent: { padding: 20, paddingBottom: 40 },
+  updateButton: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', backgroundColor: '#e8f1ff', borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9, marginBottom: 16 },
+  updateButtonText: { color: '#1565c0', fontWeight: '800', fontSize: 12, marginLeft: 7 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#374151', marginBottom: 15, marginTop: 5 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
   statCard: { backgroundColor: '#fff', width: (width - 55) / 2, padding: 15, borderRadius: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },

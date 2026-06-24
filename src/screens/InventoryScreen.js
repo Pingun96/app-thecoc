@@ -1,496 +1,798 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
-import { AppContext } from '../../App';
+import React, { useContext, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../services/supabaseClient';
+import { AppContext } from '../context/AppContext';
+import {
+  approveInventoryRequest,
+  createInventoryItem,
+  createInventoryLog,
+  createInventoryRequest,
+  updateInventoryRequestStatus,
+} from '../services/inventoryService';
+import {
+  normalizeInventoryItem,
+  normalizeInventoryLog,
+  normalizeInventoryRequest,
+} from '../services/dataMappers';
+import { getLocalDateKey } from '../utils/dateTime';
+
+const ACTIONS = {
+  IMPORT: { label: 'Nhập kho', shortLabel: 'NHẬP', color: '#16a34a', sign: '+' },
+  EXPORT: { label: 'Xuất kho', shortLabel: 'XUẤT', color: '#dc2626', sign: '-' },
+  ADJUST_UP: { label: 'Kiểm kê tăng', shortLabel: 'ĐIỀU CHỈNH +', color: '#7c3aed', sign: '+' },
+  ADJUST_DOWN: { label: 'Hao hụt', shortLabel: 'ĐIỀU CHỈNH -', color: '#db2777', sign: '-' },
+};
+
+const formatQuantity = (value) => Number(value || 0).toLocaleString('vi-VN', {
+  maximumFractionDigits: 2,
+});
+
+const formatTimestamp = (value) => {
+  if (!value) return '--';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
+const makeId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+const getRequestStatus = (status) => {
+  if (status === 'PENDING_MANAGER') return { label: 'Chờ quản lý', color: '#b45309', bg: '#fef3c7' };
+  if (status === 'PENDING_OWNER') return { label: 'Chờ chủ cửa hàng', color: '#1d4ed8', bg: '#dbeafe' };
+  if (status === 'APPROVED') return { label: 'Đã duyệt', color: '#15803d', bg: '#dcfce7' };
+  if (status === 'REJECTED') return { label: 'Đã từ chối', color: '#b91c1c', bg: '#fee2e2' };
+  return { label: status || 'Không rõ', color: '#475569', bg: '#e2e8f0' };
+};
 
 export default function InventoryScreen({ navigation }) {
-  const { currentUser, inventoryItems, setInventoryItems, inventoryLogs, setInventoryLogs, inventoryRequests, setInventoryRequests, selectedStoreId, storeList } = useContext(AppContext);
+  const {
+    currentUser,
+    inventoryItems,
+    setInventoryItems,
+    inventoryLogs,
+    setInventoryLogs,
+    inventoryRequests,
+    setInventoryRequests,
+    selectedStoreId,
+    storeList,
+    refreshData,
+  } = useContext(AppContext);
 
-  // === ROLE & PERMISSION LOGIC ===
   const isOwner = currentUser?.role === 'OWNER';
   const isManager = currentUser?.role === 'MANAGER';
   const isStaff = currentUser?.role === 'STAFF';
-  
   const viewableStores = currentUser?.permissions?.viewable_stores || [];
+
   let storeIdToView = currentUser?.store_id;
-  if (isOwner || viewableStores.includes(selectedStoreId)) {
-    storeIdToView = selectedStoreId;
-  }
-  if (isOwner && selectedStoreId === 'ALL') {
-    storeIdToView = 'ALL';
-  }
+  if (isOwner || viewableStores.includes(selectedStoreId)) storeIdToView = selectedStoreId;
+  if (isOwner && selectedStoreId === 'ALL') storeIdToView = 'ALL';
 
-  // Lọc items của chi nhánh đang xét
-  const myItems = inventoryItems.filter(item => storeIdToView === 'ALL' || item.store_id === storeIdToView);
-  
-  // Tính toán Tồn Kho Hiện Tại
-  const stockData = myItems.map(item => {
-    const logs = inventoryLogs.filter(log => log.itemId === item.id && (storeIdToView === 'ALL' || log.store_id === storeIdToView));
-    const imported = logs.filter(l => l.type === 'IMPORT' || l.type === 'ADJUST_UP').reduce((sum, l) => sum + l.amount, 0);
-    const exported = logs.filter(l => l.type === 'EXPORT' || l.type === 'ADJUST_DOWN').reduce((sum, l) => sum + l.amount, 0);
-    const currentStock = imported - exported;
-    const isLowStock = currentStock < item.safeLevel;
-    return { ...item, currentStock, isLowStock, logs };
-  });
+  const storeName = storeIdToView === 'ALL'
+    ? 'Tất cả chi nhánh'
+    : storeList.find((store) => store.id === storeIdToView)?.name || `Chi nhánh ${storeIdToView || '--'}`;
 
-  // TABS STATE
-  // Tab 1: Tổng quan (Overview), Tab 2: Thao tác (Action), Tab 3: Sổ Kho & Danh mục (Catalog/Logs)
-  const defaultTab = isStaff ? 'ACTION' : 'OVERVIEW';
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  const myItems = useMemo(
+    () => inventoryItems.filter(
+      (item) => storeIdToView === 'ALL' || item.store_id === storeIdToView,
+    ),
+    [inventoryItems, storeIdToView],
+  );
 
-  // === TAB 2: THAO TÁC KHO ===
-  const [selectedItemAction, setSelectedItemAction] = useState(myItems[0]?.id || '');
-  const [actionType, setActionType] = useState('EXPORT'); // EXPORT, IMPORT, STOCKTAKE
-  const [amountAction, setAmountAction] = useState('');
+  const stockData = useMemo(() => myItems.map((item) => {
+    const logs = inventoryLogs.filter(
+      (log) => log.itemId === item.id && log.store_id === item.store_id,
+    );
+    const imported = logs
+      .filter((log) => log.type === 'IMPORT' || log.type === 'ADJUST_UP')
+      .reduce((sum, log) => sum + Number(log.amount || 0), 0);
+    const exported = logs
+      .filter((log) => log.type === 'EXPORT' || log.type === 'ADJUST_DOWN')
+      .reduce((sum, log) => sum + Number(log.amount || 0), 0);
+    const currentStock = Number((imported - exported).toFixed(2));
+    return {
+      ...item,
+      logs,
+      currentStock,
+      isLowStock: currentStock <= Number(item.safeLevel || 0),
+    };
+  }), [inventoryLogs, myItems]);
 
-  const handleSubmitAction = async () => {
-    if (!selectedItemAction || !amountAction) {
-      alert('Vui lòng nhập đủ thông tin!'); return;
-    }
-    const val = Number(amountAction);
-    if (isNaN(val) || val <= 0) {
-      alert('Số lượng không hợp lệ!'); return;
-    }
+  const stockByItemId = useMemo(
+    () => Object.fromEntries(stockData.map((item) => [item.id, item])),
+    [stockData],
+  );
+  const itemById = useMemo(
+    () => Object.fromEntries(inventoryItems.map((item) => [item.id, item])),
+    [inventoryItems],
+  );
 
-    let status = 'PENDING_MANAGER';
-    if (isManager) status = 'PENDING_OWNER';
-    if (isOwner) status = 'APPROVED';
-
-    // Nếu là STOCKTAKE (Kiểm kê cân bằng kho)
-    if (actionType === 'STOCKTAKE') {
-      const itemData = stockData.find(i => i.id === selectedItemAction);
-      const diff = val - itemData.currentStock;
-      if (diff === 0) {
-        alert('Số lượng khớp với phần mềm. Không cần cân bằng!'); return;
-      }
-      const type = diff > 0 ? 'ADJUST_UP' : 'ADJUST_DOWN';
-      
-      if (isOwner) {
-        const newLog = {
-          id: `log_${Date.now()}`, itemid: selectedItemAction, type: type, amount: Math.abs(diff),
-          date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-          store_id: storeIdToView === 'ALL' ? itemData.store_id : storeIdToView, user_name: currentUser.name
-        };
-        await supabase.from('inventory_logs').insert([newLog]);
-        setInventoryLogs([{...newLog, itemId: newLog.itemid}, ...inventoryLogs]);
-        alert(`Đã kiểm kê! Chênh lệch: ${diff > 0 ? '+' : ''}${diff}. Đã cập nhật sổ kho.`);
-      } else {
-        const newReq = {
-          id: `req_${Date.now()}`, itemid: selectedItemAction, type: type, amount: Math.abs(diff),
-          date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-          store_id: storeIdToView === 'ALL' ? itemData.store_id : storeIdToView, requested_by_name: currentUser.name, status
-        };
-        await supabase.from('inventory_requests').insert([newReq]);
-        setInventoryRequests([{...newReq, itemId: newReq.itemid}, ...inventoryRequests]);
-        alert('Đã gửi Phiếu Yêu Cầu Kiểm Kê chờ duyệt!');
-      }
-      setAmountAction('');
-      return;
-    }
-
-    // Nếu là EXPORT / IMPORT
-    if (isOwner) {
-      const newLog = {
-        id: `log_${Date.now()}`, itemid: selectedItemAction, type: actionType, amount: val,
-        date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-        store_id: storeIdToView === 'ALL' ? myItems.find(i=>i.id===selectedItemAction)?.store_id : storeIdToView, user_name: currentUser.name
-      };
-      await supabase.from('inventory_logs').insert([newLog]);
-      setInventoryLogs([{...newLog, itemId: newLog.itemid}, ...inventoryLogs]);
-      alert('Đã ghi nhận giao dịch kho lập tức!');
-    } else {
-      const newReq = {
-        id: `req_${Date.now()}`, itemid: selectedItemAction, type: actionType, amount: val,
-        date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-        store_id: storeIdToView === 'ALL' ? myItems.find(i=>i.id===selectedItemAction)?.store_id : storeIdToView, requested_by_name: currentUser.name, status
-      };
-      await supabase.from('inventory_requests').insert([newReq]);
-      setInventoryRequests([{...newReq, itemId: newReq.itemid}, ...inventoryRequests]);
-      alert('Đã tạo Phiếu Yêu Cầu Giao Dịch, vui lòng chờ duyệt!');
-    }
-    setAmountAction('');
-  };
-
-  // Hàm Duyệt / Từ Chối phiếu
-  const handleReviewRequest = async (reqId, action) => {
-    const req = inventoryRequests.find(r => r.id === reqId);
-    if (!req) return;
-
-    if (action === 'REJECT') {
-      await supabase.from('inventory_requests').update({ status: 'REJECTED' }).eq('id', reqId);
-      const updated = inventoryRequests.map(r => r.id === reqId ? { ...r, status: 'REJECTED' } : r);
-      setInventoryRequests(updated);
-      alert('Đã từ chối phiếu yêu cầu.');
-      return;
-    }
-
-    if (action === 'APPROVE') {
-      if (isManager && req.status === 'PENDING_MANAGER') {
-        await supabase.from('inventory_requests').update({ status: 'PENDING_OWNER' }).eq('id', reqId);
-        const updated = inventoryRequests.map(r => r.id === reqId ? { ...r, status: 'PENDING_OWNER' } : r);
-        setInventoryRequests(updated);
-        alert('Đã duyệt phiếu (Chờ Chủ cửa hàng duyệt bước cuối).');
-      } else if (isOwner) {
-        await supabase.from('inventory_requests').update({ status: 'APPROVED' }).eq('id', reqId);
-        const updated = inventoryRequests.map(r => r.id === reqId ? { ...r, status: 'APPROVED' } : r);
-        setInventoryRequests(updated);
-        const newLog = {
-          id: `log_${Date.now()}`, itemid: req.itemId, type: req.type, amount: req.amount,
-          date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-          store_id: req.store_id, user_name: req.requested_by_name + ' (Đã duyệt)'
-        };
-        await supabase.from('inventory_logs').insert([newLog]);
-        setInventoryLogs([{...newLog, itemId: newLog.itemid}, ...inventoryLogs]);
-        alert('Đã duyệt phiếu! Tồn kho đã được cập nhật.');
-      }
-    }
-  };
-
-  // === TAB 3: DANH MỤC & SỔ KHO ===
-  const [showCreateItemModal, setShowCreateItemModal] = useState(false);
+  const [activeTab, setActiveTab] = useState(isStaff ? 'ACTION' : 'OVERVIEW');
+  const [selectedItemId, setSelectedItemId] = useState('');
+  const [actionType, setActionType] = useState('EXPORT');
+  const [amount, setAmount] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [busyKey, setBusyKey] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemUnit, setNewItemUnit] = useState('kg');
   const [newItemSafeLevel, setNewItemSafeLevel] = useState('5');
 
-  const handleCreateItem = async () => {
-    if (!newItemName || !newItemUnit || !newItemSafeLevel) {
-      alert('Vui lòng điền đủ thông tin!'); return;
+  const effectiveSelectedItemId = myItems.some((item) => item.id === selectedItemId)
+    ? selectedItemId
+    : myItems[0]?.id || '';
+  const filteredStock = stockData.filter((item) => (
+    item.name.toLowerCase().includes(searchText.trim().toLowerCase())
+  ));
+  const lowStockCount = stockData.filter((item) => item.isLowStock).length;
+  const selectedStock = stockByItemId[effectiveSelectedItemId];
+  const pendingRequests = inventoryRequests.filter((request) => {
+    if (storeIdToView !== 'ALL' && request.store_id !== storeIdToView) return false;
+    if (isManager) return request.status === 'PENDING_MANAGER';
+    return isOwner && ['PENDING_MANAGER', 'PENDING_OWNER'].includes(request.status);
+  });
+
+  const runOperation = async (key, operation) => {
+    setBusyKey(key);
+    try {
+      await operation();
+    } catch (error) {
+      console.error('Lỗi quản lý kho:', error);
+      Alert.alert('Không thể hoàn tất', error?.message || 'Đã có lỗi khi lưu dữ liệu kho.');
+    } finally {
+      setBusyKey('');
     }
-    if (storeIdToView === 'ALL') {
-      alert('Vui lòng chọn 1 chi nhánh cụ thể ở ngoài Dashboard để thêm nguyên liệu vào kho đó!');
-      return;
-    }
-    const newItem = {
-      id: `item_${Date.now()}`,
-      name: newItemName,
-      unit: newItemUnit,
-      safelevel: Number(newItemSafeLevel),
-      store_id: storeIdToView
-    };
-    await supabase.from('inventory_items').insert([newItem]);
-    setInventoryItems([...inventoryItems, {...newItem, safeLevel: newItem.safelevel}]);
-    alert('Đã thêm nguyên liệu mới!');
-    setNewItemName(''); setShowCreateItemModal(false);
   };
 
+  const handleSubmitAction = () => runOperation('submit-action', async () => {
+    const numericAmount = Number(String(amount).replace(',', '.'));
+    if (!selectedStock) throw new Error('Vui lòng chọn nguyên liệu.');
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      throw new Error('Số lượng phải lớn hơn 0.');
+    }
+    if (storeIdToView === 'ALL') {
+      throw new Error('Vui lòng chọn một chi nhánh cụ thể trước khi thao tác.');
+    }
+
+    let finalType = actionType;
+    let finalAmount = numericAmount;
+
+    if (actionType === 'STOCKTAKE') {
+      const difference = Number((numericAmount - selectedStock.currentStock).toFixed(2));
+      if (difference === 0) {
+        Alert.alert('Kho đã khớp', 'Số lượng thực tế trùng với số liệu trên hệ thống.');
+        return;
+      }
+      finalType = difference > 0 ? 'ADJUST_UP' : 'ADJUST_DOWN';
+      finalAmount = Math.abs(difference);
+    }
+
+    const quantityLeaving = finalType === 'EXPORT' || finalType === 'ADJUST_DOWN';
+    if (quantityLeaving && finalAmount > selectedStock.currentStock) {
+      throw new Error(
+        `Không thể xuất ${formatQuantity(finalAmount)} ${selectedStock.unit}. Tồn hiện tại chỉ còn ${formatQuantity(selectedStock.currentStock)} ${selectedStock.unit}.`,
+      );
+    }
+
+    const date = getLocalDateKey();
+    if (isOwner) {
+      const log = {
+        id: makeId('log'),
+        itemid: selectedStock.id,
+        type: finalType,
+        amount: finalAmount,
+        date,
+        store_id: selectedStock.store_id,
+      };
+      await createInventoryLog(log);
+      setInventoryLogs((current) => [normalizeInventoryLog(log), ...current]);
+      Alert.alert('Đã cập nhật kho', `${ACTIONS[finalType].label}: ${formatQuantity(finalAmount)} ${selectedStock.unit}.`);
+    } else {
+      const request = {
+        id: makeId('req'),
+        itemid: selectedStock.id,
+        type: finalType,
+        amount: finalAmount,
+        date,
+        store_id: selectedStock.store_id,
+        requested_by_name: currentUser?.name || 'Nhân viên',
+        status: isManager ? 'PENDING_OWNER' : 'PENDING_MANAGER',
+      };
+      await createInventoryRequest(request);
+      setInventoryRequests((current) => [normalizeInventoryRequest(request), ...current]);
+      Alert.alert('Đã gửi phiếu', 'Yêu cầu đã được lưu và chuyển đến cấp duyệt tiếp theo.');
+    }
+    setAmount('');
+  });
+
+  const handleReview = (request, decision) => runOperation(`review-${request.id}`, async () => {
+    if (decision === 'REJECT') {
+      await updateInventoryRequestStatus(request.id, request.status, 'REJECTED');
+      setInventoryRequests((current) => current.map((item) => (
+        item.id === request.id ? { ...item, status: 'REJECTED' } : item
+      )));
+      Alert.alert('Đã từ chối', 'Phiếu yêu cầu đã được đóng.');
+      return;
+    }
+
+    if (isManager) {
+      if (request.status !== 'PENDING_MANAGER') {
+        throw new Error('Phiếu này không còn ở bước duyệt của quản lý.');
+      }
+      await updateInventoryRequestStatus(request.id, 'PENDING_MANAGER', 'PENDING_OWNER');
+      setInventoryRequests((current) => current.map((item) => (
+        item.id === request.id ? { ...item, status: 'PENDING_OWNER' } : item
+      )));
+      Alert.alert('Đã duyệt bước 1', 'Phiếu đang chờ chủ cửa hàng phê duyệt cuối.');
+      return;
+    }
+
+    const currentStock = stockByItemId[request.itemId]?.currentStock || 0;
+    if (
+      (request.type === 'EXPORT' || request.type === 'ADJUST_DOWN')
+      && Number(request.amount) > currentStock
+    ) {
+      throw new Error(`Tồn kho hiện tại chỉ còn ${formatQuantity(currentStock)}. Không thể duyệt phiếu này.`);
+    }
+
+    const result = await approveInventoryRequest(request);
+    setInventoryRequests((current) => current.map((item) => (
+      item.id === request.id ? { ...item, status: 'APPROVED' } : item
+    )));
+    if (result.log) {
+      setInventoryLogs((current) => [normalizeInventoryLog(result.log), ...current]);
+    } else {
+      await refreshData?.();
+    }
+    Alert.alert('Đã duyệt phiếu', 'Giao dịch đã được ghi vào sổ kho.');
+  });
+
+  const handleCreateItem = () => runOperation('create-item', async () => {
+    const cleanName = newItemName.trim();
+    const cleanUnit = newItemUnit.trim();
+    const safeLevel = Number(String(newItemSafeLevel).replace(',', '.'));
+
+    if (!cleanName || !cleanUnit) throw new Error('Vui lòng nhập tên và đơn vị tính.');
+    if (!Number.isFinite(safeLevel) || safeLevel < 0) {
+      throw new Error('Mức tồn an toàn phải là số từ 0 trở lên.');
+    }
+    if (storeIdToView === 'ALL' || !storeIdToView) {
+      throw new Error('Vui lòng chọn một chi nhánh cụ thể trước khi thêm nguyên liệu.');
+    }
+    const duplicated = myItems.some(
+      (item) => item.name.trim().toLowerCase() === cleanName.toLowerCase(),
+    );
+    if (duplicated) throw new Error('Nguyên liệu này đã tồn tại trong chi nhánh.');
+
+    const item = {
+      id: makeId('item'),
+      name: cleanName,
+      unit: cleanUnit,
+      safelevel: safeLevel,
+      store_id: storeIdToView,
+    };
+    await createInventoryItem(item);
+    setInventoryItems((current) => [...current, normalizeInventoryItem(item)]);
+    setNewItemName('');
+    setNewItemUnit('kg');
+    setNewItemSafeLevel('5');
+    setShowCreateModal(false);
+    Alert.alert('Đã thêm nguyên liệu', `${cleanName} đã được thêm vào ${storeName}.`);
+  });
+
+  const renderStatusBadge = (status) => {
+    const config = getRequestStatus(status);
+    return (
+      <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
+        <Text style={[styles.statusBadgeText, { color: config.color }]}>{config.label}</Text>
+      </View>
+    );
+  };
+
+  const renderRequestCard = (request, reviewable = false) => {
+    const item = itemById[request.itemId];
+    const action = ACTIONS[request.type] || ACTIONS.IMPORT;
+    const isBusy = busyKey === `review-${request.id}`;
+    return (
+      <View key={request.id} style={styles.requestCard}>
+        <View style={styles.requestHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.requestType, { color: action.color }]}>{action.label}</Text>
+            <Text style={styles.requestItem}>{item?.name || 'Nguyên liệu đã xóa'}</Text>
+          </View>
+          {renderStatusBadge(request.status)}
+        </View>
+        <Text style={styles.requestAmount}>
+          {formatQuantity(request.amount)} {item?.unit || ''}
+        </Text>
+        <Text style={styles.requestMeta}>
+          {request.requested_by_name || 'Không rõ người tạo'} • {formatTimestamp(request.date)}
+        </Text>
+        {reviewable && (
+          <View style={styles.reviewRow}>
+            <TouchableOpacity
+              style={[styles.reviewButton, styles.rejectButton]}
+              onPress={() => handleReview(request, 'REJECT')}
+              disabled={isBusy}
+            >
+              <Text style={styles.reviewButtonText}>Từ chối</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.reviewButton, styles.approveButton]}
+              onPress={() => handleReview(request, 'APPROVE')}
+              disabled={isBusy}
+            >
+              {isBusy
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.reviewButtonText}>Duyệt phiếu</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const tabs = isStaff
+    ? [{ key: 'ACTION', label: 'Thao tác' }]
+    : [
+        { key: 'OVERVIEW', label: 'Tổng quan' },
+        { key: 'ACTION', label: 'Thao tác' },
+        { key: 'APPROVALS', label: `Duyệt${pendingRequests.length ? ` (${pendingRequests.length})` : ''}` },
+        { key: 'LOGS', label: 'Sổ kho' },
+      ];
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
         <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#1976d2" />
-        </TouchableOpacity>
-        <Text style={styles.header}>Quản Lý Kho Hàng</Text>
-      </View>
-
-      {/* TAB NAVIGATION */}
-      <View style={styles.tabContainer}>
-        {(!isStaff) && (
-          <TouchableOpacity style={[styles.tabBtn, activeTab === 'OVERVIEW' && styles.tabBtnActive]} onPress={() => setActiveTab('OVERVIEW')}>
-            <Text style={[styles.tabText, activeTab === 'OVERVIEW' && styles.tabTextActive]}>Tổng Quan</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color="#1565c0" />
           </TouchableOpacity>
-        )}
-        <TouchableOpacity style={[styles.tabBtn, activeTab === 'ACTION' && styles.tabBtnActive]} onPress={() => setActiveTab('ACTION')}>
-          <Text style={[styles.tabText, activeTab === 'ACTION' && styles.tabTextActive]}>Thao Tác</Text>
-        </TouchableOpacity>
-        {(!isStaff) && (
-          <TouchableOpacity style={[styles.tabBtn, activeTab === 'APPROVALS' && styles.tabBtnActive]} onPress={() => setActiveTab('APPROVALS')}>
-            <Text style={[styles.tabText, activeTab === 'APPROVALS' && styles.tabTextActive]}>Duyệt Phiếu</Text>
-          </TouchableOpacity>
-        )}
-        {(!isStaff) && (
-          <TouchableOpacity style={[styles.tabBtn, activeTab === 'LOGS' && styles.tabBtnActive]} onPress={() => setActiveTab('LOGS')}>
-            <Text style={[styles.tabText, activeTab === 'LOGS' && styles.tabTextActive]}>Danh Mục</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }} style={{ flex: 1 }}>
-        
-        {/* === TAB 1: OVERVIEW === */}
-        {activeTab === 'OVERVIEW' && !isStaff && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tình Trạng Tồn Kho {storeIdToView !== 'ALL' && `(CN ${storeIdToView})`}</Text>
-            <View style={styles.gridContainer}>
-              {stockData.length === 0 && <Text style={{color: '#888'}}>Chưa có mặt hàng nào.</Text>}
-              {stockData.map(item => (
-                <View key={item.id} style={[styles.stockCard, item.isLowStock && styles.lowStockCard]}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemStock}>Tồn: {item.currentStock} {item.unit}</Text>
-                  {item.isLowStock && (
-                    <Text style={styles.warningText}>⚠️ Cần nhập thêm (An toàn: {item.safeLevel})</Text>
-                  )}
-                </View>
-              ))}
-            </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.header}>Quản lý kho</Text>
+            <Text style={styles.headerCaption}>{storeName}</Text>
           </View>
-        )}
+          {!isStaff && (
+            <TouchableOpacity onPress={() => refreshData?.()} style={styles.refreshButton}>
+              <Ionicons name="refresh" size={21} color="#1565c0" />
+            </TouchableOpacity>
+          )}
+        </View>
 
-        {/* === TAB 2: ACTION (NHẬP/XUẤT/KIỂM KÊ) === */}
-        {activeTab === 'ACTION' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Báo Cáo & Thao Tác Kho</Text>
-            
-            <Text style={styles.label}>Chọn Nguyên Liệu:</Text>
-            <View style={styles.pickerSimulate}>
-              {myItems.map(item => (
-                <TouchableOpacity 
-                  key={item.id} 
-                  style={[styles.itemPill, selectedItemAction === item.id && styles.itemPillActive]}
-                  onPress={() => setSelectedItemAction(item.id)}
-                >
-                  <Text style={[styles.itemPillText, selectedItemAction === item.id && styles.itemPillTextActive]}>{item.name}</Text>
-                </TouchableOpacity>
-              ))}
-              {myItems.length === 0 && <Text style={{color: 'red'}}>Chưa có nguyên liệu nào trong kho này.</Text>}
-            </View>
-
-            <Text style={styles.label}>Hành động:</Text>
-            <View style={styles.actionRow}>
-              <TouchableOpacity 
-                style={[styles.actionBtn, actionType === 'EXPORT' && styles.actionBtnActiveExport]}
-                onPress={() => setActionType('EXPORT')}
+        <View style={styles.tabContainer}>
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tabButton, activeTab === tab.key && styles.tabButtonActive]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}
               >
-                <Text style={[styles.actionBtnText, actionType === 'EXPORT' && styles.actionBtnTextActive]}>XUẤT (Sử dụng)</Text>
-              </TouchableOpacity>
-              
-              {(!isStaff || true) && ( /* Staff vẫn được nhập nếu hàng giao tới */
-                <TouchableOpacity 
-                  style={[styles.actionBtn, actionType === 'IMPORT' && styles.actionBtnActiveImport]}
-                  onPress={() => setActionType('IMPORT')}
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
+          {activeTab === 'OVERVIEW' && !isStaff && (
+            <>
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryCard}>
+                  <Text style={styles.summaryValue}>{stockData.length}</Text>
+                  <Text style={styles.summaryLabel}>Mặt hàng</Text>
+                </View>
+                <View style={[styles.summaryCard, lowStockCount > 0 && styles.summaryWarning]}>
+                  <Text style={[styles.summaryValue, lowStockCount > 0 && { color: '#b91c1c' }]}>
+                    {lowStockCount}
+                  </Text>
+                  <Text style={styles.summaryLabel}>Sắp hết hàng</Text>
+                </View>
+                <View style={styles.summaryCard}>
+                  <Text style={styles.summaryValue}>{pendingRequests.length}</Text>
+                  <Text style={styles.summaryLabel}>Chờ duyệt</Text>
+                </View>
+              </View>
+
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Tồn kho hiện tại</Text>
+                  <Ionicons name="cube-outline" size={21} color="#64748b" />
+                </View>
+                <View style={styles.searchBox}>
+                  <Ionicons name="search" size={19} color="#94a3b8" />
+                  <TextInput
+                    value={searchText}
+                    onChangeText={setSearchText}
+                    placeholder="Tìm nguyên liệu..."
+                    placeholderTextColor="#94a3b8"
+                    style={styles.searchInput}
+                  />
+                </View>
+
+                {filteredStock.length === 0 ? (
+                  <Text style={styles.emptyText}>Chưa có nguyên liệu phù hợp.</Text>
+                ) : filteredStock.map((item) => (
+                  <View key={item.id} style={styles.stockRow}>
+                    <View style={[styles.stockIcon, item.isLowStock && styles.stockIconLow]}>
+                      <Ionicons
+                        name={item.isLowStock ? 'warning-outline' : 'checkmark-circle-outline'}
+                        size={21}
+                        color={item.isLowStock ? '#dc2626' : '#16a34a'}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.stockName}>{item.name}</Text>
+                      <Text style={styles.stockSafe}>An toàn từ {formatQuantity(item.safeLevel)} {item.unit}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={[styles.stockValue, item.isLowStock && { color: '#dc2626' }]}>
+                        {formatQuantity(item.currentStock)}
+                      </Text>
+                      <Text style={styles.stockUnit}>{item.unit}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+
+          {activeTab === 'ACTION' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Tạo giao dịch kho</Text>
+              <Text style={styles.fieldLabel}>Nguyên liệu</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.itemScroller}>
+                {myItems.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[styles.itemChip, effectiveSelectedItemId === item.id && styles.itemChipActive]}
+                    onPress={() => setSelectedItemId(item.id)}
+                  >
+                    <Text style={[styles.itemChipText, effectiveSelectedItemId === item.id && styles.itemChipTextActive]}>
+                      {item.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {selectedStock ? (
+                <View style={styles.currentStockBox}>
+                  <Text style={styles.currentStockLabel}>Tồn khả dụng</Text>
+                  <Text style={styles.currentStockValue}>
+                    {formatQuantity(selectedStock.currentStock)} {selectedStock.unit}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.emptyText}>Kho này chưa có nguyên liệu.</Text>
+              )}
+
+              <Text style={styles.fieldLabel}>Loại thao tác</Text>
+              <View style={styles.actionGrid}>
+                {['EXPORT', 'IMPORT'].map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.actionButton,
+                      actionType === type && { backgroundColor: ACTIONS[type].color, borderColor: ACTIONS[type].color },
+                    ]}
+                    onPress={() => setActionType(type)}
+                  >
+                    <Ionicons
+                      name={type === 'IMPORT' ? 'download-outline' : 'arrow-up-outline'}
+                      size={19}
+                      color={actionType === type ? '#fff' : '#475569'}
+                    />
+                    <Text style={[styles.actionButtonText, actionType === type && { color: '#fff' }]}>
+                      {ACTIONS[type].label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {!isStaff && (
+                <TouchableOpacity
+                  style={[
+                    styles.stocktakeButton,
+                    actionType === 'STOCKTAKE' && styles.stocktakeButtonActive,
+                  ]}
+                  onPress={() => setActionType('STOCKTAKE')}
                 >
-                  <Text style={[styles.actionBtnText, actionType === 'IMPORT' && styles.actionBtnTextActive]}>NHẬP (Hàng về)</Text>
+                  <Ionicons
+                    name="calculator-outline"
+                    size={19}
+                    color={actionType === 'STOCKTAKE' ? '#fff' : '#6d28d9'}
+                  />
+                  <Text style={[
+                    styles.stocktakeButtonText,
+                    actionType === 'STOCKTAKE' && { color: '#fff' },
+                  ]}>
+                    Kiểm kê số lượng thực tế
+                  </Text>
                 </TouchableOpacity>
               )}
-            </View>
-            
-            {!isStaff && (
-              <TouchableOpacity 
-                style={[styles.actionBtn, actionType === 'STOCKTAKE' && styles.actionBtnActiveStocktake, {marginTop: 5, marginBottom: 15}]}
-                onPress={() => setActionType('STOCKTAKE')}
+
+              <Text style={styles.fieldLabel}>
+                {actionType === 'STOCKTAKE'
+                  ? `Số lượng đếm thực tế${selectedStock?.unit ? ` (${selectedStock.unit})` : ''}`
+                  : `Số lượng${selectedStock?.unit ? ` (${selectedStock.unit})` : ''}`}
+              </Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="decimal-pad"
+                placeholder={actionType === 'STOCKTAKE' ? 'Nhập số đếm thực tế' : 'Ví dụ: 5'}
+                placeholderTextColor="#94a3b8"
+                value={amount}
+                onChangeText={setAmount}
+              />
+              {actionType === 'STOCKTAKE' && selectedStock && (
+                <Text style={styles.helperText}>
+                  Hệ thống sẽ tự tính chênh lệch so với {formatQuantity(selectedStock.currentStock)} {selectedStock.unit}.
+                </Text>
+              )}
+
+              <TouchableOpacity
+                style={[styles.submitButton, (!selectedStock || busyKey) && styles.disabledButton]}
+                onPress={handleSubmitAction}
+                disabled={!selectedStock || Boolean(busyKey)}
               >
-                <Text style={[styles.actionBtnText, actionType === 'STOCKTAKE' && styles.actionBtnTextActive]}>KIỂM KÊ (Cân bằng kho thực tế)</Text>
+                {busyKey === 'submit-action'
+                  ? <ActivityIndicator color="#fff" />
+                  : (
+                    <>
+                      <Ionicons name="checkmark-circle-outline" size={21} color="#fff" />
+                      <Text style={styles.submitButtonText}>
+                        {isOwner ? 'Xác nhận & cập nhật kho' : 'Gửi phiếu yêu cầu'}
+                      </Text>
+                    </>
+                  )}
               </TouchableOpacity>
-            )}
 
-            {actionType === 'STOCKTAKE' ? (
-              <>
-                <Text style={{color: '#e91e63', fontSize: 13, marginBottom: 10}}>*Nhập số lượng thực tế bạn đếm được ngoài đời. Hệ thống sẽ tự động tính chênh lệch so với sổ sách ({stockData.find(i=>i.id===selectedItemAction)?.currentStock || 0}) và tạo phiếu hao hụt.</Text>
-                <Text style={styles.label}>Số lượng thực tế đang có ({myItems.find(i => i.id === selectedItemAction)?.unit || ''}):</Text>
-              </>
-            ) : (
-              <Text style={styles.label}>Số lượng thao tác ({myItems.find(i => i.id === selectedItemAction)?.unit || ''}):</Text>
-            )}
-            
-            <TextInput 
-              style={styles.input}
-              keyboardType="numeric"
-              placeholder="VD: 5"
-              value={amountAction}
-              onChangeText={setAmountAction}
-            />
-
-            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmitAction}>
-              <Text style={styles.submitBtnText}>{isOwner ? 'Xác Nhận (Cập nhật liền)' : 'Gửi Phiếu Yêu Cầu'}</Text>
-            </TouchableOpacity>
-
-            {isStaff && (
-              <View style={{marginTop: 20}}>
-                <Text style={styles.sectionTitle}>Phiếu Của Tôi</Text>
-                {inventoryRequests.filter(r => r.requested_by_name === currentUser.name).map(req => {
-                  const item = inventoryItems.find(i => i.id === req.itemId);
-                  let statusTxt = 'Chờ Quản lý duyệt'; let statusColor = '#ff9800';
-                  if (req.status === 'PENDING_OWNER') { statusTxt = 'Chờ Chủ duyệt'; statusColor = '#2196f3'; }
-                  if (req.status === 'REJECTED') { statusTxt = 'Bị từ chối'; statusColor = '#f44336'; }
-                  if (req.status === 'APPROVED') { statusTxt = 'Đã duyệt'; statusColor = '#4caf50'; }
-
-                  let typeTxt = 'NHẬP'; if(req.type === 'EXPORT') typeTxt = 'XUẤT'; else if(req.type === 'ADJUST_UP') typeTxt = 'KIỂM KÊ (+)'; else if(req.type === 'ADJUST_DOWN') typeTxt = 'KIỂM KÊ (-)';
-                  
-                  return (
-                    <View key={req.id} style={styles.logCard}>
-                      <Text style={{fontWeight: 'bold'}}>{typeTxt} {item?.name} - {req.amount} {item?.unit}</Text>
-                      <Text style={{fontSize: 12, color: statusColor, fontWeight: 'bold'}}>{statusTxt}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* === TAB DUYỆT PHIẾU === */}
-        {activeTab === 'APPROVALS' && !isStaff && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Phiếu Yêu Cầu Chờ Duyệt</Text>
-            {inventoryRequests.filter(req => {
-              if (storeIdToView !== 'ALL' && req.store_id !== storeIdToView) return false;
-              if (req.status === 'APPROVED' || req.status === 'REJECTED') return false;
-              if (isManager && req.status !== 'PENDING_MANAGER') return false;
-              return true;
-            }).length === 0 && <Text style={{color: '#888'}}>Không có phiếu nào cần duyệt.</Text>}
-
-            {inventoryRequests.filter(req => {
-              if (storeIdToView !== 'ALL' && req.store_id !== storeIdToView) return false;
-              if (req.status === 'APPROVED' || req.status === 'REJECTED') return false;
-              if (isManager && req.status !== 'PENDING_MANAGER') return false;
-              return true;
-            }).map(req => {
-              const item = inventoryItems.find(i => i.id === req.itemId);
-              let typeTxt = 'NHẬP'; if(req.type === 'EXPORT') typeTxt = 'XUẤT'; else if(req.type === 'ADJUST_UP') typeTxt = 'KIỂM KÊ (+)'; else if(req.type === 'ADJUST_DOWN') typeTxt = 'KIỂM KÊ (-)';
-              let statusTxt = req.status === 'PENDING_MANAGER' ? 'Quản lý duyệt' : 'Chủ duyệt';
-              
-              return (
-                <View key={req.id} style={[styles.logCard, {backgroundColor: '#fffbe6', borderRadius: 8, marginBottom: 10}]}>
-                  <Text style={{fontWeight: 'bold', fontSize: 16}}>{typeTxt} {item?.name}</Text>
-                  <Text style={{color: '#e91e63', fontWeight: 'bold'}}>Số lượng: {req.amount} {item?.unit}</Text>
-                  <Text style={{fontSize: 12, color: '#666'}}>Người tạo: {req.requested_by_name} | {req.date}</Text>
-                  <Text style={{fontSize: 12, color: '#ff9800', fontWeight: 'bold'}}>Đang chờ: {statusTxt}</Text>
-                  
-                  <View style={{flexDirection: 'row', marginTop: 10}}>
-                    <TouchableOpacity style={[styles.submitBtn, {flex: 1, marginRight: 10, backgroundColor: '#f44336', padding: 10}]} onPress={() => handleReviewRequest(req.id, 'REJECT')}>
-                      <Text style={styles.submitBtnText}>Từ chối</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.submitBtn, {flex: 1, backgroundColor: '#4caf50', padding: 10}]} onPress={() => handleReviewRequest(req.id, 'APPROVE')}>
-                      <Text style={styles.submitBtnText}>Duyệt</Text>
-                    </TouchableOpacity>
-                  </View>
+              {isStaff && (
+                <View style={styles.myRequests}>
+                  <Text style={styles.sectionTitle}>Phiếu gần đây của tôi</Text>
+                  {inventoryRequests
+                    .filter((request) => request.requested_by_name === currentUser?.name)
+                    .slice(0, 10)
+                    .map((request) => renderRequestCard(request))}
                 </View>
-              );
-            })}
-          </View>
-        )}
+              )}
+            </View>
+          )}
 
-        {/* === TAB 3: LOGS & CATALOG === */}
-        {activeTab === 'LOGS' && !isStaff && (
-          <View>
-            {/* DANH MỤC */}
+          {activeTab === 'APPROVALS' && !isStaff && (
             <View style={styles.section}>
-              <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15}}>
-                <Text style={styles.sectionTitle}>Danh Mục Nguyên Liệu</Text>
-                <TouchableOpacity style={styles.addBtnSmall} onPress={()=>setShowCreateItemModal(true)}>
-                  <Text style={{color: '#fff', fontWeight: 'bold'}}>+ Thêm Mới</Text>
+              <Text style={styles.sectionTitle}>Phiếu chờ duyệt</Text>
+              {pendingRequests.length === 0
+                ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="checkmark-done-circle-outline" size={40} color="#16a34a" />
+                    <Text style={styles.emptyTitle}>Không có phiếu tồn đọng</Text>
+                    <Text style={styles.emptyText}>Các yêu cầu mới sẽ xuất hiện tại đây.</Text>
+                  </View>
+                )
+                : pendingRequests.map((request) => renderRequestCard(request, true))}
+            </View>
+          )}
+
+          {activeTab === 'LOGS' && !isStaff && (
+            <>
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Danh mục nguyên liệu</Text>
+                  <TouchableOpacity style={styles.addButton} onPress={() => setShowCreateModal(true)}>
+                    <Ionicons name="add" size={18} color="#fff" />
+                    <Text style={styles.addButtonText}>Thêm</Text>
+                  </TouchableOpacity>
+                </View>
+                {myItems.length === 0
+                  ? <Text style={styles.emptyText}>Chưa có nguyên liệu.</Text>
+                  : myItems.map((item) => (
+                    <View key={item.id} style={styles.catalogRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.catalogName}>{item.name}</Text>
+                        <Text style={styles.catalogMeta}>
+                          Đơn vị: {item.unit} • Tồn an toàn: {formatQuantity(item.safeLevel)}
+                        </Text>
+                      </View>
+                      <Text style={styles.catalogStock}>
+                        {formatQuantity(stockByItemId[item.id]?.currentStock)} {item.unit}
+                      </Text>
+                    </View>
+                  ))}
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Lịch sử giao dịch</Text>
+                {inventoryLogs
+                  .filter((log) => storeIdToView === 'ALL' || log.store_id === storeIdToView)
+                  .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+                  .map((log) => {
+                    const item = itemById[log.itemId];
+                    const action = ACTIONS[log.type] || ACTIONS.IMPORT;
+                    return (
+                      <View key={log.id} style={styles.logRow}>
+                        <View style={[styles.logIcon, { backgroundColor: `${action.color}18` }]}>
+                          <Ionicons
+                            name={action.sign === '+' ? 'add' : 'remove'}
+                            size={20}
+                            color={action.color}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.logTitle}>{action.label} • {item?.name || 'Không rõ'}</Text>
+                          <Text style={styles.logMeta}>{formatTimestamp(log.date)}</Text>
+                        </View>
+                        <Text style={[styles.logAmount, { color: action.color }]}>
+                          {action.sign}{formatQuantity(log.amount)} {item?.unit || ''}
+                        </Text>
+                      </View>
+                    );
+                  })}
+              </View>
+            </>
+          )}
+        </ScrollView>
+
+        <Modal visible={showCreateModal} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Thêm nguyên liệu</Text>
+                <TouchableOpacity onPress={() => setShowCreateModal(false)}>
+                  <Ionicons name="close" size={25} color="#475569" />
                 </TouchableOpacity>
               </View>
-              {myItems.map(item => (
-                <View key={item.id} style={styles.logCard}>
-                  <Text style={{fontWeight: 'bold'}}>{item.name}</Text>
-                  <Text style={{fontSize: 12, color: '#666'}}>Đơn vị: {item.unit} - Mức an toàn: {item.safeLevel}</Text>
+              <Text style={styles.modalStore}>{storeName}</Text>
+              <Text style={styles.fieldLabel}>Tên nguyên liệu</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ví dụ: Bột matcha"
+                placeholderTextColor="#94a3b8"
+                value={newItemName}
+                onChangeText={setNewItemName}
+              />
+              <View style={styles.modalFieldRow}>
+                <View style={styles.modalField}>
+                  <Text style={styles.fieldLabel}>Đơn vị</Text>
+                  <TextInput style={styles.input} value={newItemUnit} onChangeText={setNewItemUnit} />
                 </View>
-              ))}
-            </View>
-
-            {/* SỔ KHO */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Sổ Kho (Lịch sử giao dịch)</Text>
-              {inventoryLogs.filter(log => storeIdToView === 'ALL' || log.store_id === storeIdToView).map(log => {
-                const item = inventoryItems.find(i => i.id === log.itemId);
-                let color = '#888'; let label = ''; let sign = '';
-                if (log.type === 'IMPORT') { color = '#4caf50'; label = 'NHẬP KHO'; sign='+'; }
-                if (log.type === 'EXPORT') { color = '#f44336'; label = 'XUẤT KHO'; sign='-'; }
-                if (log.type === 'ADJUST_UP') { color = '#9c27b0'; label = 'KIỂM KÊ TĂNG'; sign='+'; }
-                if (log.type === 'ADJUST_DOWN') { color = '#e91e63'; label = 'HAO HỤT'; sign='-'; }
-
-                return (
-                  <View key={log.id} style={styles.logCard}>
-                    <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                      <Text style={{fontWeight: 'bold', color: color}}>{label} {item?.name}</Text>
-                      <Text style={{fontWeight: 'bold', color: color, fontSize: 16}}>{sign}{log.amount} {item?.unit}</Text>
-                    </View>
-                    <Text style={{fontSize: 12, color: '#666', marginTop: 4}}>Thời gian: {log.date}</Text>
-                    <Text style={{fontSize: 12, color: '#666'}}>Người thực hiện: {log.user_name || 'Hệ thống'}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-      </ScrollView>
-
-      {/* MODAL THÊM NGUYÊN LIỆU */}
-      <Modal visible={showCreateItemModal} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Thêm Nguyên Liệu Mới</Text>
-            
-            <Text style={styles.label}>Tên nguyên liệu:</Text>
-            <TextInput style={styles.input} placeholder="VD: Bột Matcha" value={newItemName} onChangeText={setNewItemName} />
-            
-            <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-              <View style={{flex: 1, marginRight: 10}}>
-                <Text style={styles.label}>Đơn vị tính:</Text>
-                <TextInput style={styles.input} placeholder="kg, ly, hộp..." value={newItemUnit} onChangeText={setNewItemUnit} />
+                <View style={styles.modalField}>
+                  <Text style={styles.fieldLabel}>Tồn an toàn</Text>
+                  <TextInput
+                    style={styles.input}
+                    keyboardType="decimal-pad"
+                    value={newItemSafeLevel}
+                    onChangeText={setNewItemSafeLevel}
+                  />
+                </View>
               </View>
-              <View style={{flex: 1}}>
-                <Text style={styles.label}>Mức an toàn:</Text>
-                <TextInput style={styles.input} keyboardType="numeric" value={newItemSafeLevel} onChangeText={setNewItemSafeLevel} />
-              </View>
-            </View>
-            <Text style={{fontSize: 12, color: '#888', marginBottom: 20}}>*Mức an toàn là số lượng tối thiểu, dưới mức này hệ thống sẽ báo đỏ.</Text>
-
-            <View style={{flexDirection: 'row'}}>
-              <TouchableOpacity style={[styles.submitBtn, {flex: 1, marginRight: 10, backgroundColor: '#f44336'}]} onPress={() => setShowCreateItemModal(false)}>
-                <Text style={styles.submitBtnText}>Hủy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.submitBtn, {flex: 1}]} onPress={handleCreateItem}>
-                <Text style={styles.submitBtnText}>Tạo Mới</Text>
+              <TouchableOpacity
+                style={[styles.submitButton, busyKey === 'create-item' && styles.disabledButton]}
+                onPress={handleCreateItem}
+                disabled={busyKey === 'create-item'}
+              >
+                {busyKey === 'create-item'
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.submitButtonText}>Thêm vào danh mục</Text>}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
-
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', paddingHorizontal: 20 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 10 },
-  backBtn: { padding: 5, marginRight: 10 },
-  header: { fontSize: 24, fontWeight: 'bold', color: '#1f2937' },
-  
-  tabContainer: { flexDirection: 'row', backgroundColor: '#e5e7eb', borderRadius: 8, padding: 4, marginBottom: 20 },
-  tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 6 },
-  tabBtnActive: { backgroundColor: '#fff', elevation: 2 },
-  tabText: { fontWeight: 'bold', color: '#6b7280' },
-  tabTextActive: { color: '#1976d2' },
-
-  section: { backgroundColor: '#fff', padding: 20, borderRadius: 12, marginBottom: 20, elevation: 3 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 15, color: '#374151' },
-  
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  stockCard: { backgroundColor: '#f9fafb', width: '48%', padding: 15, borderRadius: 10, marginBottom: 15, borderWidth: 1, borderColor: '#e5e7eb' },
-  lowStockCard: { backgroundColor: '#ffebee', borderColor: '#ef5350' },
-  itemName: { fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 5 },
-  itemStock: { fontSize: 16, color: '#1976d2', fontWeight: 'bold' },
-  warningText: { fontSize: 11, color: '#d32f2f', marginTop: 5, fontWeight: 'bold' },
-
-  label: { fontSize: 14, fontWeight: 'bold', color: '#4b5563', marginBottom: 10, marginTop: 10 },
-  pickerSimulate: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
-  itemPill: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#e5e7eb', borderRadius: 20, marginRight: 10, marginBottom: 10 },
-  itemPillActive: { backgroundColor: '#1976d2' },
-  itemPillText: { fontSize: 12, color: '#4b5563', fontWeight: 'bold' },
-  itemPillTextActive: { color: '#fff' },
-
-  actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  actionBtn: { flex: 0.48, padding: 12, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, alignItems: 'center' },
-  actionBtnActiveExport: { backgroundColor: '#f44336', borderColor: '#f44336' },
-  actionBtnActiveImport: { backgroundColor: '#4caf50', borderColor: '#4caf50' },
-  actionBtnActiveStocktake: { backgroundColor: '#9c27b0', borderColor: '#9c27b0' },
-  actionBtnText: { fontWeight: 'bold', color: '#6b7280' },
-  actionBtnTextActive: { color: '#fff' },
-
-  input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 16, backgroundColor: '#f9fafb', marginBottom: 10 },
-  submitBtn: { backgroundColor: '#ff9800', padding: 15, borderRadius: 8, alignItems: 'center' },
-  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-
-  logCard: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  addBtnSmall: { backgroundColor: '#1976d2', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
-  
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 20 }
+  container: { flex: 1, backgroundColor: '#f4f7fb' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14 },
+  backBtn: { padding: 8, marginRight: 8, marginLeft: -8 },
+  header: { fontSize: 25, fontWeight: '800', color: '#172033' },
+  headerCaption: { color: '#64748b', marginTop: 2 },
+  refreshButton: { padding: 10, backgroundColor: '#e8f1ff', borderRadius: 12 },
+  tabContainer: { flexDirection: 'row', marginHorizontal: 20, backgroundColor: '#e2e8f0', borderRadius: 12, padding: 4 },
+  tabButton: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 9, paddingHorizontal: 3 },
+  tabButtonActive: { backgroundColor: '#fff', shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 5, elevation: 2 },
+  tabText: { color: '#64748b', fontWeight: '700', fontSize: 12 },
+  tabTextActive: { color: '#1565c0' },
+  scrollContent: { padding: 20, paddingBottom: 50 },
+  summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  summaryCard: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#edf1f5' },
+  summaryWarning: { backgroundColor: '#fff7ed', borderColor: '#fed7aa' },
+  summaryValue: { color: '#172033', fontSize: 24, fontWeight: '900' },
+  summaryLabel: { color: '#64748b', fontSize: 11, marginTop: 4 },
+  section: { backgroundColor: '#fff', borderRadius: 18, padding: 18, marginBottom: 16, shadowColor: '#0f172a', shadowOpacity: 0.06, shadowRadius: 10, elevation: 2 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitle: { color: '#172033', fontSize: 18, fontWeight: '800', marginBottom: 14 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, paddingHorizontal: 12, marginBottom: 10 },
+  searchInput: { flex: 1, minHeight: 44, paddingLeft: 8, color: '#172033' },
+  stockRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#edf1f5' },
+  stockIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginRight: 11 },
+  stockIconLow: { backgroundColor: '#fee2e2' },
+  stockName: { color: '#172033', fontWeight: '800', fontSize: 14 },
+  stockSafe: { color: '#64748b', fontSize: 11, marginTop: 3 },
+  stockValue: { color: '#15803d', fontWeight: '900', fontSize: 18 },
+  stockUnit: { color: '#64748b', fontSize: 11 },
+  fieldLabel: { color: '#475569', fontWeight: '800', fontSize: 13, marginTop: 10, marginBottom: 8 },
+  itemScroller: { marginBottom: 5 },
+  itemChip: { backgroundColor: '#f1f5f9', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9, marginRight: 8, borderWidth: 1, borderColor: '#e2e8f0' },
+  itemChipActive: { backgroundColor: '#1565c0', borderColor: '#1565c0' },
+  itemChipText: { color: '#475569', fontWeight: '700', fontSize: 12 },
+  itemChipTextActive: { color: '#fff' },
+  currentStockBox: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#eff6ff', borderRadius: 12, padding: 13, marginTop: 12 },
+  currentStockLabel: { color: '#475569', fontWeight: '600' },
+  currentStockValue: { color: '#1d4ed8', fontWeight: '900', fontSize: 17 },
+  actionGrid: { flexDirection: 'row', gap: 10 },
+  actionButton: { flex: 1, minHeight: 48, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  actionButtonText: { color: '#475569', fontWeight: '800', marginLeft: 6 },
+  stocktakeButton: { minHeight: 48, borderWidth: 1, borderColor: '#c4b5fd', backgroundColor: '#f5f3ff', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  stocktakeButtonActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
+  stocktakeButtonText: { color: '#6d28d9', fontWeight: '800', marginLeft: 7 },
+  input: { borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#f8fafc', color: '#172033', borderRadius: 12, paddingHorizontal: 13, minHeight: 48, fontSize: 15 },
+  helperText: { color: '#7c3aed', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  submitButton: { minHeight: 52, backgroundColor: '#ea580c', borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18 },
+  submitButtonText: { color: '#fff', fontWeight: '800', fontSize: 15, marginLeft: 7 },
+  disabledButton: { opacity: 0.55 },
+  myRequests: { marginTop: 28 },
+  requestCard: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 14, padding: 14, marginBottom: 11, backgroundColor: '#fff' },
+  requestHeader: { flexDirection: 'row', alignItems: 'flex-start' },
+  requestType: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  requestItem: { color: '#172033', fontWeight: '800', fontSize: 15, marginTop: 3 },
+  requestAmount: { color: '#172033', fontSize: 22, fontWeight: '900', marginTop: 12 },
+  requestMeta: { color: '#64748b', fontSize: 11, marginTop: 5 },
+  statusBadge: { borderRadius: 20, paddingHorizontal: 9, paddingVertical: 5 },
+  statusBadgeText: { fontWeight: '800', fontSize: 10 },
+  reviewRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  reviewButton: { flex: 1, minHeight: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  rejectButton: { backgroundColor: '#ef4444' },
+  approveButton: { backgroundColor: '#16a34a' },
+  reviewButtonText: { color: '#fff', fontWeight: '800' },
+  emptyState: { alignItems: 'center', paddingVertical: 28 },
+  emptyTitle: { color: '#334155', fontWeight: '800', marginTop: 10, fontSize: 16 },
+  emptyText: { color: '#64748b', textAlign: 'center', marginTop: 5, lineHeight: 20 },
+  addButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1565c0', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 14 },
+  addButtonText: { color: '#fff', fontWeight: '800', fontSize: 12, marginLeft: 3 },
+  catalogRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#edf1f5' },
+  catalogName: { color: '#172033', fontWeight: '800' },
+  catalogMeta: { color: '#64748b', fontSize: 11, marginTop: 4 },
+  catalogStock: { color: '#1565c0', fontWeight: '900' },
+  logRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#edf1f5' },
+  logIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  logTitle: { color: '#172033', fontWeight: '700', fontSize: 13 },
+  logMeta: { color: '#64748b', fontSize: 11, marginTop: 3 },
+  logAmount: { fontWeight: '900', fontSize: 14 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#fff', borderRadius: 18, padding: 20 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  modalTitle: { color: '#172033', fontSize: 21, fontWeight: '900' },
+  modalStore: { color: '#64748b', marginTop: 3, marginBottom: 8 },
+  modalFieldRow: { flexDirection: 'row', gap: 10 },
+  modalField: { flex: 1 },
 });

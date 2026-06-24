@@ -1,6 +1,6 @@
-import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
-import { AppContext } from '../../App';
+import React, { useState, useContext } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
+import { AppContext } from '../context/AppContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 
@@ -20,7 +20,6 @@ export default function ShiftScreen({ navigation }) {
   };
 
   const isOwner = currentUser?.role === 'OWNER';
-  const isManager = currentUser?.role === 'MANAGER';
   const isStaff = currentUser?.role === 'STAFF';
   const hasCashierPerm = !isStaff || currentUser?.permissions?.cashier;
 

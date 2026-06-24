@@ -1,11 +1,11 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, Modal, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
-import { AppContext } from '../../App';
+import { Alert, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, Modal, SafeAreaView, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
+import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 
 export default function StaffManagementScreen({ navigation }) {
-  const { staffList, setStaffList, storeList, currentUser, selectedStoreId } = useContext(AppContext);
+  const { staffList, setStaffList, storeList, currentUser, selectedStoreId, refreshData, isDataLoading } = useContext(AppContext);
 
   // OWNER luôn được thấy ALL. Quản lý thì tùy thuộc viewable_stores
   let displayStoreId = currentUser?.store_id;
@@ -23,16 +23,23 @@ export default function StaffManagementScreen({ navigation }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
   const [wage, setWage] = useState('');
   const [storeId, setStoreId] = useState(storeList[0]?.id || 1);
   const [role, setRole] = useState('STAFF');
-  const [hasAccess, setHasAccess] = useState(true);
+  const hasAccess = true;
   const [perms, setPerms] = useState({ reports: false, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: [] });
 
   const handleCreateStaff = async () => {
-    if (!fullName || !phone || !password || !wage) {
-      alert('Vui lòng điền đầy đủ thông tin!'); return;
+    const cleanName = fullName.trim();
+    const cleanPhone = phone.replace(/\s/g, '');
+    const numericWage = Number(wage);
+    if (!cleanName || !cleanPhone || !Number.isFinite(numericWage) || numericWage <= 0) {
+      Alert.alert('Thông tin chưa hợp lệ', 'Vui lòng nhập đầy đủ họ tên, số điện thoại và mức lương.');
+      return;
+    }
+    if (staffList.some((staff) => staff.phone === cleanPhone)) {
+      Alert.alert('Số điện thoại đã tồn tại', 'Vui lòng dùng số điện thoại khác.');
+      return;
     }
     
     // Mặc định luôn có store_id gốc trong viewable_stores
@@ -40,9 +47,9 @@ export default function StaffManagementScreen({ navigation }) {
 
     const newStaff = {
       id: `staff_${Date.now()}`,
-      name: fullName,
-      phone: phone,
-      wage: Number(wage),
+      name: cleanName,
+      phone: cleanPhone,
+      wage: numericWage,
       store_id: storeId,
       role: role,
       hasAppAccess: hasAccess,
@@ -51,10 +58,24 @@ export default function StaffManagementScreen({ navigation }) {
         : { ...perms, viewable_stores: [storeId] }
     };
     
-    await supabase.from('users').insert([{...newStaff, hasappaccess: newStaff.hasAppAccess}]);
-    setStaffList([...staffList, newStaff]);
-    alert(`Đã tạo tài khoản cho ${fullName}`);
-    setFullName(''); setPhone(''); setPassword(''); setWage(''); setPerms({...perms, viewable_stores: []});
+    const { error } = await supabase.from('users').insert([{
+      id: newStaff.id,
+      name: newStaff.name,
+      phone: newStaff.phone,
+      wage: newStaff.wage,
+      store_id: newStaff.store_id,
+      role: newStaff.role,
+      hasappaccess: newStaff.hasAppAccess,
+      permissions: newStaff.permissions,
+    }]);
+    if (error) {
+      Alert.alert('Không thể tạo tài khoản', error.message);
+      return;
+    }
+
+    setStaffList((current) => [...current, newStaff]);
+    Alert.alert('Đã tạo tài khoản', `${cleanName} có thể đăng nhập bằng mật khẩu tạm thời 123.`);
+    setFullName(''); setPhone(''); setWage(''); setPerms({...perms, viewable_stores: []});
     setShowCreateModal(false);
   };
 
@@ -94,12 +115,16 @@ export default function StaffManagementScreen({ navigation }) {
         : { ...editingStaff.permissions, viewable_stores: finalViewableStores }
     };
 
-    await supabase.from('users').update({
+    const { error } = await supabase.from('users').update({
       name: finalStaff.name, phone: finalStaff.phone, wage: finalStaff.wage, role: finalStaff.role, hasappaccess: finalStaff.hasAppAccess, permissions: finalStaff.permissions
     }).eq('id', finalStaff.id);
+    if (error) {
+      Alert.alert('Không thể cập nhật nhân viên', error.message);
+      return;
+    }
 
-    setStaffList(staffList.map(s => s.id === finalStaff.id ? finalStaff : s));
-    alert('Đã cập nhật thông tin thành công!');
+    setStaffList((current) => current.map(s => s.id === finalStaff.id ? finalStaff : s));
+    Alert.alert('Đã cập nhật', 'Thông tin nhân viên đã được lưu.');
     setEditingStaff(null);
   };
 
@@ -125,7 +150,14 @@ export default function StaffManagementScreen({ navigation }) {
           <Text style={styles.header}>Quản Lý Nhân Sự</Text>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }} style={{ flex: 1 }}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={{ paddingBottom: 80 }} 
+          style={{ flex: 1 }}
+          refreshControl={
+            <RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />
+          }
+        >
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               DANH SÁCH NHÂN SỰ {displayStoreId === 'ALL' ? '(TẤT CẢ CHI NHÁNH)' : `(CHI NHÁNH ${displayStoreId})`}
@@ -174,8 +206,10 @@ export default function StaffManagementScreen({ navigation }) {
                     <TextInput style={styles.input} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
                   </View>
                   <View style={{flex: 1}}>
-                    <Text style={styles.label}>Mật khẩu:</Text>
-                    <TextInput style={styles.input} secureTextEntry value={password} onChangeText={setPassword} />
+                    <View style={styles.passwordHint}>
+                      <Ionicons name="key-outline" size={18} color="#1d4ed8" />
+                      <Text style={styles.passwordHintText}>Mật khẩu đăng nhập tạm thời: 123</Text>
+                    </View>
                   </View>
                 </View>
 
@@ -336,6 +370,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1976d2', marginBottom: 15 },
   label: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 5, marginTop: 10 },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, backgroundColor: '#fafafa', height: 45 },
+  passwordHint: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eff6ff', borderRadius: 8, padding: 12, marginTop: 12 },
+  passwordHintText: { color: '#1d4ed8', fontWeight: '700', marginLeft: 8 },
   roleRow: { flexDirection: 'row', marginBottom: 10 },
   roleChip: { flex: 1, padding: 10, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, alignItems: 'center', marginRight: 5 },
   roleChipActive: { backgroundColor: '#1976d2', borderColor: '#1976d2' },

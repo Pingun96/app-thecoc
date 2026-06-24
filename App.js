@@ -1,4 +1,4 @@
-import React, { useState, createContext, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -11,8 +11,14 @@ import InventoryScreen from './src/screens/InventoryScreen';
 import StaffCheckinScreen from './src/screens/StaffCheckinScreen';
 import ShiftScheduleScreen from './src/screens/ShiftScheduleScreen';
 import { supabase } from './src/services/supabaseClient';
-
-export const AppContext = createContext();
+import {
+  normalizeAttendance,
+  normalizeInventoryItem,
+  normalizeInventoryLog,
+  normalizeInventoryRequest,
+  normalizeUser,
+} from './src/services/dataMappers';
+import { AppContext } from './src/context/AppContext';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -52,36 +58,66 @@ export default function App() {
   const [shifts, setShifts] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [shiftRegistrations, setShiftRegistrations] = useState([]);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [dataError, setDataError] = useState('');
+
+  const refreshData = useCallback(async () => {
+    setIsDataLoading(true);
+    setDataError('');
+
+    try {
+      const results = await Promise.all([
+        supabase.from('stores').select('*'),
+        supabase.from('users').select('*'),
+        supabase.from('inventory_items').select('*'),
+        supabase.from('inventory_logs').select('*'),
+        supabase.from('inventory_requests').select('*'),
+        supabase.from('shifts').select('*'),
+        supabase.from('attendance_logs').select('*'),
+        supabase.from('shift_registrations').select('*'),
+      ]);
+
+      const failedResult = results.find((result) => result.error);
+      if (failedResult?.error) throw failedResult.error;
+
+      const [
+        storesRes,
+        usersRes,
+        itemsRes,
+        logsRes,
+        reqsRes,
+        shiftsRes,
+        attendanceRes,
+        regRes,
+      ] = results;
+
+      setStoreList(storesRes.data || []);
+      setStaffList((usersRes.data || []).map(normalizeUser));
+      setInventoryItems((itemsRes.data || []).map(normalizeInventoryItem));
+      setInventoryLogs((logsRes.data || []).map(normalizeInventoryLog));
+      setInventoryRequests((reqsRes.data || []).map(normalizeInventoryRequest));
+      setShifts(shiftsRes.data || []);
+      setAttendanceHistory((attendanceRes.data || []).map(normalizeAttendance));
+      setShiftRegistrations(regRes.data || []);
+    } catch (error) {
+      console.error('Lỗi khi tải dữ liệu từ Supabase:', error);
+      setDataError(error?.message || 'Không thể tải dữ liệu. Vui lòng kiểm tra kết nối.');
+    } finally {
+      setIsDataLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [storesRes, usersRes, itemsRes, logsRes, reqsRes, shiftsRes, attendanceRes, regRes] = await Promise.all([
-          supabase.from('stores').select('*'),
-          supabase.from('users').select('*'),
-          supabase.from('inventory_items').select('*'),
-          supabase.from('inventory_logs').select('*'),
-          supabase.from('inventory_requests').select('*'),
-          supabase.from('shifts').select('*'),
-          supabase.from('attendance_logs').select('*'),
-          supabase.from('shift_registrations').select('*')
-        ]);
+    refreshData();
+  }, [refreshData]);
 
-        if (storesRes.data) setStoreList(storesRes.data);
-        if (usersRes.data) setStaffList(usersRes.data.map(u => ({...u, hasAppAccess: u.hasappaccess !== undefined ? u.hasappaccess : u.hasAppAccess})));
-        if (itemsRes.data) setInventoryItems(itemsRes.data.map(i => ({...i, safeLevel: i.safelevel !== undefined ? i.safelevel : i.safeLevel})));
-        if (logsRes.data) setInventoryLogs(logsRes.data.map(l => ({...l, itemId: l.itemid !== undefined ? l.itemid : l.itemId})));
-        if (reqsRes.data) setInventoryRequests(reqsRes.data.map(r => ({...r, itemId: r.itemid !== undefined ? r.itemid : r.itemId})));
-        if (shiftsRes.data) setShifts(shiftsRes.data);
-        if (attendanceRes.data) setAttendanceHistory(attendanceRes.data);
-        if (regRes.data) setShiftRegistrations(regRes.data);
-      } catch (error) {
-        console.error("Lỗi khi kéo dữ liệu từ Supabase:", error);
-      }
-    };
-
-    fetchData();
-  }, []);
+  useEffect(() => {
+    if (!storeList.length) return;
+    const selectedStoreExists = storeList.some((store) => store.id === selectedStoreId);
+    if (!selectedStoreExists && selectedStoreId !== 'ALL') {
+      setSelectedStoreId(storeList[0].id);
+    }
+  }, [storeList, selectedStoreId]);
 
   return (
     <AppContext.Provider value={{ 
@@ -94,7 +130,8 @@ export default function App() {
       inventoryItems, setInventoryItems,
       inventoryLogs, setInventoryLogs,
       inventoryRequests, setInventoryRequests,
-      shifts, setShifts
+      shifts, setShifts,
+      isDataLoading, dataError, refreshData
     }}>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>

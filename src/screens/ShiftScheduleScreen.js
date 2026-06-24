@@ -1,11 +1,11 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, FlatList, Alert } from 'react-native';
-import { AppContext } from '../../App';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl } from 'react-native';
+import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 
 export default function ShiftScheduleScreen({ navigation }) {
-  const { currentUser, shiftRegistrations, setShiftRegistrations, storeList, staffList } = useContext(AppContext);
+  const { currentUser, shiftRegistrations, setShiftRegistrations, storeList, staffList, refreshData, isDataLoading } = useContext(AppContext);
   
   const isManagerOrOwner = currentUser?.role === 'MANAGER' || currentUser?.role === 'OWNER';
   const myStoreId = currentUser?.store_id;
@@ -52,7 +52,11 @@ export default function ShiftScheduleScreen({ navigation }) {
   };
 
   const renderStaffRegister = () => (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom: 80}}>
+    <ScrollView 
+      showsVerticalScrollIndicator={false} 
+      contentContainerStyle={{paddingBottom: 80}}
+      refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
+    >
       <Text style={styles.sectionTitle}>Đăng ký lịch làm việc (7 ngày tới)</Text>
       {nextDates.map(date => {
         const myMorning = shiftRegistrations.find(r => r.user_id === currentUser.id && r.date === date && r.shift_type === 'MORNING');
@@ -104,11 +108,22 @@ export default function ShiftScheduleScreen({ navigation }) {
     const pendingRegs = shiftRegistrations.filter(r => r.status === 'PENDING' && (currentUser.role === 'OWNER' || r.store_id === myStoreId));
     
     if (pendingRegs.length === 0) {
-      return <Text style={{textAlign: 'center', marginTop: 50, color: '#666'}}>Không có đăng ký ca nào cần duyệt.</Text>;
+      return (
+        <ScrollView 
+          contentContainerStyle={{flexGrow: 1, justifyContent: 'center'}}
+          refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
+        >
+          <Text style={{textAlign: 'center', marginTop: 50, color: '#666'}}>Không có đăng ký ca nào cần duyệt.</Text>
+        </ScrollView>
+      );
     }
 
     return (
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom: 80}}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{paddingBottom: 80}}
+        refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
+      >
         <Text style={styles.sectionTitle}>Danh sách nhân viên xin xếp ca</Text>
         {pendingRegs.map(reg => {
           const staff = staffList.find(s => s.id === reg.user_id);
