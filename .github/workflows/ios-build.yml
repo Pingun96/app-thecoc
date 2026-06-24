@@ -19,11 +19,10 @@ jobs:
       - name: Install Build Tools
         run: brew install ninja
 
-      - name: Select Xcode Version
-        run: |
-          XCODE_PATH=$(ls -d /Applications/Xcode*.app | tail -n 1)
-          echo "Selecting Xcode: $XCODE_PATH"
-          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+      - name: Setup Xcode version
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
