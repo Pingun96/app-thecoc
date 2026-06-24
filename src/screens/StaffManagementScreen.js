@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, Modal, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import { AppContext } from '../../App';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../services/supabaseClient';
 
 export default function StaffManagementScreen({ navigation }) {
   const { staffList, setStaffList, storeList, currentUser, selectedStoreId } = useContext(AppContext);
@@ -29,7 +30,7 @@ export default function StaffManagementScreen({ navigation }) {
   const [hasAccess, setHasAccess] = useState(true);
   const [perms, setPerms] = useState({ reports: false, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: [] });
 
-  const handleCreateStaff = () => {
+  const handleCreateStaff = async () => {
     if (!fullName || !phone || !password || !wage) {
       alert('Vui lòng điền đầy đủ thông tin!'); return;
     }
@@ -49,6 +50,8 @@ export default function StaffManagementScreen({ navigation }) {
         ? { reports: true, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: finalViewableStores } 
         : { ...perms, viewable_stores: [storeId] }
     };
+    
+    await supabase.from('users').insert([{...newStaff, hasappaccess: newStaff.hasAppAccess}]);
     setStaffList([...staffList, newStaff]);
     alert(`Đã tạo tài khoản cho ${fullName}`);
     setFullName(''); setPhone(''); setPassword(''); setWage(''); setPerms({...perms, viewable_stores: []});
@@ -75,7 +78,7 @@ export default function StaffManagementScreen({ navigation }) {
     });
   };
 
-  const saveEditStaff = () => {
+  const saveEditStaff = async () => {
     if (!editingStaff.name || !editingStaff.phone || !editingStaff.wage) {
       alert('Không được để trống thông tin!'); return;
     }
@@ -90,6 +93,10 @@ export default function StaffManagementScreen({ navigation }) {
         ? { reports: true, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: finalViewableStores } 
         : { ...editingStaff.permissions, viewable_stores: finalViewableStores }
     };
+
+    await supabase.from('users').update({
+      name: finalStaff.name, phone: finalStaff.phone, wage: finalStaff.wage, role: finalStaff.role, hasappaccess: finalStaff.hasAppAccess, permissions: finalStaff.permissions
+    }).eq('id', finalStaff.id);
 
     setStaffList(staffList.map(s => s.id === finalStaff.id ? finalStaff : s));
     alert('Đã cập nhật thông tin thành công!');

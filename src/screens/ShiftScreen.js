@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import { AppContext } from '../../App';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { supabase } from '../services/supabaseClient';
 
 export default function ShiftScreen({ navigation }) {
   const { currentUser, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory } = useContext(AppContext);
@@ -37,7 +38,7 @@ export default function ShiftScreen({ navigation }) {
 
   // === MỞ CA ===
   const [openingCash, setOpeningCash] = useState('');
-  const handleOpenShift = () => {
+  const handleOpenShift = async () => {
     if (storeIdToView === 'ALL') { alert('Vui lòng chọn 1 chi nhánh!'); return; }
     if (!openingCash) { alert('Nhập tiền đầu ca!'); return; }
     const newShift = {
@@ -48,6 +49,7 @@ export default function ShiftScreen({ navigation }) {
       rev_cash: 0, rev_momo: 0, rev_grab: 0, rev_shopee: 0, discount: 0, expenses: 0, expenses_note: '', closing_cash_actual: 0, discrepancy: 0,
       inventory_check: []
     };
+    await supabase.from('shifts').insert([newShift]);
     setShifts([...shifts, newShift]);
     alert('Mở ca thành công!');
   };
@@ -67,7 +69,7 @@ export default function ShiftScreen({ navigation }) {
   const todayStr = new Date().toLocaleDateString('vi-VN');
   const todayAttendance = attendanceHistory.filter(a => a.date === todayStr); // Giả lập chấm công hôm nay
 
-  const handleCloseShift = () => {
+  const handleCloseShift = async () => {
     const rCash = parseMoneyInput(revCash);
     const rMomo = parseMoneyInput(revMomo);
     const rGrab = parseMoneyInput(revGrab);
@@ -87,9 +89,8 @@ export default function ShiftScreen({ navigation }) {
 
     // Build inventory check data
     const finalInvCheck = storeInventory.map(item => {
-      const endStock = inventoryCheck[item.id] !== undefined ? Number(inventoryCheck[item.id]) : item.quantity;
-      const exportQty = item.quantity - endStock; // Giả sử Tồn đầu + Nhập đã cộng sẵn vào item.quantity
-      return { item_id: item.id, name: item.name, unit: item.unit, start: item.quantity, export: exportQty, end: endStock };
+      const endStock = inventoryCheck[item.id] !== undefined ? Number(inventoryCheck[item.id]) : 0;
+      return { item_id: item.id, name: item.name, unit: item.unit, end: endStock };
     });
 
     if (discrepancy !== 0) {
@@ -106,6 +107,9 @@ export default function ShiftScreen({ navigation }) {
       closing_cash_actual: aCash, discrepancy: discrepancy,
       inventory_check: finalInvCheck
     };
+
+    // Update to Supabase
+    await supabase.from('shifts').update(updatedShift).eq('id', currentOpenShift.id);
 
     // Update global shifts
     setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
@@ -180,7 +184,7 @@ export default function ShiftScreen({ navigation }) {
                   {storeInventory.map(item => (
                     <View key={item.id} style={styles.tableRow}>
                       <Text style={[styles.cell, {flex: 2}]} numberOfLines={1}>{item.name}</Text>
-                      <Text style={[styles.cell, {flex: 1}]}>{item.quantity}</Text>
+                      <Text style={[styles.cell, {flex: 1}]}>--</Text>
                       <View style={{flex: 1.5, paddingHorizontal: 5}}>
                         <TextInput 
                           style={styles.smallInput} keyboardType="numeric" placeholder="Nhập"

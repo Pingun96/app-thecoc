@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import { AppContext } from '../../App';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../services/supabaseClient';
 
 export default function InventoryScreen({ navigation }) {
   const { currentUser, inventoryItems, setInventoryItems, inventoryLogs, setInventoryLogs, inventoryRequests, setInventoryRequests, selectedStoreId, storeList } = useContext(AppContext);
@@ -43,7 +44,7 @@ export default function InventoryScreen({ navigation }) {
   const [actionType, setActionType] = useState('EXPORT'); // EXPORT, IMPORT, STOCKTAKE
   const [amountAction, setAmountAction] = useState('');
 
-  const handleSubmitAction = () => {
+  const handleSubmitAction = async () => {
     if (!selectedItemAction || !amountAction) {
       alert('Vui lòng nhập đủ thông tin!'); return;
     }
@@ -67,19 +68,21 @@ export default function InventoryScreen({ navigation }) {
       
       if (isOwner) {
         const newLog = {
-          id: `log_${Date.now()}`, itemId: selectedItemAction, type: type, amount: Math.abs(diff),
+          id: `log_${Date.now()}`, itemid: selectedItemAction, type: type, amount: Math.abs(diff),
           date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
           store_id: storeIdToView === 'ALL' ? itemData.store_id : storeIdToView, user_name: currentUser.name
         };
-        setInventoryLogs([newLog, ...inventoryLogs]);
+        await supabase.from('inventory_logs').insert([newLog]);
+        setInventoryLogs([{...newLog, itemId: newLog.itemid}, ...inventoryLogs]);
         alert(`Đã kiểm kê! Chênh lệch: ${diff > 0 ? '+' : ''}${diff}. Đã cập nhật sổ kho.`);
       } else {
         const newReq = {
-          id: `req_${Date.now()}`, itemId: selectedItemAction, type: type, amount: Math.abs(diff),
+          id: `req_${Date.now()}`, itemid: selectedItemAction, type: type, amount: Math.abs(diff),
           date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
           store_id: storeIdToView === 'ALL' ? itemData.store_id : storeIdToView, requested_by_name: currentUser.name, status
         };
-        setInventoryRequests([newReq, ...inventoryRequests]);
+        await supabase.from('inventory_requests').insert([newReq]);
+        setInventoryRequests([{...newReq, itemId: newReq.itemid}, ...inventoryRequests]);
         alert('Đã gửi Phiếu Yêu Cầu Kiểm Kê chờ duyệt!');
       }
       setAmountAction('');
@@ -89,30 +92,33 @@ export default function InventoryScreen({ navigation }) {
     // Nếu là EXPORT / IMPORT
     if (isOwner) {
       const newLog = {
-        id: `log_${Date.now()}`, itemId: selectedItemAction, type: actionType, amount: val,
+        id: `log_${Date.now()}`, itemid: selectedItemAction, type: actionType, amount: val,
         date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
         store_id: storeIdToView === 'ALL' ? myItems.find(i=>i.id===selectedItemAction)?.store_id : storeIdToView, user_name: currentUser.name
       };
-      setInventoryLogs([newLog, ...inventoryLogs]);
+      await supabase.from('inventory_logs').insert([newLog]);
+      setInventoryLogs([{...newLog, itemId: newLog.itemid}, ...inventoryLogs]);
       alert('Đã ghi nhận giao dịch kho lập tức!');
     } else {
       const newReq = {
-        id: `req_${Date.now()}`, itemId: selectedItemAction, type: actionType, amount: val,
+        id: `req_${Date.now()}`, itemid: selectedItemAction, type: actionType, amount: val,
         date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
         store_id: storeIdToView === 'ALL' ? myItems.find(i=>i.id===selectedItemAction)?.store_id : storeIdToView, requested_by_name: currentUser.name, status
       };
-      setInventoryRequests([newReq, ...inventoryRequests]);
+      await supabase.from('inventory_requests').insert([newReq]);
+      setInventoryRequests([{...newReq, itemId: newReq.itemid}, ...inventoryRequests]);
       alert('Đã tạo Phiếu Yêu Cầu Giao Dịch, vui lòng chờ duyệt!');
     }
     setAmountAction('');
   };
 
   // Hàm Duyệt / Từ Chối phiếu
-  const handleReviewRequest = (reqId, action) => {
+  const handleReviewRequest = async (reqId, action) => {
     const req = inventoryRequests.find(r => r.id === reqId);
     if (!req) return;
 
     if (action === 'REJECT') {
+      await supabase.from('inventory_requests').update({ status: 'REJECTED' }).eq('id', reqId);
       const updated = inventoryRequests.map(r => r.id === reqId ? { ...r, status: 'REJECTED' } : r);
       setInventoryRequests(updated);
       alert('Đã từ chối phiếu yêu cầu.');
@@ -121,18 +127,21 @@ export default function InventoryScreen({ navigation }) {
 
     if (action === 'APPROVE') {
       if (isManager && req.status === 'PENDING_MANAGER') {
+        await supabase.from('inventory_requests').update({ status: 'PENDING_OWNER' }).eq('id', reqId);
         const updated = inventoryRequests.map(r => r.id === reqId ? { ...r, status: 'PENDING_OWNER' } : r);
         setInventoryRequests(updated);
         alert('Đã duyệt phiếu (Chờ Chủ cửa hàng duyệt bước cuối).');
       } else if (isOwner) {
+        await supabase.from('inventory_requests').update({ status: 'APPROVED' }).eq('id', reqId);
         const updated = inventoryRequests.map(r => r.id === reqId ? { ...r, status: 'APPROVED' } : r);
         setInventoryRequests(updated);
         const newLog = {
-          id: `log_${Date.now()}`, itemId: req.itemId, type: req.type, amount: req.amount,
+          id: `log_${Date.now()}`, itemid: req.itemId, type: req.type, amount: req.amount,
           date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
           store_id: req.store_id, user_name: req.requested_by_name + ' (Đã duyệt)'
         };
-        setInventoryLogs([newLog, ...inventoryLogs]);
+        await supabase.from('inventory_logs').insert([newLog]);
+        setInventoryLogs([{...newLog, itemId: newLog.itemid}, ...inventoryLogs]);
         alert('Đã duyệt phiếu! Tồn kho đã được cập nhật.');
       }
     }
@@ -144,7 +153,7 @@ export default function InventoryScreen({ navigation }) {
   const [newItemUnit, setNewItemUnit] = useState('kg');
   const [newItemSafeLevel, setNewItemSafeLevel] = useState('5');
 
-  const handleCreateItem = () => {
+  const handleCreateItem = async () => {
     if (!newItemName || !newItemUnit || !newItemSafeLevel) {
       alert('Vui lòng điền đủ thông tin!'); return;
     }
@@ -156,10 +165,11 @@ export default function InventoryScreen({ navigation }) {
       id: `item_${Date.now()}`,
       name: newItemName,
       unit: newItemUnit,
-      safeLevel: Number(newItemSafeLevel),
+      safelevel: Number(newItemSafeLevel),
       store_id: storeIdToView
     };
-    setInventoryItems([...inventoryItems, newItem]);
+    await supabase.from('inventory_items').insert([newItem]);
+    setInventoryItems([...inventoryItems, {...newItem, safeLevel: newItem.safelevel}]);
     alert('Đã thêm nguyên liệu mới!');
     setNewItemName(''); setShowCreateItemModal(false);
   };
