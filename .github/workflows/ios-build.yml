@@ -90,7 +90,7 @@ jobs:
           
           if [ $BUILD_EXIT_CODE -ne 0 ]; then
             echo "Uploading log to termbin..."
-            LOG_URL=$(tail -n 15000 ../xcodebuild.log | nc termbin.com 9999)
+            LOG_URL=$(tail -n 2000 ../xcodebuild.log | nc termbin.com 9999)
             
             echo "## ❌ Xcode Build Thất Bại" >> $GITHUB_STEP_SUMMARY
             echo "Hãy copy đường link dưới đây và gửi cho AI để AI đọc toàn bộ log:" >> $GITHUB_STEP_SUMMARY
@@ -117,3 +117,10 @@ jobs:
         with:
           name: TheCoc-iOS
           path: TheCoc-iOS.ipa
+
+      - name: Upload Xcode Log on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Xcode-Build-Log
+          path: ../xcodebuild.log
