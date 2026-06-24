@@ -293,80 +293,82 @@ export default function StaffManagementScreen({ navigation }) {
 
         {/* MODAL CHỈNH SỬA */}
         <Modal visible={!!editingStaff} animationType="slide" transparent>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Chỉnh sửa thông tin</Text>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                
-                <Text style={styles.label}>Tên:</Text>
-                <TextInput style={styles.input} value={editingStaff?.name} onChangeText={(t) => setEditingStaff({...editingStaff, name: t})} />
+          {editingStaff && (
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Chỉnh sửa thông tin</Text>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  
+                  <Text style={styles.label}>Tên:</Text>
+                  <TextInput style={styles.input} value={editingStaff.name} onChangeText={(t) => setEditingStaff({...editingStaff, name: t})} />
 
-                <Text style={styles.label}>Số điện thoại (SĐT đăng nhập):</Text>
-                <TextInput style={styles.input} keyboardType="phone-pad" value={editingStaff?.phone} onChangeText={(t) => setEditingStaff({...editingStaff, phone: t})} />
+                  <Text style={styles.label}>Số điện thoại (SĐT đăng nhập):</Text>
+                  <TextInput style={styles.input} keyboardType="phone-pad" value={editingStaff.phone} onChangeText={(t) => setEditingStaff({...editingStaff, phone: t})} />
 
-                <Text style={styles.label}>Lương (đ/h):</Text>
-                <TextInput style={styles.input} keyboardType="numeric" value={String(editingStaff?.wage || '')} onChangeText={(t) => setEditingStaff({...editingStaff, wage: Number(t)})} />
-                
-                <Text style={styles.label}>Chức vụ:</Text>
-                <View style={styles.roleRow}>
-                  <TouchableOpacity style={[styles.roleChip, editingStaff?.role === 'STAFF' && styles.roleChipActive]} onPress={() => setEditingStaff({...editingStaff, role: 'STAFF'})}>
-                    <Text style={[styles.roleText, editingStaff?.role === 'STAFF' && {color:'#fff'}]}>Nhân Viên</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.roleChip, editingStaff?.role === 'MANAGER' && styles.roleChipActive]} onPress={() => setEditingStaff({...editingStaff, role: 'MANAGER'})}>
-                    <Text style={[styles.roleText, editingStaff?.role === 'MANAGER' && {color:'#fff'}]}>Quản Lý</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.accessRow}>
-                  <Text style={styles.label}>Trạng thái đăng nhập App:</Text>
-                  <Switch value={editingStaff?.hasAppAccess} onValueChange={(v) => setEditingStaff({...editingStaff, hasAppAccess: v})} />
-                </View>
-
-                {(currentUser?.role === 'OWNER' || currentUser?.role === 'MANAGER') && (
-                  <View style={[styles.permBox, {borderColor: editingStaff?.role === 'MANAGER' ? '#e91e63' : '#1976d2'}]}>
-                    <Text style={{fontWeight: 'bold', color: editingStaff?.role === 'MANAGER' ? '#e91e63' : '#1976d2', marginBottom: 10}}>
-                      {editingStaff?.role === 'MANAGER' ? '🌐 Cấp quyền xem dữ liệu chi nhánh khác:' : '🌐 Cấp quyền làm việc tại chi nhánh khác:'}
-                    </Text>
-                    {storeList.map(store => {
-                      const isHomeStore = store.id === editingStaff.store_id;
-                      return (
-                        <View key={store.id} style={styles.permRow}>
-                          <Text style={isHomeStore ? {fontWeight: 'bold', color: '#1976d2'} : {}}>{store.name} {isHomeStore && '(Chi nhánh gốc)'}</Text>
-                          <Switch 
-                            value={isHomeStore ? true : editingStaff.permissions?.viewable_stores?.includes(store.id)} 
-                            disabled={isHomeStore}
-                            onValueChange={()=>toggleEditViewableStore(store.id)} 
-                            trackColor={{true: editingStaff?.role === 'MANAGER' ? '#e91e63' : '#1976d2'}} 
-                          />
-                        </View>
-                      );
-                    })}
-                    <Text style={{fontSize: 12, color: '#666', marginTop: 10}}>*Nhân sự luôn được gắn quyền với chi nhánh gốc.</Text>
+                  <Text style={styles.label}>Lương (đ/h):</Text>
+                  <TextInput style={styles.input} keyboardType="numeric" value={String(editingStaff.wage || '')} onChangeText={(t) => setEditingStaff({...editingStaff, wage: Number(t)})} />
+                  
+                  <Text style={styles.label}>Chức vụ:</Text>
+                  <View style={styles.roleRow}>
+                    <TouchableOpacity style={[styles.roleChip, editingStaff.role === 'STAFF' && styles.roleChipActive]} onPress={() => setEditingStaff({...editingStaff, role: 'STAFF'})}>
+                      <Text style={[styles.roleText, editingStaff.role === 'STAFF' && {color:'#fff'}]}>Nhân Viên</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.roleChip, editingStaff.role === 'MANAGER' && styles.roleChipActive]} onPress={() => setEditingStaff({...editingStaff, role: 'MANAGER'})}>
+                      <Text style={[styles.roleText, editingStaff.role === 'MANAGER' && {color:'#fff'}]}>Quản Lý</Text>
+                    </TouchableOpacity>
                   </View>
-                )}
 
-                {editingStaff?.role === 'STAFF' && editingStaff?.permissions && (
-                  <View style={styles.permBox}>
-                    <Text style={[styles.label, {marginTop:0}]}>Phân quyền hiển thị:</Text>
-                    <View style={styles.permRow}><Text>💵 Thu ngân / Bán hàng</Text><Switch value={editingStaff.permissions.cashier} onValueChange={()=>toggleEditPerm('cashier')} /></View>
-                    <View style={styles.permRow}><Text>📦 Kiểm Kho / Nhập xuất</Text><Switch value={editingStaff.permissions.inventory} onValueChange={()=>toggleEditPerm('inventory')} /></View>
-                    <View style={styles.permRow}><Text>⏱️ Chấm công</Text><Switch value={editingStaff.permissions.hr} onValueChange={()=>toggleEditPerm('hr')} /></View>
-                    <View style={styles.permRow}><Text>💰 Xem lương</Text><Switch value={editingStaff.permissions.payroll} onValueChange={()=>toggleEditPerm('payroll')} /></View>
-                    <View style={styles.permRow}><Text>📊 Xem Báo cáo</Text><Switch value={editingStaff.permissions.reports} onValueChange={()=>toggleEditPerm('reports')} /></View>
+                  <View style={styles.accessRow}>
+                    <Text style={styles.label}>Trạng thái đăng nhập App:</Text>
+                    <Switch value={editingStaff.hasAppAccess} onValueChange={(v) => setEditingStaff({...editingStaff, hasAppAccess: v})} />
                   </View>
-                )}
 
-                <View style={{flexDirection: 'row', marginTop: 20}}>
-                  <TouchableOpacity style={[styles.createBtn, {flex: 1, marginRight: 10, backgroundColor: '#F44336'}]} onPress={() => setEditingStaff(null)}>
-                    <Text style={styles.btnText}>Hủy</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.createBtn, {flex: 1, marginTop: 0}]} onPress={saveEditStaff}>
-                    <Text style={styles.btnText}>Lưu Thay Đổi</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
+                  {(currentUser?.role === 'OWNER' || currentUser?.role === 'MANAGER') && (
+                    <View style={[styles.permBox, {borderColor: editingStaff.role === 'MANAGER' ? '#e91e63' : '#1976d2'}]}>
+                      <Text style={{fontWeight: 'bold', color: editingStaff.role === 'MANAGER' ? '#e91e63' : '#1976d2', marginBottom: 10}}>
+                        {editingStaff.role === 'MANAGER' ? '🌐 Cấp quyền xem dữ liệu chi nhánh khác:' : '🌐 Cấp quyền làm việc tại chi nhánh khác:'}
+                      </Text>
+                      {storeList.map(store => {
+                        const isHomeStore = store.id === editingStaff.store_id;
+                        return (
+                          <View key={store.id} style={styles.permRow}>
+                            <Text style={isHomeStore ? {fontWeight: 'bold', color: '#1976d2'} : {}}>{store.name} {isHomeStore && '(Chi nhánh gốc)'}</Text>
+                            <Switch 
+                              value={isHomeStore ? true : !!editingStaff.permissions?.viewable_stores?.includes(store.id)} 
+                              disabled={isHomeStore}
+                              onValueChange={()=>toggleEditViewableStore(store.id)} 
+                              trackColor={{true: editingStaff.role === 'MANAGER' ? '#e91e63' : '#1976d2'}} 
+                            />
+                          </View>
+                        );
+                      })}
+                      <Text style={{fontSize: 12, color: '#666', marginTop: 10}}>*Nhân sự luôn được gắn quyền với chi nhánh gốc.</Text>
+                    </View>
+                  )}
+
+                  {editingStaff.role === 'STAFF' && editingStaff.permissions && (
+                    <View style={styles.permBox}>
+                      <Text style={[styles.label, {marginTop:0}]}>Phân quyền hiển thị:</Text>
+                      <View style={styles.permRow}><Text>💵 Thu ngân / Bán hàng</Text><Switch value={!!editingStaff.permissions.cashier} onValueChange={()=>toggleEditPerm('cashier')} /></View>
+                      <View style={styles.permRow}><Text>📦 Kiểm Kho / Nhập xuất</Text><Switch value={!!editingStaff.permissions.inventory} onValueChange={()=>toggleEditPerm('inventory')} /></View>
+                      <View style={styles.permRow}><Text>⏱️ Chấm công</Text><Switch value={!!editingStaff.permissions.hr} onValueChange={()=>toggleEditPerm('hr')} /></View>
+                      <View style={styles.permRow}><Text>💰 Xem lương</Text><Switch value={!!editingStaff.permissions.payroll} onValueChange={()=>toggleEditPerm('payroll')} /></View>
+                      <View style={styles.permRow}><Text>📊 Xem Báo cáo</Text><Switch value={!!editingStaff.permissions.reports} onValueChange={()=>toggleEditPerm('reports')} /></View>
+                    </View>
+                  )}
+
+                  <View style={{flexDirection: 'row', marginTop: 20}}>
+                    <TouchableOpacity style={[styles.createBtn, {flex: 1, marginRight: 10, backgroundColor: '#F44336'}]} onPress={() => setEditingStaff(null)}>
+                      <Text style={styles.btnText}>Hủy</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.createBtn, {flex: 1, marginTop: 0}]} onPress={saveEditStaff}>
+                      <Text style={styles.btnText}>Lưu Thay Đổi</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              </View>
             </View>
-          </View>
+          )}
         </Modal>
 
         <TouchableOpacity style={styles.fab} onPress={() => setShowCreateModal(true)}>
