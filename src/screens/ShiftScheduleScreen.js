@@ -92,12 +92,12 @@ export default function ShiftScheduleScreen({ navigation }) {
       return;
     }
 
-    // Kiểm tra sức khỏe (không làm 2 ca/ngày ở BẤT KỲ chi nhánh nào)
+    // Có thể làm tối đa 2 ca/ngày (Sáng và Chiều)
     const myShiftsThatDay = shiftRegistrations.filter(r => r.user_id === currentUser.id && r.date === date && (r.status === 'APPROVED' || r.status === 'PENDING'));
     const myDraftsThatDay = draftShifts.filter(d => d.date === date);
     
-    if (myShiftsThatDay.length + myDraftsThatDay.length >= 1) {
-      Alert.alert('Cảnh báo', 'Mỗi ngày bạn chỉ được đăng ký tối đa 1 ca làm việc trên toàn hệ thống!');
+    if (myShiftsThatDay.length + myDraftsThatDay.length >= 2) {
+      Alert.alert('Cảnh báo', 'Mỗi ngày bạn chỉ được đăng ký tối đa 2 ca làm việc (đã kín lịch)!');
       return;
     }
 
