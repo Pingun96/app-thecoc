@@ -11,14 +11,34 @@ export default function ShiftScheduleScreen({ navigation }) {
   const myStoreId = currentUser?.store_id;
 
   const [activeTab, setActiveTab] = useState(isManagerOrOwner ? 'APPROVAL' : 'REGISTER');
+  const [weekOffset, setWeekOffset] = useState(0);
 
-  // Helpers for dates
-  const today = new Date();
-  const nextDates = Array.from({length: 7}, (_, i) => {
-    const d = new Date();
-    d.setDate(today.getDate() + i + 1); // Start from tomorrow
-    return d.toISOString().split('T')[0]; // YYYY-MM-DD
-  });
+  // Lấy danh sách 7 ngày (Thứ 2 - Chủ Nhật) của tuần được chọn
+  const getWeekDates = (offset) => {
+    const curr = new Date();
+    const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1) + (offset * 7);
+    const monday = new Date(curr.setDate(first));
+    
+    return Array.from({length: 7}, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      // Format YYYY-MM-DD
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    });
+  };
+
+  const weekDates = getWeekDates(weekOffset);
+
+  const getDayName = (dateString) => {
+    const d = new Date(dateString);
+    const days = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${days[d.getDay()]} (${dd}/${mm})`;
+  };
 
   // =====================
   // STAFF: ĐĂNG KÝ CA
@@ -52,18 +72,29 @@ export default function ShiftScheduleScreen({ navigation }) {
   };
 
   const renderStaffRegister = () => (
-    <ScrollView 
-      showsVerticalScrollIndicator={false} 
-      contentContainerStyle={{paddingBottom: 80}}
-      refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
-    >
-      <Text style={styles.sectionTitle}>Đăng ký lịch làm việc (7 ngày tới)</Text>
-      {nextDates.map(date => {
-        const myMorning = shiftRegistrations.find(r => r.user_id === currentUser.id && r.date === date && r.shift_type === 'MORNING');
-        const myAfternoon = shiftRegistrations.find(r => r.user_id === currentUser.id && r.date === date && r.shift_type === 'AFTERNOON');
-        return (
-          <View key={date} style={styles.card}>
-            <Text style={styles.dateText}>Ngày: {date}</Text>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{paddingBottom: 80}}
+        refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
+      >
+        <Text style={styles.sectionTitle}>Đăng ký lịch làm việc</Text>
+        
+        <View style={styles.weekSelector}>
+          <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
+            <Ionicons name="chevron-back" size={24} color="#1976d2" />
+          </TouchableOpacity>
+          <Text style={styles.weekText}>{weekOffset === 0 ? 'Tuần này' : weekOffset === 1 ? 'Tuần sau' : weekOffset === -1 ? 'Tuần trước' : `Cách đây ${weekOffset} tuần`}</Text>
+          <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset + 1)}>
+            <Ionicons name="chevron-forward" size={24} color="#1976d2" />
+          </TouchableOpacity>
+        </View>
+
+        {weekDates.map(date => {
+          const myMorning = shiftRegistrations.find(r => r.user_id === currentUser.id && r.date === date && r.shift_type === 'MORNING');
+          const myAfternoon = shiftRegistrations.find(r => r.user_id === currentUser.id && r.date === date && r.shift_type === 'AFTERNOON');
+          return (
+            <View key={date} style={styles.card}>
+              <Text style={styles.dateText}>{getDayName(date)}</Text>
             <View style={styles.shiftRow}>
               <TouchableOpacity 
                 style={[styles.shiftBtn, myMorning ? styles.shiftRegistered : {}]} 
@@ -195,6 +226,9 @@ const styles = StyleSheet.create({
   tabTextActive: { color: '#1976d2' },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1976d2', marginBottom: 15 },
   card: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 15, elevation: 2 },
+  weekSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#e3f2fd', padding: 10, borderRadius: 8, marginBottom: 15 },
+  weekBtn: { padding: 5 },
+  weekText: { fontSize: 16, fontWeight: 'bold', color: '#1976d2' },
   dateText: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },
   shiftRow: { flexDirection: 'row', gap: 10 },
   shiftBtn: { flex: 1, borderWidth: 1, borderColor: '#1976d2', padding: 12, borderRadius: 8, alignItems: 'center' },
