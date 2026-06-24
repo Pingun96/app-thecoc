@@ -1,12 +1,34 @@
-import React, { useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions } from 'react-native';
+import React, { useContext, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppContext } from '../../App';
+import * as Updates from 'expo-updates';
 
 const { width } = Dimensions.get('window');
 
 export default function DashboardScreen({ navigation }) {
   const { currentUser, staffList, attendanceHistory, storeList, selectedStoreId, setSelectedStoreId } = useContext(AppContext);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+
+  const handleManualUpdate = async () => {
+    try {
+      setIsCheckingUpdate(true);
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        Alert.alert('Có bản cập nhật mới!', 'Đang tiến hành tải xuống...');
+        await Updates.fetchUpdateAsync();
+        Alert.alert('Thành công', 'Tải xong! App sẽ khởi động lại ngay.', [
+          { text: 'OK', onPress: () => Updates.reloadAsync() }
+        ]);
+      } else {
+        Alert.alert('Thông báo', 'Bạn đang dùng phiên bản mới nhất rồi!');
+      }
+    } catch (error) {
+      Alert.alert('Lỗi cập nhật', error.message);
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
 
   const isOwner = currentUser?.role === 'OWNER';
   const viewableStores = currentUser?.permissions?.viewable_stores || [];
@@ -106,6 +128,18 @@ export default function DashboardScreen({ navigation }) {
             <Text style={styles.menuText}>Kho hàng</Text>
           </TouchableOpacity>
         </View>
+        
+        <View style={{alignItems: 'center', marginTop: 20}}>
+          <TouchableOpacity 
+            style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#e3f2fd', padding: 12, borderRadius: 30}}
+            onPress={handleManualUpdate}
+            disabled={isCheckingUpdate}
+          >
+            {isCheckingUpdate ? <ActivityIndicator color="#1976d2" style={{marginRight: 10}} /> : <Ionicons name="cloud-download-outline" size={24} color="#1976d2" style={{marginRight: 10}} />}
+            <Text style={{color: '#1976d2', fontWeight: 'bold'}}>Kiểm tra Cập nhật OTA</Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={() => navigation.replace('Login')}>
           <MaterialCommunityIcons name="logout" size={24} color="#ff5252" />
         </TouchableOpacity>
