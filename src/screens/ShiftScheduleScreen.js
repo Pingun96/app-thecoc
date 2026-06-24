@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl, Dimensions } from 'react-native';
 import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
@@ -7,10 +7,9 @@ import { supabase } from '../services/supabaseClient';
 export default function ShiftScheduleScreen({ navigation }) {
   const { currentUser, shiftRegistrations, setShiftRegistrations, storeList, staffList, refreshData, isDataLoading } = useContext(AppContext);
   
-  const isManagerOrOwner = currentUser?.role === 'MANAGER' || currentUser?.role === 'OWNER';
   const myStoreId = currentUser?.store_id;
 
-  const [activeTab, setActiveTab] = useState(isManagerOrOwner ? 'APPROVAL' : 'REGISTER');
+  const [activeTab, setActiveTab] = useState('SCHEDULE');
   const [weekOffset, setWeekOffset] = useState(0);
 
   // Lấy danh sách 7 ngày (Thứ 2 - Chủ Nhật) của tuần được chọn
@@ -22,7 +21,6 @@ export default function ShiftScheduleScreen({ navigation }) {
     return Array.from({length: 7}, (_, i) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      // Format YYYY-MM-DD
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
@@ -40,16 +38,26 @@ export default function ShiftScheduleScreen({ navigation }) {
     return `${days[d.getDay()]} (${dd}/${mm})`;
   };
 
+  // Lấy số lượng người đã đăng ký trong 1 ca
+  const getShiftRegistrations = (date, shiftType) => {
+    return shiftRegistrations.filter(r => r.date === date && r.shift_type === shiftType && r.store_id === myStoreId && r.status === 'APPROVED');
+  };
+
   // =====================
-  // STAFF: ĐĂNG KÝ CA
+  // ĐĂNG KÝ CA (TỰ ĐỘNG DUYỆT)
   // =====================
   const handleRegisterShift = async (date, shiftType) => {
-    if (isManagerOrOwner) return; // Manager should just see or they can register if needed
-    
-    // Kiểm tra đã đăng ký chưa
-    const existing = shiftRegistrations.find(r => r.user_id === currentUser.id && r.date === date && r.shift_type === shiftType);
-    if (existing) {
-      alert('Bạn đã đăng ký ca này rồi!');
+    // 1. Kiểm tra giới hạn 4 người
+    const currentRegs = getShiftRegistrations(date, shiftType);
+    if (currentRegs.length >= 4) {
+      alert('Ca này đã đủ 4 người, vui lòng chọn ca khác!');
+      return;
+    }
+
+    // 2. Kiểm tra sức khỏe (không làm 2 ca/ngày)
+    const myShiftsThatDay = shiftRegistrations.filter(r => r.user_id === currentUser.id && r.date === date && r.status === 'APPROVED');
+    if (myShiftsThatDay.length >= 1) {
+      alert('Để đảm bảo sức khỏe, mỗi ngày bạn chỉ được đăng ký tối đa 1 ca làm việc!');
       return;
     }
 
@@ -59,62 +67,94 @@ export default function ShiftScheduleScreen({ navigation }) {
       store_id: myStoreId,
       date: date,
       shift_type: shiftType,
-      status: 'PENDING'
+      status: 'APPROVED' // Tự động duyệt
     };
 
     try {
       await supabase.from('shift_registrations').insert([newReg]);
       setShiftRegistrations([...shiftRegistrations, newReg]);
-      alert(`Đã đăng ký ${shiftType === 'MORNING' ? 'Ca Sáng' : 'Ca Chiều'} ngày ${date}`);
+      alert(`Đăng ký thành công ${shiftType === 'MORNING' ? 'Ca Sáng' : 'Ca Chiều'} ngày ${date}!`);
     } catch (e) {
       alert('Lỗi đăng ký ca: ' + e.message);
     }
   };
 
-  const renderStaffRegister = () => (
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={{paddingBottom: 80}}
-        refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
-      >
-        <Text style={styles.sectionTitle}>Đăng ký lịch làm việc</Text>
-        
-        <View style={styles.weekSelector}>
-          <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
-            <Ionicons name="chevron-back" size={24} color="#1976d2" />
-          </TouchableOpacity>
-          <Text style={styles.weekText}>{weekOffset === 0 ? 'Tuần này' : weekOffset === 1 ? 'Tuần sau' : weekOffset === -1 ? 'Tuần trước' : `Cách đây ${weekOffset} tuần`}</Text>
-          <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset + 1)}>
-            <Ionicons name="chevron-forward" size={24} color="#1976d2" />
-          </TouchableOpacity>
-        </View>
+  // =====================
+  // XÓA CA (HỦY ĐĂNG KÝ)
+  // =====================
+  const handleCancelShift = async (regId) => {
+    try {
+      await supabase.from('shift_registrations').delete().eq('id', regId);
+      setShiftRegistrations(shiftRegistrations.filter(r => r.id !== regId));
+      alert('Đã hủy ca thành công!');
+    } catch (e) {
+      alert('Lỗi hủy ca: ' + e.message);
+    }
+  };
 
-        {weekDates.map(date => {
-          const myMorning = shiftRegistrations.find(r => r.user_id === currentUser.id && r.date === date && r.shift_type === 'MORNING');
-          const myAfternoon = shiftRegistrations.find(r => r.user_id === currentUser.id && r.date === date && r.shift_type === 'AFTERNOON');
-          return (
-            <View key={date} style={styles.card}>
-              <Text style={styles.dateText}>{getDayName(date)}</Text>
+  const renderStaffRegister = () => (
+    <ScrollView 
+      showsVerticalScrollIndicator={false} 
+      contentContainerStyle={{paddingBottom: 80}}
+      refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
+    >
+      <Text style={styles.sectionTitle}>Đăng ký lịch làm việc (Tối đa 4 người/ca)</Text>
+      
+      <View style={styles.weekSelector}>
+        <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
+          <Ionicons name="chevron-back" size={24} color="#1976d2" />
+        </TouchableOpacity>
+        <Text style={styles.weekText}>{weekOffset === 0 ? 'Tuần này' : weekOffset === 1 ? 'Tuần sau' : weekOffset === -1 ? 'Tuần trước' : `Cách đây ${Math.abs(weekOffset)} tuần`}</Text>
+        <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset + 1)}>
+          <Ionicons name="chevron-forward" size={24} color="#1976d2" />
+        </TouchableOpacity>
+      </View>
+
+      {weekDates.map(date => {
+        const morningRegs = getShiftRegistrations(date, 'MORNING');
+        const afternoonRegs = getShiftRegistrations(date, 'AFTERNOON');
+        
+        const myMorning = morningRegs.find(r => r.user_id === currentUser.id);
+        const myAfternoon = afternoonRegs.find(r => r.user_id === currentUser.id);
+        
+        const morningFull = morningRegs.length >= 4;
+        const afternoonFull = afternoonRegs.length >= 4;
+
+        return (
+          <View key={date} style={styles.card}>
+            <Text style={styles.dateText}>{getDayName(date)}</Text>
             <View style={styles.shiftRow}>
-              <TouchableOpacity 
-                style={[styles.shiftBtn, myMorning ? styles.shiftRegistered : {}]} 
-                onPress={() => handleRegisterShift(date, 'MORNING')}
-                disabled={!!myMorning}
-              >
-                <Text style={[styles.shiftBtnText, myMorning ? styles.textWhite : {}]}>
-                  {myMorning ? (myMorning.status === 'APPROVED' ? 'SÁNG (Đã Duyệt)' : 'SÁNG (Chờ duyệt)') : 'SÁNG (06:00-14:00)'}
-                </Text>
-              </TouchableOpacity>
+              {myMorning ? (
+                <TouchableOpacity style={[styles.shiftBtn, styles.shiftRegistered]} onPress={() => handleCancelShift(myMorning.id)}>
+                  <Text style={[styles.shiftBtnText, styles.textWhite]}>SÁNG (Đã chọn) - Hủy</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={[styles.shiftBtn, morningFull ? styles.shiftFull : {}]} 
+                  onPress={() => handleRegisterShift(date, 'MORNING')}
+                  disabled={morningFull}
+                >
+                  <Text style={[styles.shiftBtnText, morningFull ? styles.textFull : {}]}>
+                    {morningFull ? 'SÁNG (Đã kín chỗ)' : `SÁNG (${morningRegs.length}/4)`}
+                  </Text>
+                </TouchableOpacity>
+              )}
               
-              <TouchableOpacity 
-                style={[styles.shiftBtn, myAfternoon ? styles.shiftRegistered : {}]} 
-                onPress={() => handleRegisterShift(date, 'AFTERNOON')}
-                disabled={!!myAfternoon}
-              >
-                <Text style={[styles.shiftBtnText, myAfternoon ? styles.textWhite : {}]}>
-                  {myAfternoon ? (myAfternoon.status === 'APPROVED' ? 'CHIỀU (Đã Duyệt)' : 'CHIỀU (Chờ duyệt)') : 'CHIỀU (14:00-22:00)'}
-                </Text>
-              </TouchableOpacity>
+              {myAfternoon ? (
+                <TouchableOpacity style={[styles.shiftBtn, styles.shiftRegistered]} onPress={() => handleCancelShift(myAfternoon.id)}>
+                  <Text style={[styles.shiftBtnText, styles.textWhite]}>CHIỀU (Đã chọn) - Hủy</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={[styles.shiftBtn, afternoonFull ? styles.shiftFull : {}]} 
+                  onPress={() => handleRegisterShift(date, 'AFTERNOON')}
+                  disabled={afternoonFull}
+                >
+                  <Text style={[styles.shiftBtnText, afternoonFull ? styles.textFull : {}]}>
+                    {afternoonFull ? 'CHIỀU (Đã kín chỗ)' : `CHIỀU (${afternoonRegs.length}/4)`}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         );
@@ -123,59 +163,73 @@ export default function ShiftScheduleScreen({ navigation }) {
   );
 
   // =====================
-  // MANAGER: DUYỆT CA
+  // LỊCH TỔNG (OVERVIEW)
   // =====================
-  const handleApprove = async (regId, newStatus) => {
-    try {
-      await supabase.from('shift_registrations').update({ status: newStatus }).eq('id', regId);
-      setShiftRegistrations(shiftRegistrations.map(r => r.id === regId ? {...r, status: newStatus} : r));
-      alert(`Đã ${newStatus === 'APPROVED' ? 'Duyệt' : 'Từ chối'} ca làm việc.`);
-    } catch (e) {
-      alert('Lỗi cập nhật: ' + e.message);
-    }
-  };
+  const renderScheduleOverview = () => (
+    <ScrollView 
+      showsVerticalScrollIndicator={false} 
+      contentContainerStyle={{paddingBottom: 80}}
+      refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
+    >
+      <Text style={styles.sectionTitle}>Lịch Tổng Chi Nhánh {myStoreId === 'ALL' ? '(Tất cả)' : myStoreId}</Text>
+      
+      <View style={styles.weekSelector}>
+        <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
+          <Ionicons name="chevron-back" size={24} color="#1976d2" />
+        </TouchableOpacity>
+        <Text style={styles.weekText}>{weekOffset === 0 ? 'Tuần này' : weekOffset === 1 ? 'Tuần sau' : weekOffset === -1 ? 'Tuần trước' : `Cách đây ${Math.abs(weekOffset)} tuần`}</Text>
+        <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset + 1)}>
+          <Ionicons name="chevron-forward" size={24} color="#1976d2" />
+        </TouchableOpacity>
+      </View>
 
-  const renderManagerApproval = () => {
-    const pendingRegs = shiftRegistrations.filter(r => r.status === 'PENDING' && (currentUser.role === 'OWNER' || r.store_id === myStoreId));
-    
-    if (pendingRegs.length === 0) {
-      return (
-        <ScrollView 
-          contentContainerStyle={{flexGrow: 1, justifyContent: 'center'}}
-          refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
-        >
-          <Text style={{textAlign: 'center', marginTop: 50, color: '#666'}}>Không có đăng ký ca nào cần duyệt.</Text>
-        </ScrollView>
-      );
-    }
+      {weekDates.map(date => {
+        const morningRegs = getShiftRegistrations(date, 'MORNING');
+        const afternoonRegs = getShiftRegistrations(date, 'AFTERNOON');
 
-    return (
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={{paddingBottom: 80}}
-        refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
-      >
-        <Text style={styles.sectionTitle}>Danh sách nhân viên xin xếp ca</Text>
-        {pendingRegs.map(reg => {
-          const staff = staffList.find(s => s.id === reg.user_id);
-          return (
-            <View key={reg.id} style={styles.card}>
-              <Text style={styles.staffName}>{staff?.name || 'Nhân viên'} <Text style={{fontSize: 12, fontWeight: 'normal'}}>- Chi nhánh {storeList.find(s=>s.id === reg.store_id)?.name}</Text></Text>
-              <Text style={{color: '#555', marginBottom: 10}}>Muốn làm: {reg.shift_type === 'MORNING' ? 'CA SÁNG (06-14h)' : 'CA CHIỀU (14-22h)'} ngày {reg.date}</Text>
-              <View style={{flexDirection: 'row', gap: 10}}>
-                <TouchableOpacity style={[styles.actionBtn, {backgroundColor: '#F44336'}]} onPress={() => handleApprove(reg.id, 'REJECTED')}>
-                  <Text style={styles.textWhite}>Từ chối</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionBtn, {backgroundColor: '#4CAF50'}]} onPress={() => handleApprove(reg.id, 'APPROVED')}>
-                  <Text style={styles.textWhite}>Duyệt Ca</Text>
-                </TouchableOpacity>
+        const getStaffName = (userId) => {
+          const staff = staffList.find(s => s.id === userId);
+          return staff ? staff.name : 'Unknown';
+        };
+
+        return (
+          <View key={date} style={styles.overviewCard}>
+            <Text style={styles.overviewDate}>{getDayName(date)}</Text>
+            
+            <View style={styles.overviewShiftContainer}>
+              <View style={styles.overviewShiftCol}>
+                <View style={[styles.shiftHeader, {backgroundColor: '#e3f2fd'}]}>
+                  <Text style={styles.shiftHeaderTitle}>CA SÁNG</Text>
+                  <Text style={styles.shiftHeaderCount}>{morningRegs.length}/4</Text>
+                </View>
+                <View style={styles.shiftStaffList}>
+                  {morningRegs.length === 0 ? <Text style={styles.emptyStaff}>Chưa có ai</Text> : null}
+                  {morningRegs.map(r => (
+                    <Text key={r.id} style={styles.staffItem}>• {getStaffName(r.user_id)}</Text>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.verticalDivider} />
+
+              <View style={styles.overviewShiftCol}>
+                <View style={[styles.shiftHeader, {backgroundColor: '#fff3e0'}]}>
+                  <Text style={[styles.shiftHeaderTitle, {color: '#e65100'}]}>CA CHIỀU</Text>
+                  <Text style={[styles.shiftHeaderCount, {color: '#e65100'}]}>{afternoonRegs.length}/4</Text>
+                </View>
+                <View style={styles.shiftStaffList}>
+                  {afternoonRegs.length === 0 ? <Text style={styles.emptyStaff}>Chưa có ai</Text> : null}
+                  {afternoonRegs.map(r => (
+                    <Text key={r.id} style={styles.staffItem}>• {getStaffName(r.user_id)}</Text>
+                  ))}
+                </View>
               </View>
             </View>
-          );
-        })}
-      </ScrollView>
-    );
-  };
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -187,28 +241,17 @@ export default function ShiftScheduleScreen({ navigation }) {
       </View>
 
       <View style={styles.tabContainer}>
-        {isManagerOrOwner && (
-          <TouchableOpacity style={[styles.tabBtn, activeTab === 'APPROVAL' && styles.tabBtnActive]} onPress={() => setActiveTab('APPROVAL')}>
-            <Text style={[styles.tabText, activeTab === 'APPROVAL' && styles.tabTextActive]}>Duyệt Ca</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={[styles.tabBtn, activeTab === 'REGISTER' && styles.tabBtnActive]} onPress={() => setActiveTab('REGISTER')}>
-          <Text style={[styles.tabText, activeTab === 'REGISTER' && styles.tabTextActive]}>Đăng Ký Ca</Text>
-        </TouchableOpacity>
         <TouchableOpacity style={[styles.tabBtn, activeTab === 'SCHEDULE' && styles.tabBtnActive]} onPress={() => setActiveTab('SCHEDULE')}>
           <Text style={[styles.tabText, activeTab === 'SCHEDULE' && styles.tabTextActive]}>Lịch Tổng</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.tabBtn, activeTab === 'REGISTER' && styles.tabBtnActive]} onPress={() => setActiveTab('REGISTER')}>
+          <Text style={[styles.tabText, activeTab === 'REGISTER' && styles.tabTextActive]}>Đăng Ký Ca</Text>
         </TouchableOpacity>
       </View>
 
       <View style={{flex: 1, paddingHorizontal: 20}}>
+        {activeTab === 'SCHEDULE' && renderScheduleOverview()}
         {activeTab === 'REGISTER' && renderStaffRegister()}
-        {activeTab === 'APPROVAL' && renderManagerApproval()}
-        {activeTab === 'SCHEDULE' && (
-          <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-            <Ionicons name="calendar" size={60} color="#ccc" />
-            <Text style={{color: '#888', marginTop: 10}}>Tính năng xem Lịch dạng Bảng đang được phát triển.</Text>
-          </View>
-        )}
       </View>
     </SafeAreaView>
   );
@@ -233,8 +276,21 @@ const styles = StyleSheet.create({
   shiftRow: { flexDirection: 'row', gap: 10 },
   shiftBtn: { flex: 1, borderWidth: 1, borderColor: '#1976d2', padding: 12, borderRadius: 8, alignItems: 'center' },
   shiftRegistered: { backgroundColor: '#1976d2' },
+  shiftFull: { backgroundColor: '#f5f5f5', borderColor: '#ccc' },
   shiftBtnText: { color: '#1976d2', fontWeight: 'bold', fontSize: 13 },
   textWhite: { color: '#fff' },
-  staffName: { fontSize: 16, fontWeight: 'bold', color: '#e91e63', marginBottom: 5 },
-  actionBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center' }
+  textFull: { color: '#aaa' },
+  
+  // Lịch Tổng styles
+  overviewCard: { backgroundColor: '#fff', borderRadius: 10, marginBottom: 15, elevation: 2, overflow: 'hidden' },
+  overviewDate: { fontSize: 16, fontWeight: 'bold', color: '#fff', backgroundColor: '#1976d2', padding: 10, textAlign: 'center' },
+  overviewShiftContainer: { flexDirection: 'row', minHeight: 100 },
+  overviewShiftCol: { flex: 1, padding: 0 },
+  shiftHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  shiftHeaderTitle: { fontWeight: 'bold', color: '#1976d2', fontSize: 13 },
+  shiftHeaderCount: { fontWeight: 'bold', color: '#1976d2', fontSize: 14, backgroundColor: 'rgba(255,255,255,0.7)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, overflow: 'hidden' },
+  shiftStaffList: { padding: 10 },
+  staffItem: { fontSize: 14, color: '#333', marginBottom: 6 },
+  emptyStaff: { fontSize: 14, color: '#aaa', fontStyle: 'italic', textAlign: 'center', marginTop: 10 },
+  verticalDivider: { width: 1, backgroundColor: '#eee' }
 });
