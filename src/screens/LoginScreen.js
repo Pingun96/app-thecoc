@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
+import * as Updates from 'expo-updates';
 
 export default function LoginScreen({ navigation }) {
   const [phone, setPhone] = useState('');
@@ -134,7 +135,10 @@ export default function LoginScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.footer}>Dữ liệu vận hành được đồng bộ bảo mật qua Supabase.</Text>
+      <Text style={styles.footer}>
+        Dữ liệu vận hành được đồng bộ bảo mật qua Supabase.{'\n'}
+        {Updates.updateId ? `OTA Phiên bản: ${Updates.updateId.substring(0,8)}` : 'Phiên bản gốc (Không có OTA)'}
+      </Text>
     </KeyboardAvoidingView>
   );
 }
