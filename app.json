@@ -8,6 +8,7 @@
     "scheme": "thecocmobile",
     "userInterfaceStyle": "automatic",
     "android": {
+      "package": "com.pingun96.thecocmobile",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
