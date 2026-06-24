@@ -16,6 +16,8 @@ export default function DashboardScreen({ navigation }) {
     storeList,
     selectedStoreId,
     setSelectedStoreId,
+    dataError,
+    refreshData
   } = useContext(AppContext);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
@@ -185,6 +187,14 @@ export default function DashboardScreen({ navigation }) {
           </ScrollView>
         </View>
       )}
+
+      {/* ERROR BANNER */}
+      {dataError ? (
+        <TouchableOpacity style={{ backgroundColor: '#fee2e2', padding: 15, marginHorizontal: 20, borderRadius: 10, marginTop: 10 }} onPress={refreshData}>
+          <Text style={{ color: '#991b1b', fontWeight: 'bold' }}>Lỗi tải dữ liệu: {dataError}</Text>
+          <Text style={{ color: '#991b1b', fontSize: 12 }}>Chạm vào đây để thử tải lại.</Text>
+        </TouchableOpacity>
+      ) : null}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity
