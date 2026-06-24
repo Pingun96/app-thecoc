@@ -20,12 +20,9 @@
       "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
-    "updates": {
-      "url": "https://u.expo.dev/YOUR-PROJECT-ID"
-    },
     "extra": {
       "eas": {
-        "projectId": "YOUR-PROJECT-ID"
+        "projectId": "82064b3e-e8ec-4d8d-80f5-b4a8986046ca"
       }
     },
     "plugins": [
@@ -39,6 +36,14 @@
           }
         }
       ]
-    ]
+    ],
+    "owner": "pingun96",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/82064b3e-e8ec-4d8d-80f5-b4a8986046ca"
+    },
+    "ios": {}
   }
 }
