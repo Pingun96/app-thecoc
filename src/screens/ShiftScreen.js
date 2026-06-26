@@ -174,33 +174,34 @@ export default function ShiftScreen({ navigation }) {
   };
 
   const handleCloseShift = () => {
+    const aCashStr = String(actualCash).trim();
+    if (aCashStr === '') {
+      Alert.alert('Lỗi', 'Vui lòng đếm két và nhập "TIỀN TRONG KÉT THỰC ĐẾM" (nhập 0 nếu két trống)!');
+      return;
+    }
+
+    const rCash = parseMoneyInput(revCash);
+    const rMomo = parseMoneyInput(revMomo);
+    const rGrab = parseMoneyInput(revGrab);
+    const rShopee = parseMoneyInput(revShopee);
+    const disc = parseMoneyInput(discount);
+    const exp = parseMoneyInput(expenses);
+    const aCash = parseMoneyInput(actualCash);
+
+    const expectedCash = currentOpenShift.opening_cash + rCash - exp;
+    const discrepancy = aCash - expectedCash;
+
+    const confirmMessage = discrepancy !== 0 
+      ? `⚠️ CA CỦA BẠN ĐANG LỆCH KÉT!\n\nTiền lý thuyết: ${expectedCash.toLocaleString()}đ\nTiền thực đếm: ${aCash.toLocaleString()}đ\nLệch: ${discrepancy.toLocaleString()}đ\n\nBạn có chắc chắn muốn nộp báo cáo không?`
+      : 'Bạn có chắc chắn muốn nộp báo cáo doanh thu và chốt két không?';
+
     Alert.alert(
       'Xác nhận Chốt Két',
-      'Bạn có chắc chắn muốn nộp báo cáo doanh thu và chốt két không? Thao tác này sẽ chuyển ca sang trạng thái Chờ duyệt.',
+      confirmMessage,
       [
         { text: 'Hủy', style: 'cancel' },
         { text: 'Chốt', style: 'destructive', onPress: async () => {
-            const rCash = parseMoneyInput(revCash);
-            const rMomo = parseMoneyInput(revMomo);
-            const rGrab = parseMoneyInput(revGrab);
-            const rShopee = parseMoneyInput(revShopee);
-            const disc = parseMoneyInput(discount);
-            const exp = parseMoneyInput(expenses);
-            const aCash = parseMoneyInput(actualCash);
-
-            if (!revCash && !actualCash) {
-              Alert.alert('Lỗi', 'Vui lòng nhập ít nhất Doanh thu tiền mặt và Tiền đếm trong két!'); return;
-            }
-
-            const expectedCash = currentOpenShift.opening_cash + rCash - exp;
-            const discrepancy = aCash - expectedCash;
-
-            // Retain inventory_check from the current shift state
             const finalInvCheck = currentOpenShift.inventory_check || [];
-
-            if (discrepancy !== 0) {
-              Alert.alert('⚠️ CẢNH BÁO LỆCH KÉT', `Tiền lý thuyết: ${expectedCash.toLocaleString()}đ\nTiền thực đếm: ${aCash.toLocaleString()}đ\nLệch: ${discrepancy.toLocaleString()}đ`);
-            }
 
             const updatedShift = {
               ...currentOpenShift,
@@ -213,7 +214,12 @@ export default function ShiftScreen({ navigation }) {
               inventory_check: finalInvCheck
             };
 
-            await supabase.from('shifts').update(updatedShift).eq('id', currentOpenShift.id);
+            const { error } = await supabase.from('shifts').update(updatedShift).eq('id', currentOpenShift.id);
+            if (error) {
+              Alert.alert('Lỗi', 'Không thể lưu dữ liệu: ' + error.message);
+              return;
+            }
+
             setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
 
             Alert.alert('Thành công', 'Đã nộp Báo Cáo Doanh Thu (Chốt Ca)!');
