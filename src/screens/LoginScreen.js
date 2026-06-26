@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 export default function LoginScreen({ navigation }) {
   const [phone, setPhone] = useState('');
@@ -171,7 +172,7 @@ export default function LoginScreen({ navigation }) {
 
       <Text style={styles.footer}>
         Dữ liệu vận hành được đồng bộ bảo mật qua Supabase.{'\n'}
-        {Updates.updateId ? `Phiên bản: v1.0.0 (OTA: ${Updates.updateId.substring(0,8)})` : 'Phiên bản: v1.0.0 (Gốc)'}
+        {Updates.updateId ? `Phiên bản: v${Constants?.expoConfig?.version || '2.0.0'} (OTA: ${Updates.updateId.substring(0,8)})` : `Phiên bản: v${Constants?.expoConfig?.version || '2.0.0'} (Gốc)`}
       </Text>
     </KeyboardAvoidingView>
   );
