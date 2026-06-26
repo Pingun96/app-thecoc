@@ -268,6 +268,7 @@ export default function ShiftScreen({ navigation }) {
       const { error } = await supabase.from('shifts').update(updateData).eq('id', shift.id);
       if (error) throw error;
       setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
+      setSelectedShiftForDetail(null);
       alert('Đã duyệt chốt ca thành công!');
 
       // Notify the person who closed the shift
@@ -302,6 +303,7 @@ export default function ShiftScreen({ navigation }) {
               const { error } = await supabase.from('shifts').update(updateData).eq('id', shift.id);
               if (error) throw error;
               setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
+              setSelectedShiftForDetail(null);
               alert('Đã thu hồi báo cáo thành công. Bạn có thể chỉnh sửa lại ở mục Kiểm Kho và Doanh Thu.');
             } catch (e) {
               alert('Lỗi: ' + e.message);
@@ -437,12 +439,10 @@ export default function ShiftScreen({ navigation }) {
               <>
                 <TouchableOpacity style={{backgroundColor: '#4caf50', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
                   handleApproveShiftReport(item);
-                  setSelectedShiftForDetail(null);
                 }}>
                   <Text style={{color: '#fff', fontWeight: 'bold'}}>Duyệt Chốt Ca</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={{backgroundColor: '#f59e0b', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
-                  setSelectedShiftForDetail(null);
                   handleRejectShiftReport(item);
                 }}>
                   <Text style={{color: '#fff', fontWeight: 'bold'}}>Từ Chối (Yêu cầu làm lại)</Text>
@@ -452,7 +452,6 @@ export default function ShiftScreen({ navigation }) {
 
             {item.status === 'PENDING_APPROVAL' && item.closed_by === currentUser.id && (
               <TouchableOpacity style={{backgroundColor: '#f44336', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
-                setSelectedShiftForDetail(null);
                 handleRecallShiftReport(item);
               }}>
                 <Text style={{color: '#fff', fontWeight: 'bold'}}>Thu Hồi Báo Cáo</Text>
