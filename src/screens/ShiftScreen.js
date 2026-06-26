@@ -110,6 +110,21 @@ export default function ShiftScreen({ navigation }) {
           if (data.expenses !== undefined) setExpenses(data.expenses);
           if (data.expensesNote !== undefined) setExpensesNote(data.expensesNote);
           if (data.actualCash !== undefined) setActualCash(data.actualCash);
+        } else if (currentOpenShift) {
+          // Fallback to database values if no cache
+          const initInv = {};
+          (currentOpenShift.inventory_check || []).forEach(ic => {
+            initInv[ic.item_id] = String(ic.end);
+          });
+          setInventoryCheck(initInv);
+          setRevCash(currentOpenShift.rev_cash ? String(currentOpenShift.rev_cash) : '');
+          setRevMomo(currentOpenShift.rev_momo ? String(currentOpenShift.rev_momo) : '');
+          setRevGrab(currentOpenShift.rev_grab ? String(currentOpenShift.rev_grab) : '');
+          setRevShopee(currentOpenShift.rev_shopee ? String(currentOpenShift.rev_shopee) : '');
+          setDiscount(currentOpenShift.discount ? String(currentOpenShift.discount) : '');
+          setExpenses(currentOpenShift.expenses ? String(currentOpenShift.expenses) : '');
+          setExpensesNote(currentOpenShift.expenses_note || '');
+          setActualCash(currentOpenShift.closing_cash_actual ? String(currentOpenShift.closing_cash_actual) : '');
         } else {
           setInventoryCheck({}); setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash('');
         }
@@ -120,7 +135,7 @@ export default function ShiftScreen({ navigation }) {
     if (storeIdToView && storeIdToView !== 'ALL') {
       loadCache();
     }
-  }, [storeIdToView]);
+  }, [storeIdToView, currentOpenShift?.id]);
 
   // Save cache on data change
   useEffect(() => {
@@ -144,33 +159,41 @@ export default function ShiftScreen({ navigation }) {
   const todayAttendance = attendanceHistory.filter(a => a.date === todayStr); // Giả lập chấm công hôm nay
 
   const handleSaveInventory = async () => {
-    // Build inventory check data
-    const finalInvCheck = storeInventory.map(item => {
-      const endStock = inventoryCheck[item.id] !== undefined ? Number(inventoryCheck[item.id]) : 0;
-      return { item_id: item.id, name: item.name, unit: item.unit, end: endStock };
-    });
+    try {
+      // Build inventory check data
+      const finalInvCheck = storeInventory.map(item => {
+        const endStock = inventoryCheck[item.id] !== undefined && inventoryCheck[item.id] !== '' ? Number(inventoryCheck[item.id]) : 0;
+        return { item_id: item.id, name: item.name, unit: item.unit, end: endStock };
+      });
 
-    const updatedShift = {
-      ...currentOpenShift,
-      inventory_check: finalInvCheck
-    };
+      const updatedShift = {
+        ...currentOpenShift,
+        inventory_check: finalInvCheck
+      };
 
-    // Update to Supabase
-    await supabase.from('shifts').update({ inventory_check: finalInvCheck }).eq('id', currentOpenShift.id);
-
-    // Update global shifts
-    setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
-
-    // Update global inventory stock based on inventory check
-    const updatedInventoryItems = inventoryItems.map(item => {
-      if (item.store_id === storeIdToView && inventoryCheck[item.id] !== undefined) {
-        return { ...item, quantity: Number(inventoryCheck[item.id]) };
+      // Update to Supabase
+      const { error } = await supabase.from('shifts').update({ inventory_check: finalInvCheck }).eq('id', currentOpenShift.id);
+      if (error) {
+        Alert.alert('Lỗi mạng', 'Không thể lưu lên máy chủ: ' + error.message);
+        return;
       }
-      return item;
-    });
-    setInventoryItems(updatedInventoryItems);
 
-    Alert.alert('Thành công', 'Đã lưu phiếu kiểm kho!');
+      // Update global shifts
+      setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
+
+      // Update global inventory stock based on inventory check
+      const updatedInventoryItems = inventoryItems.map(item => {
+        if (item.store_id === storeIdToView && inventoryCheck[item.id] !== undefined && inventoryCheck[item.id] !== '') {
+          return { ...item, quantity: Number(inventoryCheck[item.id]) };
+        }
+        return item;
+      });
+      setInventoryItems(updatedInventoryItems);
+
+      Alert.alert('Thành công', 'Đã lưu phiếu kiểm kho!');
+    } catch(e) {
+      Alert.alert('Lỗi ứng dụng', 'Chi tiết: ' + e.message);
+    }
   };
 
   const handleCloseShift = () => {
@@ -201,30 +224,34 @@ export default function ShiftScreen({ navigation }) {
       [
         { text: 'Hủy', style: 'cancel' },
         { text: 'Chốt', style: 'destructive', onPress: async () => {
-            const finalInvCheck = currentOpenShift.inventory_check || [];
+            try {
+              const finalInvCheck = currentOpenShift.inventory_check || [];
 
-            const updatedShift = {
-              ...currentOpenShift,
-              status: 'PENDING_APPROVAL',
-              closed_by: currentUser.id, closed_by_name: currentUser.name,
-              closed_at: todayStr + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-              rev_cash: rCash, rev_momo: rMomo, rev_grab: rGrab, rev_shopee: rShopee,
-              discount: disc, expenses: exp, expenses_note: expensesNote,
-              closing_cash_actual: aCash, discrepancy: discrepancy,
-              inventory_check: finalInvCheck
-            };
+              const updatedShift = {
+                ...currentOpenShift,
+                status: 'PENDING_APPROVAL',
+                closed_by: currentUser.id, closed_by_name: currentUser.name,
+                closed_at: todayStr + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
+                rev_cash: rCash, rev_momo: rMomo, rev_grab: rGrab, rev_shopee: rShopee,
+                discount: disc, expenses: exp, expenses_note: expensesNote,
+                closing_cash_actual: aCash, discrepancy: discrepancy,
+                inventory_check: finalInvCheck
+              };
 
-            const { error } = await supabase.from('shifts').update(updatedShift).eq('id', currentOpenShift.id);
-            if (error) {
-              Alert.alert('Lỗi', 'Không thể lưu dữ liệu: ' + error.message);
-              return;
+              const { error } = await supabase.from('shifts').update(updatedShift).eq('id', currentOpenShift.id);
+              if (error) {
+                Alert.alert('Lỗi mạng', 'Không thể lưu dữ liệu: ' + error.message);
+                return;
+              }
+
+              setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
+
+              Alert.alert('Thành công', 'Đã nộp Báo Cáo Doanh Thu (Chốt Ca)!');
+              setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({});
+              try { await AsyncStorage.removeItem(CACHE_KEY); } catch(e){}
+            } catch(e) {
+              Alert.alert('Lỗi ứng dụng', 'Chi tiết: ' + e.message);
             }
-
-            setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
-
-            Alert.alert('Thành công', 'Đã nộp Báo Cáo Doanh Thu (Chốt Ca)!');
-            setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({});
-            try { await AsyncStorage.removeItem(CACHE_KEY); } catch(e){}
           }
         }
       ]
