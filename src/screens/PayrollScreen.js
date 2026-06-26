@@ -49,9 +49,16 @@ export default function PayrollScreen({ navigation }) {
       const data = grouped[staff.id] || { totalHours: 0, records: [] };
       const wage = staff.wage || 0; 
       
-      const adj = payrollAdjustments?.find(a => a.user_id === staff.id && a.month === targetMonthStr) || {
-        bonus_hours: 0, bonus_money: 0, penalty_money: 0, note: ''
-      };
+      const allAdjs = payrollAdjustments?.filter(a => a.user_id === staff.id && a.month === targetMonthStr) || [];
+      const adj = allAdjs.reduce((acc, a) => {
+        acc.bonus_hours += Number(a.bonus_hours || 0);
+        acc.bonus_money += Number(a.bonus_money || 0);
+        acc.penalty_money += Number(a.penalty_money || 0);
+        if (a.note && a.note.trim() !== '') {
+          acc.note = acc.note ? acc.note + '\n- ' + a.note : '- ' + a.note;
+        }
+        return acc;
+      }, { bonus_hours: 0, bonus_money: 0, penalty_money: 0, note: '' });
       
       const apprv = payrollApprovals?.find(a => a.user_id === staff.id && a.month === targetMonthStr) || {
         staff_confirmed: false, manager_confirmed: false, owner_confirmed: false, status: 'DRAFT'
@@ -100,7 +107,7 @@ export default function PayrollScreen({ navigation }) {
   const handleSaveAdjustment = async () => {
     setIsSavingAdj(true);
     const newAdj = {
-      id: adjTarget.adjustment?.id || `adj_${Date.now()}`,
+      id: `adj_manual_${Date.now()}`,
       user_id: adjTarget.id,
       month: targetMonthStr,
       bonus_hours: Number(editBonusHours) || 0,
@@ -110,9 +117,13 @@ export default function PayrollScreen({ navigation }) {
     };
 
     try {
-      const { error } = await supabase.from('payroll_adjustments').upsert([newAdj]);
+      // Xóa tất cả các khoản thưởng phạt cũ của nhân viên này trong tháng (bao gồm cả auto log lệch két)
+      await supabase.from('payroll_adjustments').delete().eq('user_id', adjTarget.id).eq('month', targetMonthStr);
+      // Thêm khoản thưởng phạt mới ghi đè tổng
+      const { error } = await supabase.from('payroll_adjustments').insert([newAdj]);
       if (error) throw error;
-      const newAdjustments = [...(payrollAdjustments || []).filter(a => a.id !== newAdj.id), newAdj];
+      
+      const newAdjustments = [...(payrollAdjustments || []).filter(a => !(a.user_id === adjTarget.id && a.month === targetMonthStr)), newAdj];
       setPayrollAdjustments(newAdjustments);
       setShowAdjModal(false);
       Alert.alert('Thành công', 'Đã lưu điều chỉnh thưởng/phạt!');
