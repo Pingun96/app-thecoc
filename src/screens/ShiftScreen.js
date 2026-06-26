@@ -517,17 +517,27 @@ export default function ShiftScreen({ navigation }) {
                       return <Text style={{color: '#f44336', textAlign: 'center', marginTop: 15, fontWeight: 'bold'}}>Hôm nay đã mở đủ 2 ca (Sáng & Chiều).</Text>;
                     }
 
+                    const currentHour = new Date().getHours();
+                    const isMorningTime = currentHour < 12;
+
                     return (
-                      <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 15}}>
-                        {!hasMorning && (
-                          <TouchableOpacity style={[styles.openBtn, {flex: 1, marginRight: 5}]} onPress={() => handleOpenShift('Ca Sáng')}>
-                            <Text style={styles.btnText}>MỞ CA SÁNG</Text>
-                          </TouchableOpacity>
-                        )}
-                        {!hasAfternoon && (
-                          <TouchableOpacity style={[styles.openBtn, {flex: 1, marginLeft: 5, backgroundColor: '#f59e0b'}]} onPress={() => handleOpenShift('Ca Chiều')}>
-                            <Text style={styles.btnText}>MỞ CA CHIỀU</Text>
-                          </TouchableOpacity>
+                      <View style={{marginTop: 15}}>
+                        {isMorningTime ? (
+                          !hasMorning ? (
+                            <TouchableOpacity style={styles.openBtn} onPress={() => handleOpenShift('Ca Sáng')}>
+                              <Text style={styles.btnText}>MỞ CA SÁNG (Trước 12h)</Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <Text style={{color: '#f59e0b', textAlign: 'center', fontStyle: 'italic'}}>Ca Sáng đã được mở. Vui lòng chờ đến sau 12h trưa để mở Ca Chiều.</Text>
+                          )
+                        ) : (
+                          !hasAfternoon ? (
+                            <TouchableOpacity style={[styles.openBtn, {backgroundColor: '#f59e0b'}]} onPress={() => handleOpenShift('Ca Chiều')}>
+                              <Text style={styles.btnText}>MỞ CA CHIỀU (Sau 12h)</Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <Text style={{color: '#f59e0b', textAlign: 'center', fontStyle: 'italic'}}>Ca Chiều đã được mở.</Text>
+                          )
                         )}
                       </View>
                     );
