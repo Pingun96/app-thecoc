@@ -212,13 +212,34 @@ export default function App() {
 
   // Đăng ký Push Notification và Realtime Notification khi có currentUser
   useEffect(() => {
-    if (currentUser) {
-      // EXPO PUSH NATIVE
-      registerForPushNotificationsAsync().then(token => {
+    if (!currentUser) return undefined;
+
+    if (Platform.OS !== 'web') {
+      registerForPushNotificationsAsync().then((token) => {
         if (token) {
-          savePushTokenToDB(currentUser.id, token);
+          savePushTokenToDB(currentUser.id, token, { storeId: currentUser.store_id });
         }
       });
+    }
+
+    // Bật tính năng In-App Realtime Notification (Supabase)
+    const channel = supabase
+      .channel(`realtime-notifications-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          const { title, body, data, route } = payload.new;
+          const notificationData = data || { route };
+
+          showLocalNotification(title, body, notificationData);
+          Alert.alert(`🔔 ${title}`, body, [
+            { text: 'Để sau', style: 'cancel' },
             { text: 'Mở', onPress: () => navigateFromNotificationData(notificationData) },
           ]);
         }
