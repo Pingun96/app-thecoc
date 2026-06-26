@@ -50,15 +50,21 @@ export default function PayrollScreen({ navigation }) {
       const wage = staff.wage || 0; 
       
       const allAdjs = payrollAdjustments?.filter(a => a.user_id === staff.id && a.month === targetMonthStr) || [];
-      const adj = allAdjs.reduce((acc, a) => {
-        acc.bonus_hours += Number(a.bonus_hours || 0);
-        acc.bonus_money += Number(a.bonus_money || 0);
-        acc.penalty_money += Number(a.penalty_money || 0);
-        if (a.note && a.note.trim() !== '') {
-          acc.note = acc.note ? acc.note + '\n- ' + a.note : '- ' + a.note;
-        }
-        return acc;
-      }, { bonus_hours: 0, bonus_money: 0, penalty_money: 0, note: '' });
+      const manualAdj = allAdjs.find(a => a.id.startsWith('adj_manual_')) || { bonus_hours: 0, bonus_money: 0, penalty_money: 0, note: '' };
+      
+      const autoAdjs = allAdjs.filter(a => !a.id.startsWith('adj_manual_'));
+      const autoPenaltyTotal = autoAdjs.reduce((sum, a) => sum + Number(a.penalty_money || 0), 0);
+      const autoNotes = autoAdjs.filter(a => a.note).map(a => '- ' + a.note).join('\n');
+      
+      const combinedAdj = {
+        bonus_hours: Number(manualAdj.bonus_hours || 0),
+        bonus_money: Number(manualAdj.bonus_money || 0),
+        penalty_money: Number(manualAdj.penalty_money || 0) + autoPenaltyTotal,
+        manual_penalty: Number(manualAdj.penalty_money || 0),
+        auto_penalty: autoPenaltyTotal,
+        note: manualAdj.note || '',
+        auto_note: autoNotes
+      };
       
       const apprv = payrollApprovals?.find(a => a.user_id === staff.id && a.month === targetMonthStr) || {
         staff_confirmed: false, manager_confirmed: false, owner_confirmed: false, status: 'DRAFT'
@@ -74,7 +80,7 @@ export default function PayrollScreen({ navigation }) {
         totalSalary: totalSalary > 0 ? totalSalary : 0,
         recordsCount: data.records.length,
         records: data.records.sort((a, b) => a.date.localeCompare(b.date)),
-        adjustment: adj,
+        adjustment: combinedAdj,
         approval: apprv
       });
     });
@@ -99,7 +105,7 @@ export default function PayrollScreen({ navigation }) {
     setAdjTarget(staffItem);
     setEditBonusHours(String(staffItem.adjustment?.bonus_hours || 0));
     setEditBonusMoney(String(staffItem.adjustment?.bonus_money || 0));
-    setEditPenaltyMoney(String(staffItem.adjustment?.penalty_money || 0));
+    setEditPenaltyMoney(String(staffItem.adjustment?.manual_penalty || 0));
     setEditNote(staffItem.adjustment?.note || '');
     setShowAdjModal(true);
   };
@@ -117,13 +123,13 @@ export default function PayrollScreen({ navigation }) {
     };
 
     try {
-      // Xóa tất cả các khoản thưởng phạt cũ của nhân viên này trong tháng (bao gồm cả auto log lệch két)
-      await supabase.from('payroll_adjustments').delete().eq('user_id', adjTarget.id).eq('month', targetMonthStr);
+      // Chỉ xóa khoản phạt/thưởng thủ công cũ
+      await supabase.from('payroll_adjustments').delete().like('id', 'adj_manual_%').eq('user_id', adjTarget.id).eq('month', targetMonthStr);
       // Thêm khoản thưởng phạt mới ghi đè tổng
       const { error } = await supabase.from('payroll_adjustments').insert([newAdj]);
       if (error) throw error;
       
-      const newAdjustments = [...(payrollAdjustments || []).filter(a => !(a.user_id === adjTarget.id && a.month === targetMonthStr)), newAdj];
+      const newAdjustments = [...(payrollAdjustments || []).filter(a => !(a.id.startsWith('adj_manual_') && a.user_id === adjTarget.id && a.month === targetMonthStr)), newAdj];
       setPayrollAdjustments(newAdjustments);
       setShowAdjModal(false);
       Alert.alert('Thành công', 'Đã lưu điều chỉnh thưởng/phạt!');
@@ -362,9 +368,16 @@ export default function PayrollScreen({ navigation }) {
                     <View style={{marginTop: 8, gap: 4}}>
                       <Text style={styles.adjText}>• Giờ làm gốc: {item.totalHours.toFixed(1)}h ({item.recordsCount} ca)</Text>
                       {item.adjustment?.bonus_hours > 0 && <Text style={[styles.adjText, {color: '#388e3c'}]}>• Thưởng thêm giờ: +{item.adjustment.bonus_hours}h</Text>}
-                      {item.adjustment?.bonus_money > 0 && <Text style={[styles.adjText, {color: '#388e3c'}]}>• Tiền thưởng thêm: +{formatMoney(item.adjustment.bonus_money)}đ</Text>}
-                      {item.adjustment?.penalty_money > 0 && <Text style={[styles.adjText, {color: '#d32f2f'}]}>• Phạt / Lệch két: -{formatMoney(item.adjustment.penalty_money)}đ</Text>}
-                      {item.adjustment?.note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: '#666'}]}>Ghi chú: {item.adjustment.note}</Text> : null}
+                      {item.adjustment?.bonus_money > 0 && <Text style={[styles.adjText, {color: '#388e3c'}]}>• Tiền thưởng (Quy định quán): +{formatMoney(item.adjustment.bonus_money)}đ</Text>}
+                      {item.adjustment?.manual_penalty > 0 && <Text style={[styles.adjText, {color: '#d32f2f'}]}>• Tiền phạt (Quy định quán): -{formatMoney(item.adjustment.manual_penalty)}đ</Text>}
+                      {item.adjustment?.note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: '#666', marginLeft: 10}]}>Lý do: {item.adjustment.note}</Text> : null}
+                      
+                      {item.adjustment?.auto_penalty > 0 && (
+                        <>
+                          <Text style={[styles.adjText, {color: '#d32f2f', marginTop: 4}]}>• Lệch két (Hệ thống tự trừ): -{formatMoney(item.adjustment.auto_penalty)}đ</Text>
+                          {item.adjustment?.auto_note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: '#666', marginLeft: 10}]}>{item.adjustment.auto_note}</Text> : null}
+                        </>
+                      )}
                     </View>
                   </View>
 
