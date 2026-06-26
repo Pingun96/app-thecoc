@@ -385,6 +385,53 @@ export default function ShiftScreen({ navigation }) {
     );
   };
 
+  const handleUndoApproveShiftReport = async (shift) => {
+    Alert.alert(
+      'Hủy duyệt báo cáo',
+      'Bạn có chắc chắn muốn HỦY DUYỆT phiếu chốt ca này? Báo cáo sẽ bị trả về trạng thái ĐANG MỞ để nhân viên làm lại, và khoản phạt lệch két (nếu có) sẽ bị xóa.',
+      [
+        { text: 'Bỏ qua', style: 'cancel' },
+        { 
+          text: 'Hủy duyệt', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updateData = { 
+                status: 'OPEN',
+                closed_at: null,
+                closed_by: null,
+                closed_by_name: null,
+                approved_at: null,
+                approved_by_name: null
+              };
+              const { error } = await supabase.from('shifts').update(updateData).eq('id', shift.id);
+              if (error) throw error;
+              
+              const penaltyId = `adj_${shift.id}`;
+              await supabase.from('payroll_adjustments').delete().eq('id', penaltyId);
+              if (setPayrollAdjustments) {
+                setPayrollAdjustments(prev => (prev || []).filter(a => a.id !== penaltyId));
+              }
+
+              setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
+              setSelectedShiftForDetail(null);
+              alert('Đã hủy duyệt! Phiếu chốt ca đã trở lại trạng thái ĐANG MỞ.');
+              
+              if (shift.closed_by) {
+                const targetStaff = staffList.find(s => s.id === shift.closed_by);
+                if (targetStaff) {
+                  sendPushNotification(targetStaff.push_token, 'Báo cáo bị hủy duyệt', `Quản lý đã hủy duyệt báo cáo chốt ca ngày ${shift.opened_at.split(' ')[0]} và yêu cầu làm lại.`, {}, targetStaff.id);
+                }
+              }
+            } catch (e) {
+              alert('Lỗi: ' + e.message);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderMoneyInput = (label, value, setter, isHighlight = false, placeholder = '0') => (
     <View style={{marginBottom: 10}}>
       <Text style={[styles.label, isHighlight && {color: '#f44336'}]}>{label}</Text>
@@ -528,6 +575,14 @@ export default function ShiftScreen({ navigation }) {
                 handleRecallShiftReport(item);
               }}>
                 <Text style={{color: '#fff', fontWeight: 'bold'}}>Thu Hồi Báo Cáo</Text>
+              </TouchableOpacity>
+            )}
+
+            {item.status === 'CLOSED' && (isOwner || currentUser?.permissions?.is_primary_manager) && (
+              <TouchableOpacity style={{backgroundColor: '#ef4444', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
+                handleUndoApproveShiftReport(item);
+              }}>
+                <Text style={{color: '#fff', fontWeight: 'bold'}}>Hủy Duyệt (Yêu cầu làm lại)</Text>
               </TouchableOpacity>
             )}
 
