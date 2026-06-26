@@ -65,20 +65,20 @@ export default function ShiftScreen({ navigation }) {
 
   // === MỞ CA ===
   const [openingCash, setOpeningCash] = useState('');
-  const handleOpenShift = async () => {
+  const handleOpenShift = async (periodName) => {
     if (storeIdToView === 'ALL') { alert('Vui lòng chọn 1 chi nhánh!'); return; }
     if (!openingCash) { alert('Nhập tiền đầu ca!'); return; }
     const newShift = {
       id: `shift_${Date.now()}`, store_id: storeIdToView,
       opened_by: currentUser.id, opened_by_name: currentUser.name,
-      opened_at: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
+      opened_at: new Date().toLocaleDateString('vi-VN') + ` (${periodName}) ` + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
       opening_cash: parseMoneyInput(openingCash), status: 'OPEN',
       rev_cash: 0, rev_momo: 0, rev_grab: 0, rev_shopee: 0, discount: 0, expenses: 0, expenses_note: '', closing_cash_actual: 0, discrepancy: 0,
       inventory_check: []
     };
     await supabase.from('shifts').insert([newShift]);
     setShifts([...shifts, newShift]);
-    alert('Mở ca thành công!');
+    alert(`Mở ${periodName} thành công!`);
   };
 
   // === CHỐT CA (MẪU 16) ===
@@ -312,7 +312,7 @@ export default function ShiftScreen({ navigation }) {
     );
   };
 
-  const renderMoneyInput = (label, value, setter, isHighlight = false, placeholder = "") => (
+  const renderMoneyInput = (label, value, setter, isHighlight = false, placeholder = '0') => (
     <View style={{marginBottom: 10}}>
       <Text style={[styles.label, isHighlight && {color: '#f44336'}]}>{label}</Text>
       <TextInput
@@ -427,12 +427,20 @@ export default function ShiftScreen({ navigation }) {
             </ScrollView>
 
             {item.status === 'PENDING_APPROVAL' && (isOwner || currentUser?.permissions?.is_primary_manager) && (
-              <TouchableOpacity style={{backgroundColor: '#4caf50', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
-                handleApproveShiftReport(item);
-                setSelectedShiftForDetail(null);
-              }}>
-                <Text style={{color: '#fff', fontWeight: 'bold'}}>Duyệt Chốt Ca</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity style={{backgroundColor: '#4caf50', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
+                  handleApproveShiftReport(item);
+                  setSelectedShiftForDetail(null);
+                }}>
+                  <Text style={{color: '#fff', fontWeight: 'bold'}}>Duyệt Chốt Ca</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{backgroundColor: '#f59e0b', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
+                  setSelectedShiftForDetail(null);
+                  handleRejectShiftReport(item);
+                }}>
+                  <Text style={{color: '#fff', fontWeight: 'bold'}}>Từ Chối (Yêu cầu làm lại)</Text>
+                </TouchableOpacity>
+              </>
             )}
 
             {item.status === 'PENDING_APPROVAL' && item.closed_by === currentUser.id && (
@@ -499,7 +507,31 @@ export default function ShiftScreen({ navigation }) {
                 <View style={styles.section}>
                   <View style={{alignItems: 'center', marginBottom: 20}}><MaterialCommunityIcons name="cash-register" size={60} color="#9ca3af" /><Text style={styles.sectionTitle}>CHƯA MỞ CA LÀM VIỆC</Text></View>
                   {renderMoneyInput('Tiền mặt đầu ca có trong két (VNĐ):', openingCash, setOpeningCash, false, 'Nhập số tiền...')}
-                  <TouchableOpacity style={styles.openBtn} onPress={handleOpenShift}><Text style={styles.btnText}>KHỞI TẠO CA MỚI</Text></TouchableOpacity>
+                  
+                  {(() => {
+                    const todaysShifts = shifts.filter(s => s.store_id === storeIdToView && s.opened_at.startsWith(todayStr));
+                    const hasMorning = todaysShifts.some(s => s.opened_at.includes('(Ca Sáng)'));
+                    const hasAfternoon = todaysShifts.some(s => s.opened_at.includes('(Ca Chiều)'));
+                    
+                    if (hasMorning && hasAfternoon) {
+                      return <Text style={{color: '#f44336', textAlign: 'center', marginTop: 15, fontWeight: 'bold'}}>Hôm nay đã mở đủ 2 ca (Sáng & Chiều).</Text>;
+                    }
+
+                    return (
+                      <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 15}}>
+                        {!hasMorning && (
+                          <TouchableOpacity style={[styles.openBtn, {flex: 1, marginRight: 5}]} onPress={() => handleOpenShift('Ca Sáng')}>
+                            <Text style={styles.btnText}>MỞ CA SÁNG</Text>
+                          </TouchableOpacity>
+                        )}
+                        {!hasAfternoon && (
+                          <TouchableOpacity style={[styles.openBtn, {flex: 1, marginLeft: 5, backgroundColor: '#f59e0b'}]} onPress={() => handleOpenShift('Ca Chiều')}>
+                            <Text style={styles.btnText}>MỞ CA CHIỀU</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })()}
                 </View>
               ) : (
                 <View>
