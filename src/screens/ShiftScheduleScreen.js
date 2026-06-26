@@ -481,7 +481,7 @@ export default function ShiftScheduleScreen({ navigation }) {
         contentContainerStyle={{paddingBottom: 100}}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
       >
-        <Text style={styles.sectionTitle}>Thời Khóa Biểu Cá Nhân</Text>
+        <Text style={styles.sectionTitle}>Lịch làm việc cá nhân</Text>
 
         <View style={styles.weekSelector}>
           <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
@@ -500,7 +500,7 @@ export default function ShiftScheduleScreen({ navigation }) {
               <View style={[styles.timeTableCell, styles.timeTableHeaderCell, {width: 60, backgroundColor: '#1e3a8a', borderBottomColor: '#1e40af'}]}><Text style={[styles.timeTableTitle, {color: '#fff'}]}>Ca \ Thứ</Text></View>
               {weekDates.map(date => (
                 <View key={`header_${date}`} style={[styles.timeTableCell, styles.timeTableHeaderCell, {backgroundColor: '#1e3a8a', borderBottomColor: '#1e40af'}]}>
-                  <Text style={[styles.timeTableTitle, {color: '#fff'}]}>{getDayName(date)}</Text>
+                  <Text style={[styles.timeTableTitle, {color: '#fff'}]}>{getDayName(date).replace(/ (\d{1,2}\/\d{1,2})/, '\n($1)')}</Text>
                 </View>
               ))}
             </View>
