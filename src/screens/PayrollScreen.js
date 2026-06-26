@@ -70,8 +70,8 @@ export default function PayrollScreen({ navigation }) {
         staff_confirmed: false, manager_confirmed: false, owner_confirmed: false, status: 'DRAFT'
       };
 
-      const finalHours = data.totalHours + Number(adj.bonus_hours || 0);
-      const totalSalary = (finalHours * wage) + Number(adj.bonus_money || 0) - Number(adj.penalty_money || 0);
+      const finalHours = data.totalHours + Number(combinedAdj.bonus_hours || 0);
+      const totalSalary = (finalHours * wage) + Number(combinedAdj.bonus_money || 0) - Number(combinedAdj.penalty_money || 0);
 
       result.push({
         ...staff,
