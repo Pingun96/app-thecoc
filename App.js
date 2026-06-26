@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Platform, View, StyleSheet, TouchableOpacity, Pressable, Alert } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
