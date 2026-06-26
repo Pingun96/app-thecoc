@@ -219,7 +219,7 @@ export default function PayrollScreen({ navigation }) {
       <View style={styles.progressBlock}>
         <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
           <Text style={{fontWeight: 'bold', color: '#1976d2'}}>Tiến trình duyệt lương:</Text>
-          {(isOwner || isManager) && (staff_confirmed || manager_confirmed || owner_confirmed) && (
+          {(isOwner || (isManager && !owner_confirmed)) && (staff_confirmed || manager_confirmed || owner_confirmed) && (
             <TouchableOpacity onPress={() => handleCancelApprove(item)}>
               <Text style={{color: '#d32f2f', fontSize: 12, fontWeight: 'bold'}}>Hủy duyệt (Mở khóa)</Text>
             </TouchableOpacity>
@@ -341,7 +341,7 @@ export default function PayrollScreen({ navigation }) {
                   <View style={styles.adjBlock}>
                     <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
                       <Text style={{fontWeight: 'bold', color: '#1976d2'}}>Lương & Thưởng / Phạt</Text>
-                      {(isOwner || isManager) && !item.approval.owner_confirmed && (
+                      {isOwner && !item.approval.owner_confirmed && (
                         <TouchableOpacity style={styles.adjEditBtn} onPress={() => openAdjustmentModal(item)}>
                           <Ionicons name="pencil" size={14} color="#1976d2" />
                           <Text style={{color: '#1976d2', fontSize: 12, marginLeft: 4}}>Điều chỉnh</Text>
