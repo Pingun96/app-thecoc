@@ -507,8 +507,8 @@ export default function ShiftScheduleScreen({ navigation }) {
 
             {/* Row Sáng */}
             <View style={styles.timeTableRow}>
-              <View style={[styles.timeTableCell, styles.timeTableSidebarCell, {width: 60}]}>
-                <Text style={styles.timeTableSidebarText}>SÁNG</Text>
+              <View style={[styles.timeTableCell, styles.timeTableSidebarCell, {width: 60, backgroundColor: '#dcfce7', borderColor: '#86efac', borderWidth: 1}]}>
+                <Text style={[styles.timeTableSidebarText, {color: '#15803d'}]}>SÁNG</Text>
               </View>
               {weekDates.map(date => {
                 const myRegs = shiftRegistrations.filter(r => r.date === date && r.shift_type === 'MORNING' && r.user_id === currentUser.id);
@@ -546,8 +546,8 @@ export default function ShiftScheduleScreen({ navigation }) {
 
             {/* Row Chiều */}
             <View style={styles.timeTableRow}>
-              <View style={[styles.timeTableCell, styles.timeTableSidebarCell, {width: 60}]}>
-                <Text style={styles.timeTableSidebarText}>CHIỀU</Text>
+              <View style={[styles.timeTableCell, styles.timeTableSidebarCell, {width: 60, backgroundColor: '#fef08a', borderColor: '#fde047', borderWidth: 1}]}>
+                <Text style={[styles.timeTableSidebarText, {color: '#a16207'}]}>CHIỀU</Text>
               </View>
               {weekDates.map(date => {
                 const myRegs = shiftRegistrations.filter(r => r.date === date && r.shift_type === 'AFTERNOON' && r.user_id === currentUser.id);
@@ -806,12 +806,12 @@ export default function ShiftScheduleScreen({ navigation }) {
                   };
                 };
 
-                const renderShiftBox = (regs, shiftType, title, colorHex, bgColor) => {
+                const renderShiftBox = (regs, shiftType, title, colorHex, bgColor, borderColor = '#f0f0f0') => {
                   const approved = regs.filter(r => r.status === 'APPROVED');
                   const pending = regs.filter(r => r.status === 'PENDING');
 
                   return (
-                    <View style={styles.shiftBox}>
+                    <View style={[styles.shiftBox, { borderColor, borderWidth: borderColor !== '#f0f0f0' ? 1.5 : 1 }]}>
                       <View style={[styles.shiftBoxHeader, {backgroundColor: bgColor}]}>
                         <Text style={[styles.shiftBoxTitle, {color: colorHex}]}>{title} ({approved.length}/4)</Text>
                       </View>
@@ -894,8 +894,8 @@ export default function ShiftScheduleScreen({ navigation }) {
                   <View key={date} style={[styles.dayColumn, isPastDate && { opacity: 0.6, backgroundColor: '#f5f5f5' }]}>
                     <Text style={styles.dayColHeader}>{getDayName(date)}</Text>
                     <View style={styles.dayColBody}>
-                      {renderShiftBox(morningRegs, 'MORNING', 'SÁNG', '#1976d2', '#e3f2fd')}
-                      {renderShiftBox(afternoonRegs, 'AFTERNOON', 'CHIỀU', '#e65100', '#fff3e0')}
+                      {renderShiftBox(morningRegs, 'MORNING', 'SÁNG', '#15803d', '#dcfce7', '#86efac')}
+                      {renderShiftBox(afternoonRegs, 'AFTERNOON', 'CHIỀU', '#a16207', '#fef08a', '#fde047')}
                     </View>
                   </View>
                 );
