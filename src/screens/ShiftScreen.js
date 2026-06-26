@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { AppContext } from '../context/AppContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
@@ -58,7 +58,7 @@ export default function ShiftScreen({ navigation }) {
     storeIdToView = 'ALL';
   }
 
-  const [activeTab, setActiveTab] = useState('ACTION');
+  const [activeTab, setActiveTab] = useState('INVENTORY');
   const currentOpenShift = shifts.find(s => s.status === 'OPEN' && s.store_id === storeIdToView);
 
   // === MỞ CA ===
@@ -94,47 +94,20 @@ export default function ShiftScreen({ navigation }) {
   const todayStr = new Date().toLocaleDateString('vi-VN');
   const todayAttendance = attendanceHistory.filter(a => a.date === todayStr); // Giả lập chấm công hôm nay
 
-  const handleCloseShift = async () => {
-    const rCash = parseMoneyInput(revCash);
-    const rMomo = parseMoneyInput(revMomo);
-    const rGrab = parseMoneyInput(revGrab);
-    const rShopee = parseMoneyInput(revShopee);
-    const disc = parseMoneyInput(discount);
-    const exp = parseMoneyInput(expenses);
-    const aCash = parseMoneyInput(actualCash);
-
-    if (!revCash && !actualCash) {
-      alert('Vui lòng nhập ít nhất Doanh thu tiền mặt và Tiền đếm trong két!'); return;
-    }
-
-    // Tính Lệch Két
-    // Tổng tiền két lý thuyết = Tiền đầu giờ + Tiền mặt - Tiền chi
-    const expectedCash = currentOpenShift.opening_cash + rCash - exp;
-    const discrepancy = aCash - expectedCash;
-
+  const handleSaveInventory = async () => {
     // Build inventory check data
     const finalInvCheck = storeInventory.map(item => {
       const endStock = inventoryCheck[item.id] !== undefined ? Number(inventoryCheck[item.id]) : 0;
       return { item_id: item.id, name: item.name, unit: item.unit, end: endStock };
     });
 
-    if (discrepancy !== 0) {
-      alert(`⚠️ CẢNH BÁO LỆCH KÉT!\nTiền lý thuyết: ${expectedCash.toLocaleString()}đ\nTiền thực đếm: ${aCash.toLocaleString()}đ\nLệch: ${discrepancy.toLocaleString()}đ`);
-    }
-
     const updatedShift = {
       ...currentOpenShift,
-      status: 'PENDING_APPROVAL',
-      closed_by: currentUser.id, closed_by_name: currentUser.name,
-      closed_at: todayStr + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
-      rev_cash: rCash, rev_momo: rMomo, rev_grab: rGrab, rev_shopee: rShopee,
-      discount: disc, expenses: exp, expenses_note: expensesNote,
-      closing_cash_actual: aCash, discrepancy: discrepancy,
       inventory_check: finalInvCheck
     };
 
     // Update to Supabase
-    await supabase.from('shifts').update(updatedShift).eq('id', currentOpenShift.id);
+    await supabase.from('shifts').update({ inventory_check: finalInvCheck }).eq('id', currentOpenShift.id);
 
     // Update global shifts
     setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
@@ -148,9 +121,58 @@ export default function ShiftScreen({ navigation }) {
     });
     setInventoryItems(updatedInventoryItems);
 
-    alert('Đã nộp Báo Cáo Chốt Ca (Mẫu 16)!');
-    // Reset form
-    setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({});
+    Alert.alert('Thành công', 'Đã lưu phiếu kiểm kho!');
+  };
+
+  const handleCloseShift = () => {
+    Alert.alert(
+      'Xác nhận Chốt Két',
+      'Bạn có chắc chắn muốn nộp báo cáo doanh thu và chốt két không? Thao tác này sẽ chuyển ca sang trạng thái Chờ duyệt.',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { text: 'Chốt', style: 'destructive', onPress: async () => {
+            const rCash = parseMoneyInput(revCash);
+            const rMomo = parseMoneyInput(revMomo);
+            const rGrab = parseMoneyInput(revGrab);
+            const rShopee = parseMoneyInput(revShopee);
+            const disc = parseMoneyInput(discount);
+            const exp = parseMoneyInput(expenses);
+            const aCash = parseMoneyInput(actualCash);
+
+            if (!revCash && !actualCash) {
+              Alert.alert('Lỗi', 'Vui lòng nhập ít nhất Doanh thu tiền mặt và Tiền đếm trong két!'); return;
+            }
+
+            const expectedCash = currentOpenShift.opening_cash + rCash - exp;
+            const discrepancy = aCash - expectedCash;
+
+            // Retain inventory_check from the current shift state
+            const finalInvCheck = currentOpenShift.inventory_check || [];
+
+            if (discrepancy !== 0) {
+              Alert.alert('⚠️ CẢNH BÁO LỆCH KÉT', `Tiền lý thuyết: ${expectedCash.toLocaleString()}đ\nTiền thực đếm: ${aCash.toLocaleString()}đ\nLệch: ${discrepancy.toLocaleString()}đ`);
+            }
+
+            const updatedShift = {
+              ...currentOpenShift,
+              status: 'PENDING_APPROVAL',
+              closed_by: currentUser.id, closed_by_name: currentUser.name,
+              closed_at: todayStr + ' ' + new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}),
+              rev_cash: rCash, rev_momo: rMomo, rev_grab: rGrab, rev_shopee: rShopee,
+              discount: disc, expenses: exp, expenses_note: expensesNote,
+              closing_cash_actual: aCash, discrepancy: discrepancy,
+              inventory_check: finalInvCheck
+            };
+
+            await supabase.from('shifts').update(updatedShift).eq('id', currentOpenShift.id);
+            setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
+
+            Alert.alert('Thành công', 'Đã nộp Báo Cáo Doanh Thu (Chốt Ca)!');
+            setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({});
+          }
+        }
+      ]
+    );
   };
 
   const historyShifts = shifts.filter(s => s.status === 'CLOSED' && (storeIdToView === 'ALL' || s.store_id === storeIdToView)).reverse();
@@ -235,26 +257,31 @@ export default function ShiftScreen({ navigation }) {
         </View>
 
         <View style={styles.tabContainer}>
-          <TouchableOpacity style={[styles.tabBtn, activeTab === 'ACTION' && styles.tabBtnActive]} onPress={() => setActiveTab('ACTION')}>
-            <Text style={[styles.tabText, activeTab === 'ACTION' && styles.tabTextActive]}>Phiếu Chốt Ca</Text>
-          </TouchableOpacity>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <TouchableOpacity style={[styles.tabBtn, activeTab === 'INVENTORY' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('INVENTORY')}>
+              <Text style={[styles.tabText, activeTab === 'INVENTORY' && styles.tabTextActive]}>Kiểm Kho</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.tabBtn, activeTab === 'CASH' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('CASH')}>
+              <Text style={[styles.tabText, activeTab === 'CASH' && styles.tabTextActive]}>Két & Doanh Thu</Text>
+            </TouchableOpacity>
           {(!isStaff) && (
             <TouchableOpacity style={[styles.tabBtn, activeTab === 'PENDING' && styles.tabBtnActive]} onPress={() => setActiveTab('PENDING')}>
               <Text style={[styles.tabText, activeTab === 'PENDING' && styles.tabTextActive]}>Chờ Duyệt</Text>
             </TouchableOpacity>
           )}
           {(!isStaff) && (
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'HISTORY' && styles.tabBtnActive]} onPress={() => setActiveTab('HISTORY')}>
+            <TouchableOpacity style={[styles.tabBtn, activeTab === 'HISTORY' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('HISTORY')}>
               <Text style={[styles.tabText, activeTab === 'HISTORY' && styles.tabTextActive]}>Lịch Sử</Text>
             </TouchableOpacity>
           )}
+          </ScrollView>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }} style={{ flex: 1, paddingHorizontal: 20 }}>
           {activeTab === 'PENDING' && renderHistoryTab(pendingShifts)}
           {activeTab === 'HISTORY' && renderHistoryTab(historyShifts)}
 
-          {activeTab === 'ACTION' && (!hasCashierPerm ? (
+          {(activeTab === 'INVENTORY' || activeTab === 'CASH') && (!hasCashierPerm ? (
             <View style={{padding: 20, alignItems: 'center', marginTop: 50}}>
               <Ionicons name="lock-closed" size={60} color="#ccc" />
               <Text style={{fontSize: 18, color: '#888', marginTop: 15, textAlign: 'center'}}>Bạn không được cấp quyền Thu Ngân / Bán Hàng để thực hiện chức năng này.</Text>
@@ -277,6 +304,7 @@ export default function ShiftScreen({ navigation }) {
                   </View>
 
                   {/* PHẦN 1: KIỂM KHO */}
+                  {activeTab === 'INVENTORY' && (
                   <View style={styles.section}>
                     <Text style={styles.sectionTitle}>PHẦN 1: KIỂM KÊ KHO HÀNG</Text>
                     <View style={styles.tableHeader}>
@@ -298,8 +326,10 @@ export default function ShiftScreen({ navigation }) {
                       </View>
                     ))}
                   </View>
+                  )}
 
                   {/* PHẦN 2: DOANH THU & KÉT */}
+                  {activeTab === 'CASH' && (
                   <View style={styles.section}>
                     <Text style={styles.sectionTitle}>PHẦN 2: DOANH THU & KÉT TIỀN</Text>
                     <Text style={styles.infoText}>Tiền đầu giờ (1): {currentOpenShift.opening_cash.toLocaleString()}đ</Text>
@@ -325,14 +355,17 @@ export default function ShiftScreen({ navigation }) {
                       <Text>Lệch két: {(parseMoneyInput(actualCash) - (currentOpenShift.opening_cash + parseMoneyInput(revCash) - parseMoneyInput(expenses))).toLocaleString()}đ</Text>
                     </View>
                   </View>
+                  )}
 
                   {/* PHẦN 3: CHẤM CÔNG */}
+                  {activeTab === 'CASH' && (
                   <View style={styles.section}>
                     <Text style={styles.sectionTitle}>PHẦN 3: CHẤM CÔNG CA</Text>
                     {todayAttendance.length > 0 ? todayAttendance.map(a => (
                       <Text key={a.id} style={{marginBottom: 5}}>• Nhân viên {a.user_id}: Vào {a.checkIn} - Ra {a.checkOut || 'Chưa ra'}</Text>
                     )) : <Text style={{color: '#888'}}>Chưa có dữ liệu chấm công hôm nay.</Text>}
                   </View>
+                  )}
                 </View>
               )}
             </View>
@@ -340,10 +373,18 @@ export default function ShiftScreen({ navigation }) {
         </ScrollView>
 
         {/* FIXED BOTTOM BUTTON FOR CLOSING SHIFT */}
-        {activeTab === 'ACTION' && currentOpenShift && storeIdToView !== 'ALL' && (
+        {activeTab === 'INVENTORY' && currentOpenShift && storeIdToView !== 'ALL' && (
+          <View style={styles.fixedBottomBar}>
+            <TouchableOpacity style={[styles.closeBtnFixed, {backgroundColor: '#1976d2'}]} onPress={handleSaveInventory}>
+              <Text style={styles.btnText}>LƯU PHIẾU KIỂM KHO</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {activeTab === 'CASH' && currentOpenShift && storeIdToView !== 'ALL' && (
           <View style={styles.fixedBottomBar}>
             <TouchableOpacity style={styles.closeBtnFixed} onPress={handleCloseShift}>
-              <Text style={styles.btnText}>XÁC NHẬN NỘP BÁO CÁO (CHỐT CA)</Text>
+              <Text style={styles.btnText}>XÁC NHẬN NỘP DOANH THU (CHỐT CA)</Text>
             </TouchableOpacity>
           </View>
         )}
