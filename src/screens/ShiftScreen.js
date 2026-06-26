@@ -269,6 +269,30 @@ export default function ShiftScreen({ navigation }) {
       if (error) throw error;
       setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
       setSelectedShiftForDetail(null);
+      
+      // Tự động ghi log trừ tiền nếu lệch két âm
+      if (shift.discrepancy < 0 && shift.closed_by) {
+        try {
+          const dateParts = shift.opened_at.split(' ')[0].split('/'); // [DD, MM, YYYY]
+          if (dateParts.length === 3) {
+            const isoMonth = `${dateParts[2]}-${dateParts[1]}`;
+            const penaltyId = `adj_${shift.id}`;
+            const newAdj = {
+              id: penaltyId,
+              user_id: shift.closed_by,
+              month: isoMonth,
+              bonus_hours: 0,
+              bonus_money: 0,
+              penalty_money: Math.abs(shift.discrepancy),
+              note: `Hệ thống tự trừ tiền do lệch két âm (ca ${shift.opened_at.split(' ')[0]})`
+            };
+            await supabase.from('payroll_adjustments').upsert([newAdj]);
+          }
+        } catch (err) {
+          console.log('Lỗi auto log penalty:', err);
+        }
+      }
+
       alert('Đã duyệt chốt ca thành công!');
 
       // Notify the person who closed the shift
@@ -314,6 +338,45 @@ export default function ShiftScreen({ navigation }) {
     );
   };
 
+  const handleRejectShiftReport = async (shift) => {
+    Alert.alert(
+      'Từ chối báo cáo',
+      'Bạn có chắc chắn muốn HỦY chốt ca này và yêu cầu nhân viên làm lại không?',
+      [
+        { text: 'Bỏ qua', style: 'cancel' },
+        { 
+          text: 'Từ chối', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updateData = { 
+                status: 'OPEN',
+                closed_at: null,
+                closed_by: null,
+                closed_by_name: null
+              };
+              const { error } = await supabase.from('shifts').update(updateData).eq('id', shift.id);
+              if (error) throw error;
+              
+              setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
+              setSelectedShiftForDetail(null);
+              alert('Đã từ chối báo cáo và chuyển lại trạng thái ĐANG MỞ!');
+              
+              if (shift.closed_by) {
+                const targetStaff = staffList.find(s => s.id === shift.closed_by);
+                if (targetStaff) {
+                  sendPushNotification(targetStaff.push_token, 'Báo cáo bị từ chối', `Quản lý đã yêu cầu làm lại báo cáo chốt ca ngày ${shift.opened_at.split(' ')[0]}.`, {}, targetStaff.id);
+                }
+              }
+            } catch (e) {
+              alert('Lỗi: ' + e.message);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderMoneyInput = (label, value, setter, isHighlight = false, placeholder = '0') => (
     <View style={{marginBottom: 10}}>
       <Text style={[styles.label, isHighlight && {color: '#f44336'}]}>{label}</Text>
@@ -335,10 +398,12 @@ export default function ShiftScreen({ navigation }) {
         let openTimeStr = item.opened_at.split(' ').pop();
         let closeTimeStr = item.closed_at ? item.closed_at.split(' ').pop() : '';
 
+        let isDiscrepancy = item.discrepancy && item.discrepancy !== 0;
+
         return (
-          <TouchableOpacity key={item.id} style={styles.historyCard} onPress={() => setSelectedShiftForDetail(item)}>
+          <TouchableOpacity key={item.id} style={[styles.historyCard, isDiscrepancy && {borderColor: '#f44336', borderWidth: 2}]} onPress={() => setSelectedShiftForDetail(item)}>
             <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 8}}>
-              <Text style={{fontWeight: 'bold', fontSize: 16, color: '#1976d2'}}>{dateStr} {periodStr ? `- ${periodStr}` : ''}</Text>
+              <Text style={{fontWeight: 'bold', fontSize: 16, color: isDiscrepancy ? '#f44336' : '#1976d2'}}>{dateStr} {periodStr ? `- ${periodStr}` : ''} {isDiscrepancy ? '(Lệch)' : ''}</Text>
               <Text style={{color: '#333', fontWeight: 'bold'}}>{storeList.find(s=>s.id===item.store_id)?.name}</Text>
             </View>
             <Text style={styles.hText}>Mở ca lúc: {openTimeStr} ({item.opened_by_name})</Text>
