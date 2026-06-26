@@ -740,11 +740,21 @@ export default function ShiftScheduleScreen({ navigation }) {
       {overviewStores.map((storeId) => {
         const sName = storeList.find(s => s.id === storeId)?.name || `CN ${storeId}`;
 
+        // Generate unique color per store
+        let hash = 0;
+        const sIdStr = storeId.toString();
+        for (let i = 0; i < sIdStr.length; i++) {
+          hash = sIdStr.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const storeHue = Math.abs(hash) % 360;
+        const storeColor = `hsl(${storeHue}, 60%, 50%)`;
+        const storeBg = `hsl(${storeHue}, 80%, 96%)`;
+
         return (
-          <View key={storeId} style={styles.storeCard}>
-            <View style={styles.storeHeader}>
-              <Ionicons name="location" size={20} color="#e91e63" style={{marginRight: 8}}/>
-              <Text style={styles.storeHeaderText}>{sName}</Text>
+          <View key={storeId} style={[styles.storeCard, { borderColor: storeColor, borderWidth: 2 }]}>
+            <View style={[styles.storeHeader, { backgroundColor: storeBg, borderBottomColor: storeColor }]}>
+              <Ionicons name="location" size={20} color={storeColor} style={{marginRight: 8}}/>
+              <Text style={[styles.storeHeaderText, { color: storeColor }]}>{sName}</Text>
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
