@@ -9,6 +9,15 @@
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.pingun96.thecocmobile",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "RECORD_AUDIO",
+        "NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -68,7 +77,12 @@
     "ios": {
       "bundleIdentifier": "com.pingun96.thecocmobile",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Ứng dụng cần quyền truy cập camera để chụp ảnh báo cáo, hoá đơn và check-in.",
+        "NSPhotoLibraryUsageDescription": "Ứng dụng cần quyền truy cập thư viện ảnh để tải lên báo cáo và chứng từ.",
+        "NSMicrophoneUsageDescription": "Ứng dụng cần quyền truy cập micro để ghi âm thanh.",
+        "NSLocationWhenInUseUsageDescription": "Ứng dụng cần quyền vị trí để xác minh vị trí khi chấm công.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ứng dụng cần quyền vị trí để xác minh vị trí khi chấm công."
       }
     }
   }
