@@ -275,7 +275,7 @@ export default function ShiftScreen({ navigation }) {
         try {
           const dateParts = shift.opened_at.split(' ')[0].split('/'); // [DD, MM, YYYY]
           if (dateParts.length === 3) {
-            const isoMonth = `${dateParts[2]}-${dateParts[1]}`;
+            const isoMonth = `${dateParts[2]}-${String(dateParts[1]).padStart(2, '0')}`;
             const penaltyId = `adj_${shift.id}`;
             const newAdj = {
               id: penaltyId,
