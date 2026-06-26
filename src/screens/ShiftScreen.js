@@ -284,7 +284,7 @@ export default function ShiftScreen({ navigation }) {
               bonus_hours: 0,
               bonus_money: 0,
               penalty_money: Math.abs(shift.discrepancy),
-              note: `Hệ thống tự trừ tiền do lệch két âm (ca ${shift.opened_at.split(' ')[0]})`
+              note: `Hệ thống tự trừ tiền do lệch két âm ${Math.abs(shift.discrepancy).toLocaleString('vi-VN')}đ (ca ${shift.opened_at.split(' ')[0]})`
             };
             await supabase.from('payroll_adjustments').upsert([newAdj]);
             
