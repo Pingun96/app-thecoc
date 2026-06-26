@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Alert, Modal } from 'react-native';
 import { AppContext } from '../context/AppContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
@@ -59,6 +59,7 @@ export default function ShiftScreen({ navigation }) {
   }
 
   const [activeTab, setActiveTab] = useState('INVENTORY');
+  const [selectedShiftForDetail, setSelectedShiftForDetail] = useState(null);
   const currentOpenShift = shifts.find(s => s.status === 'OPEN' && s.store_id === storeIdToView);
 
   // === MỞ CA ===
@@ -213,7 +214,7 @@ export default function ShiftScreen({ navigation }) {
   const renderHistoryTab = (data) => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
       {data.map(item => (
-        <View key={item.id} style={styles.historyCard}>
+        <TouchableOpacity key={item.id} style={styles.historyCard} onPress={() => setSelectedShiftForDetail(item)}>
           <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10}}>
             <Text style={{fontWeight: 'bold', fontSize: 16}}>{item.opened_at.split(' ')[0]}</Text>
             <Text style={{color: '#1976d2', fontWeight: 'bold'}}>{storeList.find(s=>s.id===item.store_id)?.name}</Text>
@@ -242,11 +243,84 @@ export default function ShiftScreen({ navigation }) {
                 <Text style={{ color: '#fff', fontWeight: 'bold' }}>Duyệt Chốt Ca</Text>
               </TouchableOpacity>
             )}
+            <Text style={{textAlign: 'center', color: '#1976d2', marginTop: 10, fontSize: 12, fontStyle: 'italic'}}>Chạm để xem chi tiết</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       ))}
     </ScrollView>
   );
+
+  const renderDetailModal = () => {
+    if (!selectedShiftForDetail) return null;
+    const item = selectedShiftForDetail;
+    const invCheck = item.inventory_check || [];
+
+    return (
+      <Modal visible={true} transparent={true} animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 10}}>
+              <Text style={{fontSize: 18, fontWeight: 'bold', color: '#1976d2'}}>Chi Tiết Báo Cáo Chốt Ca</Text>
+              <TouchableOpacity onPress={() => setSelectedShiftForDetail(null)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{marginBottom: 15}}>
+                <Text style={{fontWeight: 'bold'}}>Chi nhánh: {storeList.find(s=>s.id===item.store_id)?.name}</Text>
+                <Text>Mở: {item.opened_at} ({item.opened_by_name})</Text>
+                <Text>Đóng: {item.closed_at} ({item.closed_by_name})</Text>
+                <Text style={{fontWeight: 'bold', color: item.status === 'CLOSED' ? '#4caf50' : '#f59e0b'}}>Trạng thái: {item.status === 'CLOSED' ? 'Đã duyệt' : 'Chờ duyệt'}</Text>
+              </View>
+
+              <Text style={[styles.sectionTitle, {fontSize: 14}]}>KIỂM KÊ KHO HÀNG</Text>
+              {invCheck.length > 0 ? (
+                <View style={{backgroundColor: '#f9fafb', padding: 10, borderRadius: 8, marginBottom: 15}}>
+                  <View style={{flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 5, marginBottom: 5}}>
+                    <Text style={{flex: 2, fontWeight: 'bold'}}>Mặt hàng</Text>
+                    <Text style={{flex: 1, fontWeight: 'bold', textAlign: 'right'}}>Tồn Cuối</Text>
+                  </View>
+                  {invCheck.map((inv, idx) => (
+                    <View key={idx} style={{flexDirection: 'row', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#f3f4f6'}}>
+                      <Text style={{flex: 2}}>{inv.name}</Text>
+                      <Text style={{flex: 1, textAlign: 'right', fontWeight: 'bold'}}>{inv.end} {inv.unit}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={{fontStyle: 'italic', color: '#888', marginBottom: 15}}>Không có dữ liệu kiểm kho</Text>
+              )}
+
+              <Text style={[styles.sectionTitle, {fontSize: 14}]}>DOANH THU & KÉT TIỀN</Text>
+              <View style={{backgroundColor: '#f9fafb', padding: 10, borderRadius: 8, marginBottom: 15}}>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Tiền mặt (Đầu ca):</Text><Text style={{fontWeight: 'bold'}}>{item.opening_cash.toLocaleString()}đ</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Tiền Mặt:</Text><Text style={{fontWeight: 'bold', color: '#1976d2'}}>{item.rev_cash.toLocaleString()}đ</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Momo:</Text><Text style={{fontWeight: 'bold', color: '#d82d8b'}}>{item.rev_momo.toLocaleString()}đ</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Grab:</Text><Text style={{fontWeight: 'bold', color: '#00a5cf'}}>{item.rev_grab.toLocaleString()}đ</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Shopee:</Text><Text style={{fontWeight: 'bold', color: '#ee4d2d'}}>{item.rev_shopee.toLocaleString()}đ</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Giảm Bill:</Text><Text style={{fontWeight: 'bold', color: '#f59e0b'}}>-{item.discount.toLocaleString()}đ</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Chi phí ({item.expenses_note || 'Trống'}):</Text><Text style={{fontWeight: 'bold', color: '#f44336'}}>-{item.expenses.toLocaleString()}đ</Text></View>
+                
+                <View style={{height: 1, backgroundColor: '#ddd', marginVertical: 8}}/>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Tiền thực đếm (Két):</Text><Text style={{fontWeight: 'bold', color: '#15803d'}}>{item.closing_cash_actual.toLocaleString()}đ</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}>
+                  <Text style={{fontWeight: 'bold'}}>Lệch két:</Text>
+                  <Text style={{fontWeight: 'bold', color: item.discrepancy < 0 ? '#f44336' : (item.discrepancy > 0 ? '#4caf50' : '#333')}}>
+                    {item.discrepancy > 0 ? '+' : ''}{item.discrepancy.toLocaleString()}đ
+                  </Text>
+                </View>
+              </View>
+
+            </ScrollView>
+            <TouchableOpacity style={{backgroundColor: '#1976d2', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => setSelectedShiftForDetail(null)}>
+              <Text style={{color: '#fff', fontWeight: 'bold'}}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -389,6 +463,7 @@ export default function ShiftScreen({ navigation }) {
           </View>
         )}
       </KeyboardAvoidingView>
+      {renderDetailModal()}
     </SafeAreaView>
   );
 }
@@ -420,5 +495,7 @@ const styles = StyleSheet.create({
   previewBox: { backgroundColor: '#fff3e0', padding: 10, borderRadius: 8, marginTop: 15 },
   tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 5, marginBottom: 5 },
   tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
-  cell: { fontSize: 13, color: '#333' }
+  cell: { fontSize: 13, color: '#333' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContainer: { width: '100%', maxHeight: '80%', backgroundColor: '#fff', borderRadius: 12, padding: 20, elevation: 5 }
 });
