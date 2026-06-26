@@ -200,6 +200,36 @@ export default function ShiftScreen({ navigation }) {
     }
   };
 
+  const handleRecallShiftReport = async (shift) => {
+    Alert.alert(
+      'Thu hồi báo cáo',
+      'Bạn có chắc chắn muốn thu hồi báo cáo chốt ca này để chỉnh sửa lại không?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { 
+          text: 'Thu hồi', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updateData = { 
+                status: 'OPEN',
+                closed_at: null,
+                closed_by: null,
+                closed_by_name: null
+              };
+              const { error } = await supabase.from('shifts').update(updateData).eq('id', shift.id);
+              if (error) throw error;
+              setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
+              alert('Đã thu hồi báo cáo thành công. Bạn có thể chỉnh sửa lại ở mục Kiểm Kho và Doanh Thu.');
+            } catch (e) {
+              alert('Lỗi: ' + e.message);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderMoneyInput = (label, value, setter, isHighlight = false, placeholder = "") => (
     <View style={{marginBottom: 10}}>
       <Text style={[styles.label, isHighlight && {color: '#f44336'}]}>{label}</Text>
@@ -243,6 +273,14 @@ export default function ShiftScreen({ navigation }) {
                 onPress={() => handleApproveShiftReport(item)}
               >
                 <Text style={{ color: '#fff', fontWeight: 'bold' }}>Duyệt Chốt Ca</Text>
+              </TouchableOpacity>
+            )}
+            {activeTab === 'PENDING' && item.closed_by === currentUser.id && (
+              <TouchableOpacity
+                style={{ marginTop: 15, backgroundColor: '#f44336', padding: 10, borderRadius: 8, alignItems: 'center' }}
+                onPress={() => handleRecallShiftReport(item)}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Thu Hồi Báo Cáo</Text>
               </TouchableOpacity>
             )}
             <Text style={{textAlign: 'center', color: '#1976d2', marginTop: 10, fontSize: 12, fontStyle: 'italic'}}>Chạm để xem chi tiết</Text>
