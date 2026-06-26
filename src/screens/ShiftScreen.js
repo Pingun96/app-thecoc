@@ -327,35 +327,42 @@ export default function ShiftScreen({ navigation }) {
 
   const renderHistoryTab = (data) => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
-      {data.map(item => (
-        <TouchableOpacity key={item.id} style={styles.historyCard} onPress={() => setSelectedShiftForDetail(item)}>
-          <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10}}>
-            <Text style={{fontWeight: 'bold', fontSize: 16}}>{item.opened_at.split(' ')[0]}</Text>
-            <Text style={{color: '#1976d2', fontWeight: 'bold'}}>{storeList.find(s=>s.id===item.store_id)?.name}</Text>
-          </View>
-          <Text style={styles.hText}>Ca mở: {item.opened_at.split(' ')[1]} ({item.opened_by_name})</Text>
-          <Text style={styles.hText}>Ca đóng: {item.closed_at.split(' ')[1]} ({item.closed_by_name})</Text>
-          <View style={{backgroundColor: '#f5f5f5', padding: 10, borderRadius: 8, marginTop: 10}}>
-            <Text style={{fontWeight: 'bold'}}>TỔNG DOANH THU: {(item.rev_cash + item.rev_momo + item.rev_grab + item.rev_shopee - item.discount).toLocaleString()}đ</Text>
-            <Text style={styles.hText}>- Tiền mặt: {item.rev_cash.toLocaleString()}đ</Text>
-            <Text style={styles.hText}>- Momo/Grab/Shopee: {(item.rev_momo+item.rev_grab+item.rev_shopee).toLocaleString()}đ</Text>
-            <Text style={styles.hText}>- Chi phí: {item.expenses.toLocaleString()}đ ({item.expenses_note})</Text>
-            <View style={{height: 1, backgroundColor: '#ddd', marginVertical: 8}}/>
-            <Text style={styles.hText}>Tiền đầu giờ: {item.opening_cash.toLocaleString()}đ</Text>
-            <Text style={styles.hText}>Tiền trong két: {item.closing_cash_actual.toLocaleString()}đ</Text>
-            <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: '#eee'}}>
-              <Text style={{fontSize: 16, fontWeight: 'bold'}}>Chênh Lệch:</Text>
-              <Text style={{fontSize: 16, fontWeight: 'bold', color: item.discrepancy < 0 ? '#f44336' : (item.discrepancy > 0 ? '#4caf50' : '#333')}}>
-                {item.discrepancy > 0 ? '+' : ''}{item.discrepancy.toLocaleString()}đ
-              </Text>
+      {data.map(item => {
+        let dateStr = item.opened_at.split(' ')[0];
+        let periodStr = item.opened_at.includes('Sáng') ? 'Ca Sáng' : (item.opened_at.includes('Chiều') ? 'Ca Chiều' : '');
+        let openTimeStr = item.opened_at.split(' ').pop();
+        let closeTimeStr = item.closed_at ? item.closed_at.split(' ').pop() : '';
+
+        return (
+          <TouchableOpacity key={item.id} style={styles.historyCard} onPress={() => setSelectedShiftForDetail(item)}>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 8}}>
+              <Text style={{fontWeight: 'bold', fontSize: 16, color: '#1976d2'}}>{dateStr} {periodStr ? `- ${periodStr}` : ''}</Text>
+              <Text style={{color: '#333', fontWeight: 'bold'}}>{storeList.find(s=>s.id===item.store_id)?.name}</Text>
             </View>
-            {activeTab === 'PENDING' && (
-              <Text style={{textAlign: 'center', color: '#f59e0b', fontWeight: 'bold', marginTop: 15, fontSize: 14}}>Trạng thái: Đang chờ duyệt</Text>
-            )}
-            <Text style={{textAlign: 'center', color: '#1976d2', marginTop: 10, fontSize: 12, fontStyle: 'italic'}}>Chạm để xem chi tiết & thao tác</Text>
-          </View>
-        </TouchableOpacity>
-      ))}
+            <Text style={styles.hText}>Mở ca lúc: {openTimeStr} ({item.opened_by_name})</Text>
+            <Text style={styles.hText}>Chốt ca lúc: {closeTimeStr} ({item.closed_by_name})</Text>
+            <View style={{backgroundColor: '#f5f5f5', padding: 10, borderRadius: 8, marginTop: 10}}>
+              <Text style={{fontWeight: 'bold'}}>TỔNG DOANH THU: {(item.rev_cash + item.rev_momo + item.rev_grab + item.rev_shopee - item.discount).toLocaleString()}đ</Text>
+              <Text style={styles.hText}>- Tiền mặt: {item.rev_cash.toLocaleString()}đ</Text>
+              <Text style={styles.hText}>- Momo/Grab/Shopee: {(item.rev_momo+item.rev_grab+item.rev_shopee).toLocaleString()}đ</Text>
+              <Text style={styles.hText}>- Chi phí: {item.expenses.toLocaleString()}đ ({item.expenses_note || 'Trống'})</Text>
+              <View style={{height: 1, backgroundColor: '#ddd', marginVertical: 8}}/>
+              <Text style={styles.hText}>Tiền đầu giờ: {item.opening_cash.toLocaleString()}đ</Text>
+              <Text style={styles.hText}>Tiền trong két: {item.closing_cash_actual.toLocaleString()}đ</Text>
+              <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: '#eee'}}>
+                <Text style={{fontSize: 16, fontWeight: 'bold'}}>Chênh Lệch:</Text>
+                <Text style={{fontSize: 16, fontWeight: 'bold', color: item.discrepancy < 0 ? '#f44336' : (item.discrepancy > 0 ? '#4caf50' : '#333')}}>
+                  {item.discrepancy > 0 ? '+' : ''}{item.discrepancy.toLocaleString()}đ
+                </Text>
+              </View>
+              {activeTab === 'PENDING' && (
+                <Text style={{textAlign: 'center', color: '#f59e0b', fontWeight: 'bold', marginTop: 15, fontSize: 14}}>Trạng thái: Đang chờ duyệt</Text>
+              )}
+              <Text style={{textAlign: 'center', color: '#1976d2', marginTop: 10, fontSize: 12, fontStyle: 'italic'}}>Chạm để xem chi tiết & thao tác</Text>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
     </ScrollView>
   );
 
