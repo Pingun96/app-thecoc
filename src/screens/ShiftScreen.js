@@ -349,23 +349,10 @@ export default function ShiftScreen({ navigation }) {
                 {item.discrepancy > 0 ? '+' : ''}{item.discrepancy.toLocaleString()}đ
               </Text>
             </View>
-            {activeTab === 'PENDING' && (isOwner || currentUser?.permissions?.is_primary_manager) && (
-              <TouchableOpacity
-                style={{ marginTop: 15, backgroundColor: '#4caf50', padding: 10, borderRadius: 8, alignItems: 'center' }}
-                onPress={() => handleApproveShiftReport(item)}
-              >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Duyệt Chốt Ca</Text>
-              </TouchableOpacity>
+            {activeTab === 'PENDING' && (
+              <Text style={{textAlign: 'center', color: '#f59e0b', fontWeight: 'bold', marginTop: 15, fontSize: 14}}>Trạng thái: Đang chờ duyệt</Text>
             )}
-            {activeTab === 'PENDING' && item.closed_by === currentUser.id && (
-              <TouchableOpacity
-                style={{ marginTop: 15, backgroundColor: '#f44336', padding: 10, borderRadius: 8, alignItems: 'center' }}
-                onPress={() => handleRecallShiftReport(item)}
-              >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Thu Hồi Báo Cáo</Text>
-              </TouchableOpacity>
-            )}
-            <Text style={{textAlign: 'center', color: '#1976d2', marginTop: 10, fontSize: 12, fontStyle: 'italic'}}>Chạm để xem chi tiết</Text>
+            <Text style={{textAlign: 'center', color: '#1976d2', marginTop: 10, fontSize: 12, fontStyle: 'italic'}}>Chạm để xem chi tiết & thao tác</Text>
           </View>
         </TouchableOpacity>
       ))}
@@ -438,6 +425,25 @@ export default function ShiftScreen({ navigation }) {
               </View>
 
             </ScrollView>
+
+            {item.status === 'PENDING_APPROVAL' && (isOwner || currentUser?.permissions?.is_primary_manager) && (
+              <TouchableOpacity style={{backgroundColor: '#4caf50', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
+                handleApproveShiftReport(item);
+                setSelectedShiftForDetail(null);
+              }}>
+                <Text style={{color: '#fff', fontWeight: 'bold'}}>Duyệt Chốt Ca</Text>
+              </TouchableOpacity>
+            )}
+
+            {item.status === 'PENDING_APPROVAL' && item.closed_by === currentUser.id && (
+              <TouchableOpacity style={{backgroundColor: '#f44336', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
+                setSelectedShiftForDetail(null);
+                handleRecallShiftReport(item);
+              }}>
+                <Text style={{color: '#fff', fontWeight: 'bold'}}>Thu Hồi Báo Cáo</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity style={{backgroundColor: '#1976d2', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => setSelectedShiftForDetail(null)}>
               <Text style={{color: '#fff', fontWeight: 'bold'}}>Đóng</Text>
             </TouchableOpacity>
