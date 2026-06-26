@@ -500,7 +500,7 @@ export default function ShiftScheduleScreen({ navigation }) {
               <View style={[styles.timeTableCell, styles.timeTableHeaderCell, {width: 60, backgroundColor: '#1e3a8a', borderBottomColor: '#1e40af'}]}><Text style={[styles.timeTableTitle, {color: '#fff'}]}>Ca \ Thứ</Text></View>
               {weekDates.map(date => (
                 <View key={`header_${date}`} style={[styles.timeTableCell, styles.timeTableHeaderCell, {backgroundColor: '#1e3a8a', borderBottomColor: '#1e40af'}]}>
-                  <Text style={[styles.timeTableTitle, {color: '#fff'}]}>{getDayName(date).replace(' ', '\n')}</Text>
+                  <Text style={[styles.timeTableTitle, {color: '#fff'}]}>{getDayName(date)}</Text>
                 </View>
               ))}
             </View>
