@@ -44,7 +44,9 @@
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "owner": "pingun96",
     "runtimeVersion": {
