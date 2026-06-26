@@ -46,7 +46,14 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ứng dụng cần quyền truy cập thư viện ảnh để tải lên báo cáo ca.",
+          "cameraPermission": "Ứng dụng cần quyền truy cập camera để chụp ảnh báo cáo ca."
+        }
+      ]
     ],
     "owner": "pingun96",
     "runtimeVersion": {

@@ -369,12 +369,12 @@ export default function PayrollScreen({ navigation }) {
                       <Text style={styles.adjText}>• Giờ làm gốc: {item.totalHours.toFixed(1)}h ({item.recordsCount} ca)</Text>
                       {item.adjustment?.bonus_hours > 0 && <Text style={[styles.adjText, {color: '#388e3c'}]}>• Thưởng thêm giờ: +{item.adjustment.bonus_hours}h</Text>}
                       {item.adjustment?.bonus_money > 0 && <Text style={[styles.adjText, {color: '#388e3c'}]}>• Tiền thưởng (Quy định quán): +{formatMoney(item.adjustment.bonus_money)}đ</Text>}
-                      {item.adjustment?.manual_penalty > 0 && <Text style={[styles.adjText, {color: '#d32f2f'}]}>• Tiền phạt (Quy định quán): -{formatMoney(item.adjustment.manual_penalty)}đ</Text>}
+                      {item.adjustment?.manual_penalty > 0 && <Text style={[styles.adjText, {color: 'red'}]}>• Tiền phạt (Quy định quán): -{formatMoney(item.adjustment.manual_penalty)}đ</Text>}
                       {item.adjustment?.note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: '#666', marginLeft: 10}]}>Lý do: {item.adjustment.note}</Text> : null}
                       
                       {item.adjustment?.auto_penalty > 0 && (
                         <>
-                          <Text style={[styles.adjText, {color: '#d32f2f', marginTop: 4}]}>• Lệch két (Hệ thống tự trừ): -{formatMoney(item.adjustment.auto_penalty)}đ</Text>
+                          <Text style={[styles.adjText, {color: 'red', marginTop: 4}]}>• Lệch két (Hệ thống tự trừ): -{formatMoney(item.adjustment.auto_penalty)}đ</Text>
                           {item.adjustment?.auto_note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: '#666', marginLeft: 10}]}>{item.adjustment.auto_note}</Text> : null}
                         </>
                       )}

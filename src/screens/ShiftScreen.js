@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Alert, Modal, Image, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { AppContext } from '../context/AppContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
@@ -91,6 +92,8 @@ export default function ShiftScreen({ navigation }) {
   const [expenses, setExpenses] = useState('');
   const [expensesNote, setExpensesNote] = useState('');
   const [actualCash, setActualCash] = useState('');
+  const [reportImage, setReportImage] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const CACHE_KEY = `SHIFT_DRAFT_${storeIdToView}`;
 
@@ -196,6 +199,46 @@ export default function ShiftScreen({ navigation }) {
     }
   };
 
+  const handlePickImage = async (useCamera) => {
+    try {
+      let result;
+      if (useCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') return Alert.alert('Lỗi', 'Cần quyền truy cập camera để chụp ảnh.');
+        result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.5 });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') return Alert.alert('Lỗi', 'Cần quyền truy cập thư viện ảnh.');
+        result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, quality: 0.5 });
+      }
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setReportImage(result.assets[0].uri);
+      }
+    } catch(e) {
+      Alert.alert('Lỗi', 'Không thể chọn ảnh: ' + e.message);
+    }
+  };
+
+  const uploadReportImage = async (uri) => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const fileExt = uri.split('.').pop() || 'jpg';
+      const fileName = `${Date.now()}_${Math.floor(Math.random()*1000)}.${fileExt}`;
+      const filePath = `${storeIdToView}/${fileName}`;
+
+      const { data, error } = await supabase.storage.from('shift_reports').upload(filePath, blob);
+      if (error) throw error;
+      
+      const { data: { publicUrl } } = supabase.storage.from('shift_reports').getPublicUrl(filePath);
+      return publicUrl;
+    } catch (error) {
+      console.log('Error uploading image:', error);
+      throw error;
+    }
+  };
+
   const handleCloseShift = () => {
     const aCashStr = String(actualCash).trim();
     if (aCashStr === '') {
@@ -225,6 +268,12 @@ export default function ShiftScreen({ navigation }) {
         { text: 'Hủy', style: 'cancel' },
         { text: 'Chốt', style: 'destructive', onPress: async () => {
             try {
+              setIsUploading(true);
+              let imageUrl = null;
+              if (reportImage) {
+                imageUrl = await uploadReportImage(reportImage);
+              }
+
               const finalInvCheck = currentOpenShift.inventory_check || [];
 
               const updatedShift = {
@@ -235,7 +284,8 @@ export default function ShiftScreen({ navigation }) {
                 rev_cash: rCash, rev_momo: rMomo, rev_grab: rGrab, rev_shopee: rShopee,
                 discount: disc, expenses: exp, expenses_note: expensesNote,
                 closing_cash_actual: aCash, discrepancy: discrepancy,
-                inventory_check: finalInvCheck
+                inventory_check: finalInvCheck,
+                report_image: imageUrl
               };
 
               const { error } = await supabase.from('shifts').update(updatedShift).eq('id', currentOpenShift.id);
@@ -247,9 +297,11 @@ export default function ShiftScreen({ navigation }) {
               setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
 
               Alert.alert('Thành công', 'Đã nộp Báo Cáo Doanh Thu (Chốt Ca)!');
-              setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({});
+              setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({}); setReportImage(null);
+              setIsUploading(false);
               try { await AsyncStorage.removeItem(CACHE_KEY); } catch(e){}
             } catch(e) {
+              setIsUploading(false);
               Alert.alert('Lỗi ứng dụng', 'Chi tiết: ' + e.message);
             }
           }
@@ -553,6 +605,13 @@ export default function ShiftScreen({ navigation }) {
                 </View>
               </View>
 
+              {item.report_image ? (
+                <>
+                  <Text style={[styles.sectionTitle, {fontSize: 14, marginTop: 10}]}>HÌNH ẢNH BÁO CÁO</Text>
+                  <Image source={{uri: item.report_image}} style={{width: '100%', height: 250, borderRadius: 8, marginBottom: 15, resizeMode: 'cover'}} />
+                </>
+              ) : null}
+
             </ScrollView>
 
             {item.status === 'PENDING_APPROVAL' && (isOwner || currentUser?.permissions?.is_primary_manager) && (
@@ -729,11 +788,33 @@ export default function ShiftScreen({ navigation }) {
 
                     {renderMoneyInput('TIỀN TRONG KÉT THỰC ĐẾM (2):', actualCash, setActualCash, true, 'Đếm két...')}
 
-                    {/* Auto Preview */}
                     <View style={styles.previewBox}>
                       <Text style={{fontWeight: 'bold', marginBottom: 5}}>Xem Trước Báo Cáo:</Text>
                       <Text>Doanh thu tổng: {(parseMoneyInput(revCash) + parseMoneyInput(revMomo) + parseMoneyInput(revGrab) + parseMoneyInput(revShopee) - parseMoneyInput(discount)).toLocaleString()}đ</Text>
                       <Text>Lệch két: {(parseMoneyInput(actualCash) - (currentOpenShift.opening_cash + parseMoneyInput(revCash) - parseMoneyInput(expenses))).toLocaleString()}đ</Text>
+                    </View>
+
+                    <View style={{marginTop: 15, marginBottom: 10}}>
+                      <Text style={[styles.label, {marginTop: 0}]}>Hình ảnh báo cáo (Tùy chọn):</Text>
+                      {reportImage ? (
+                        <View style={{position: 'relative', marginTop: 10}}>
+                          <Image source={{uri: reportImage}} style={{width: '100%', height: 200, borderRadius: 8, resizeMode: 'cover'}} />
+                          <TouchableOpacity style={{position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20}} onPress={() => setReportImage(null)}>
+                            <Ionicons name="close" size={20} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <View style={{flexDirection: 'row', gap: 10, marginTop: 5}}>
+                          <TouchableOpacity style={{flex: 1, backgroundColor: '#e0e7ff', padding: 12, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center'}} onPress={() => handlePickImage(true)}>
+                            <Ionicons name="camera" size={20} color="#4f46e5" style={{marginRight: 5}}/>
+                            <Text style={{color: '#4f46e5', fontWeight: 'bold'}}>Chụp ảnh</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={{flex: 1, backgroundColor: '#e0e7ff', padding: 12, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center'}} onPress={() => handlePickImage(false)}>
+                            <Ionicons name="image" size={20} color="#4f46e5" style={{marginRight: 5}}/>
+                            <Text style={{color: '#4f46e5', fontWeight: 'bold'}}>Thư viện</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
                   </View>
                   )}
@@ -764,8 +845,15 @@ export default function ShiftScreen({ navigation }) {
 
         {activeTab === 'CASH' && currentOpenShift && storeIdToView !== 'ALL' && (
           <View style={styles.fixedBottomBar}>
-            <TouchableOpacity style={styles.closeBtnFixed} onPress={handleCloseShift}>
-              <Text style={styles.btnText}>XÁC NHẬN NỘP DOANH THU (CHỐT CA)</Text>
+            <TouchableOpacity style={[styles.closeBtnFixed, isUploading && {backgroundColor: '#9e9e9e'}]} onPress={handleCloseShift} disabled={isUploading}>
+              {isUploading ? (
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <ActivityIndicator size="small" color="#fff" style={{marginRight: 10}} />
+                  <Text style={styles.btnText}>ĐANG XỬ LÝ...</Text>
+                </View>
+              ) : (
+                <Text style={styles.btnText}>XÁC NHẬN NỘP DOANH THU (CHỐT CA)</Text>
+              )}
             </TouchableOpacity>
           </View>
         )}
