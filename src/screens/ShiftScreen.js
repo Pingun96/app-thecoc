@@ -7,7 +7,7 @@ import { supabase } from '../services/supabaseClient';
 import { sendPushNotification } from '../services/NotificationService';
 
 export default function ShiftScreen({ navigation }) {
-  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory } = useContext(AppContext);
+  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory, payrollAdjustments, setPayrollAdjustments } = useContext(AppContext);
 
   const formatMoneyInput = (val) => {
     if (!val) return '';
@@ -287,6 +287,14 @@ export default function ShiftScreen({ navigation }) {
               note: `Hệ thống tự trừ tiền do lệch két âm (ca ${shift.opened_at.split(' ')[0]})`
             };
             await supabase.from('payroll_adjustments').upsert([newAdj]);
+            
+            if (setPayrollAdjustments) {
+              setPayrollAdjustments(prev => {
+                const current = prev || [];
+                const filtered = current.filter(a => a.id !== penaltyId);
+                return [...filtered, newAdj];
+              });
+            }
           }
         } catch (err) {
           console.log('Lỗi auto log penalty:', err);
