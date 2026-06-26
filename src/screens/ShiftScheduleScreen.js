@@ -497,10 +497,10 @@ export default function ShiftScheduleScreen({ navigation }) {
           <View style={styles.timetableContainer}>
             {/* Header Row: Ngày */}
             <View style={styles.timeTableRow}>
-              <View style={[styles.timeTableCell, styles.timeTableHeaderCell, {width: 60}]}><Text style={styles.timeTableTitle}>Ca \ Thứ</Text></View>
+              <View style={[styles.timeTableCell, styles.timeTableHeaderCell, {width: 60, backgroundColor: '#1e3a8a', borderBottomColor: '#1e40af'}]}><Text style={[styles.timeTableTitle, {color: '#fff'}]}>Ca \ Thứ</Text></View>
               {weekDates.map(date => (
-                <View key={`header_${date}`} style={[styles.timeTableCell, styles.timeTableHeaderCell]}>
-                  <Text style={styles.timeTableTitle}>{getDayName(date).replace(' ', '\n')}</Text>
+                <View key={`header_${date}`} style={[styles.timeTableCell, styles.timeTableHeaderCell, {backgroundColor: '#1e3a8a', borderBottomColor: '#1e40af'}]}>
+                  <Text style={[styles.timeTableTitle, {color: '#fff'}]}>{getDayName(date).replace(' ', '\n')}</Text>
                 </View>
               ))}
             </View>
@@ -515,7 +515,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                 const reg = myRegs.find(r => r.status === 'APPROVED') || myRegs.find(r => r.status === 'PENDING');
                 const sName = reg ? (storeList.find(s => s.id === reg.store_id)?.name || `CN ${reg.store_id}`) : '';
                 const pendingSwap = reg ? shiftSwaps.find(s => s.shift_id === reg.id && s.status === 'PENDING') : null;
-                const bgColor = reg ? (reg.status === 'APPROVED' ? getStoreColor(reg.store_id) : '#ff9800') : '#fff';
+                const bgColor = reg ? (reg.status === 'APPROVED' ? getStoreColor(reg.store_id) : '#ff9800') : '#f0fdf4';
 
                 return (
                   <TouchableOpacity
@@ -554,7 +554,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                 const reg = myRegs.find(r => r.status === 'APPROVED') || myRegs.find(r => r.status === 'PENDING');
                 const sName = reg ? (storeList.find(s => s.id === reg.store_id)?.name || `CN ${reg.store_id}`) : '';
                 const pendingSwap = reg ? shiftSwaps.find(s => s.shift_id === reg.id && s.status === 'PENDING') : null;
-                const bgColor = reg ? (reg.status === 'APPROVED' ? getStoreColor(reg.store_id) : '#ff9800') : '#fff';
+                const bgColor = reg ? (reg.status === 'APPROVED' ? getStoreColor(reg.store_id) : '#ff9800') : '#fefce8';
 
                 return (
                   <TouchableOpacity
