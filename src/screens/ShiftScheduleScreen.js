@@ -737,21 +737,39 @@ export default function ShiftScheduleScreen({ navigation }) {
         </View>
       )}
 
-      {overviewStores.map((storeId) => {
+      {overviewStores.map((storeId, index) => {
         const sName = storeList.find(s => s.id === storeId)?.name || `CN ${storeId}`;
 
-        // Generate unique color per store
-        let hash = 0;
-        const sIdStr = storeId.toString();
-        for (let i = 0; i < sIdStr.length; i++) {
-          hash = sIdStr.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        const storeHue = Math.abs(hash) % 360;
-        const storeColor = `hsl(${storeHue}, 60%, 50%)`;
-        const storeBg = `hsl(${storeHue}, 80%, 96%)`;
+        // Define a palette of highly distinct colors
+        const STORE_PALETTE = [
+          '#ef4444', // Red
+          '#3b82f6', // Blue
+          '#10b981', // Green
+          '#f59e0b', // Amber
+          '#8b5cf6', // Purple
+          '#ec4899', // Pink
+          '#14b8a6', // Teal
+          '#f97316'  // Orange
+        ];
+        
+        const storeColor = STORE_PALETTE[index % STORE_PALETTE.length];
+        const storeBg = storeColor + '10'; // 10% opacity background for header
 
         return (
-          <View key={storeId} style={[styles.storeCard, { borderColor: storeColor, borderWidth: 2 }]}>
+          <View key={storeId} style={[
+            styles.storeCard, 
+            { 
+              borderColor: storeColor, 
+              borderWidth: 1,
+              borderBottomWidth: 4, // 3D effect
+              borderRightWidth: 2,  // 3D effect
+              elevation: 4,
+              shadowColor: storeColor,
+              shadowOffset: { width: 2, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 5
+            }
+          ]}>
             <View style={[styles.storeHeader, { backgroundColor: storeBg, borderBottomColor: storeColor }]}>
               <Ionicons name="location" size={20} color={storeColor} style={{marginRight: 8}}/>
               <Text style={[styles.storeHeaderText, { color: storeColor }]}>{sName}</Text>
