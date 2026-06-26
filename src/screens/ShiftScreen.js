@@ -1,5 +1,6 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Alert, Modal } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppContext } from '../context/AppContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
@@ -91,6 +92,53 @@ export default function ShiftScreen({ navigation }) {
   const [expensesNote, setExpensesNote] = useState('');
   const [actualCash, setActualCash] = useState('');
 
+  const CACHE_KEY = `SHIFT_DRAFT_${storeIdToView}`;
+
+  // Load cache on mount or store change
+  useEffect(() => {
+    const loadCache = async () => {
+      try {
+        const cached = await AsyncStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const data = JSON.parse(cached);
+          if (data.inventoryCheck) setInventoryCheck(data.inventoryCheck);
+          if (data.revCash !== undefined) setRevCash(data.revCash);
+          if (data.revMomo !== undefined) setRevMomo(data.revMomo);
+          if (data.revGrab !== undefined) setRevGrab(data.revGrab);
+          if (data.revShopee !== undefined) setRevShopee(data.revShopee);
+          if (data.discount !== undefined) setDiscount(data.discount);
+          if (data.expenses !== undefined) setExpenses(data.expenses);
+          if (data.expensesNote !== undefined) setExpensesNote(data.expensesNote);
+          if (data.actualCash !== undefined) setActualCash(data.actualCash);
+        } else {
+          setInventoryCheck({}); setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash('');
+        }
+      } catch(e) {
+        console.log('Error loading cache', e);
+      }
+    };
+    if (storeIdToView && storeIdToView !== 'ALL') {
+      loadCache();
+    }
+  }, [storeIdToView]);
+
+  // Save cache on data change
+  useEffect(() => {
+    if (!storeIdToView || storeIdToView === 'ALL') return;
+    const saveCache = async () => {
+      const data = {
+        inventoryCheck, revCash, revMomo, revGrab, revShopee, discount, expenses, expensesNote, actualCash
+      };
+      try {
+        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      } catch(e) {
+        console.log('Error saving cache', e);
+      }
+    };
+    const timeoutId = setTimeout(saveCache, 500);
+    return () => clearTimeout(timeoutId);
+  }, [inventoryCheck, revCash, revMomo, revGrab, revShopee, discount, expenses, expensesNote, actualCash, storeIdToView]);
+
   const storeInventory = inventoryItems.filter(i => i.store_id === storeIdToView);
   const todayStr = new Date().toLocaleDateString('vi-VN');
   const todayAttendance = attendanceHistory.filter(a => a.date === todayStr); // Giả lập chấm công hôm nay
@@ -170,6 +218,7 @@ export default function ShiftScreen({ navigation }) {
 
             Alert.alert('Thành công', 'Đã nộp Báo Cáo Doanh Thu (Chốt Ca)!');
             setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({});
+            try { await AsyncStorage.removeItem(CACHE_KEY); } catch(e){}
           }
         }
       ]
