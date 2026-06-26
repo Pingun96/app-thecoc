@@ -28,6 +28,14 @@
     },
     "plugins": [
       [
+        "expo-notifications",
+        {
+          "color": "#208AEF",
+          "defaultChannel": "thecoc-default",
+          "enableBackgroundRemoteNotifications": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#208AEF",
@@ -48,6 +56,8 @@
         "expo-channel-name": "production"
       }
     },
-    "ios": {}
+    "ios": {
+      "bundleIdentifier": "com.pingun96.thecocmobile"
+    }
   }
 }

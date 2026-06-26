@@ -28,7 +28,10 @@ import {
   normalizeInventoryRequest,
 } from '../services/dataMappers';
 import { getLocalDateKey } from '../utils/dateTime';
-import { sendPushNotification, getManagersPushTokens } from '../services/NotificationService';
+import {
+  sendNotificationToUser,
+  sendNotificationToUsers,
+} from '../services/NotificationService';
 
 const ACTIONS = {
   IMPORT: { label: 'Nhập kho', shortLabel: 'NHẬP', color: '#16a34a', sign: '+' },
@@ -152,6 +155,88 @@ export default function InventoryScreen({ navigation }) {
     return isOwner && ['PENDING_MANAGER', 'PENDING_OWNER'].includes(request.status);
   });
 
+  const matchesStore = (value, storeId) => value === storeId || String(value) === String(storeId);
+
+  const getOwnerRecipientIds = () => {
+    const ownerIds = staffList
+      .filter((staff) => staff.role === 'OWNER')
+      .map((staff) => staff.id);
+
+    return [...new Set(['owner_1', ...ownerIds])]
+      .filter((id) => id && id !== currentUser?.id);
+  };
+
+  const getManagerRecipientIds = (storeId) => staffList
+    .filter((staff) => {
+      const viewableStores = staff.permissions?.viewable_stores || [];
+      return staff.role === 'MANAGER'
+        && staff.id !== currentUser?.id
+        && (
+          matchesStore(staff.store_id, storeId)
+          || viewableStores.some((viewableStore) => (
+            matchesStore(viewableStore, storeId) || viewableStore === 'ALL'
+          ))
+        );
+    })
+    .map((staff) => staff.id);
+
+  const getRequestCreator = (request) => staffList.find((staff) => (
+    staff.id === request.requested_by
+    || staff.id === request.requested_by_id
+    || staff.name === request.requested_by_name
+  ));
+
+  const notifyInventoryApprovers = async (request, finalType) => {
+    const managerIds = request.status === 'PENDING_MANAGER'
+      ? getManagerRecipientIds(request.store_id)
+      : [];
+    const ownerIds = getOwnerRecipientIds();
+    const recipientIds = [...new Set([...managerIds, ...ownerIds])];
+
+    if (!recipientIds.length) return;
+
+    await sendNotificationToUsers(
+      recipientIds,
+      'Phiếu kho mới',
+      `${request.requested_by_name} vừa tạo phiếu ${ACTIONS[finalType]?.label || finalType}.`,
+      {
+        route: 'Inventory',
+        type: 'inventory_request',
+        request_id: request.id,
+        store_id: request.store_id,
+      },
+      {
+        type: 'inventory_request',
+        route: 'Inventory',
+        storeId: request.store_id,
+        actorUserId: currentUser?.id,
+      },
+    );
+  };
+
+  const notifyRequestCreator = async (request, title, body) => {
+    const creator = getRequestCreator(request);
+    if (!creator?.id || creator.id === currentUser?.id) return;
+
+    await sendNotificationToUser(
+      creator.id,
+      title,
+      body,
+      {
+        route: 'Inventory',
+        type: 'inventory_request_status',
+        request_id: request.id,
+        store_id: request.store_id,
+      },
+      {
+        type: 'inventory_request_status',
+        route: 'Inventory',
+        storeId: request.store_id,
+        actorUserId: currentUser?.id,
+      },
+    );
+  };
+
   const runOperation = async (key, operation) => {
     setBusyKey(key);
     try {
@@ -221,9 +306,7 @@ export default function InventoryScreen({ navigation }) {
       await createInventoryRequest(request);
       setInventoryRequests((current) => [normalizeInventoryRequest(request), ...current]);
 
-      getManagersPushTokens(selectedStock.store_id).then(tokens => {
-        tokens.forEach(token => sendPushNotification(token, 'Phiếu Kho Mới', `${request.requested_by_name} vừa tạo 1 phiếu ${ACTIONS[finalType].label}`));
-      });
+      await notifyInventoryApprovers(request, finalType);
 
       Alert.alert('Đã gửi phiếu', 'Yêu cầu đã được lưu và chuyển đến cấp duyệt tiếp theo.');
     }
@@ -237,10 +320,11 @@ export default function InventoryScreen({ navigation }) {
         item.id === request.id ? { ...item, status: 'REJECTED' } : item
       )));
 
-      const creator = staffList?.find(s => s.name === request.requested_by_name);
-      if (creator?.push_token) {
-        sendPushNotification(creator.push_token, 'Phiếu Bị Từ Chối', `Phiếu ${ACTIONS[request.type]?.label || request.type} của bạn đã bị từ chối.`);
-      }
+      await notifyRequestCreator(
+        request,
+        'Phiếu bị từ chối',
+        `Phiếu ${ACTIONS[request.type]?.label || request.type} của bạn đã bị từ chối.`,
+      );
 
       Alert.alert('Đã từ chối', 'Phiếu yêu cầu đã được đóng.');
       return;
@@ -255,10 +339,29 @@ export default function InventoryScreen({ navigation }) {
         item.id === request.id ? { ...item, status: 'PENDING_OWNER' } : item
       )));
 
-      const creator = staffList?.find(s => s.name === request.requested_by_name);
-      if (creator?.push_token) {
-        sendPushNotification(creator.push_token, 'Đang Xử Lý Phiếu', `Phiếu ${ACTIONS[request.type]?.label || request.type} đã qua bước quản lý, chờ duyệt cuối.`);
-      }
+      await notifyRequestCreator(
+        request,
+        'Phiếu đã qua bước quản lý',
+        `Phiếu ${ACTIONS[request.type]?.label || request.type} đang chờ chủ cửa hàng duyệt cuối.`,
+      );
+
+      await sendNotificationToUsers(
+        getOwnerRecipientIds(),
+        'Phiếu kho chờ duyệt cuối',
+        `${request.requested_by_name || 'Nhân viên'} có phiếu ${ACTIONS[request.type]?.label || request.type} đang chờ duyệt.`,
+        {
+          route: 'Inventory',
+          type: 'inventory_request_owner_review',
+          request_id: request.id,
+          store_id: request.store_id,
+        },
+        {
+          type: 'inventory_request_owner_review',
+          route: 'Inventory',
+          storeId: request.store_id,
+          actorUserId: currentUser?.id,
+        },
+      );
 
       Alert.alert('Đã duyệt bước 1', 'Phiếu đang chờ chủ cửa hàng phê duyệt cuối.');
       return;
@@ -282,10 +385,11 @@ export default function InventoryScreen({ navigation }) {
       await refreshData?.();
     }
 
-    const creator = staffList?.find(s => s.name === request.requested_by_name);
-    if (creator?.push_token) {
-      sendPushNotification(creator.push_token, 'Phiếu Đã Duyệt ✅', `Phiếu ${ACTIONS[request.type]?.label || request.type} của bạn đã được duyệt thành công!`);
-    }
+    await notifyRequestCreator(
+      request,
+      'Phiếu đã duyệt ✅',
+      `Phiếu ${ACTIONS[request.type]?.label || request.type} của bạn đã được duyệt thành công.`,
+    );
 
     Alert.alert('Đã duyệt phiếu', 'Giao dịch đã được ghi vào sổ kho.');
   });
@@ -423,6 +527,7 @@ export default function InventoryScreen({ navigation }) {
         </View>
 
         <ScrollView
+          style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scrollContent}

@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import * as Updates from 'expo-updates';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen({ navigation }) {
   const [phone, setPhone] = useState('');
@@ -26,6 +27,37 @@ export default function LoginScreen({ navigation }) {
     dataError,
     refreshData,
   } = useContext(AppContext);
+
+  useEffect(() => {
+    const autoLogin = async () => {
+      if (isDataLoading) return;
+      try {
+        const storedPhone = await AsyncStorage.getItem('userPhone');
+        if (!storedPhone) return;
+
+        if (storedPhone === '0900000000') {
+          setCurrentUser({
+            id: 'owner_1',
+            name: 'Chủ Cửa Hàng',
+            role: 'OWNER',
+            store_id: null,
+            permissions: {},
+          });
+          navigation.replace('Dashboard');
+          return;
+        }
+
+        const user = staffList.find((staff) => staff.phone === storedPhone);
+        if (user && user.hasAppAccess !== false) {
+          setCurrentUser({ ...user, role: user.role || 'STAFF' });
+          navigation.replace('Dashboard');
+        }
+      } catch (e) {
+        console.log('Lỗi auto login:', e);
+      }
+    };
+    autoLogin();
+  }, [isDataLoading, staffList]);
 
   const handleLogin = async () => {
     const normalizedPhone = phone.replace(/\s/g, '');
@@ -44,6 +76,7 @@ export default function LoginScreen({ navigation }) {
           store_id: null,
           permissions: {},
         });
+        await AsyncStorage.setItem('userPhone', normalizedPhone);
         navigation.replace('Dashboard');
         return;
       }
@@ -53,7 +86,7 @@ export default function LoginScreen({ navigation }) {
         Alert.alert('Không tìm thấy tài khoản', 'Số điện thoại chưa được đăng ký trong hệ thống.');
         return;
       }
-      if (password !== '123') {
+      if (password !== (user.password || '123')) {
         Alert.alert('Đăng nhập thất bại', 'Mật khẩu không đúng.');
         return;
       }
@@ -63,6 +96,7 @@ export default function LoginScreen({ navigation }) {
       }
 
       setCurrentUser({ ...user, role: user.role || 'STAFF' });
+      await AsyncStorage.setItem('userPhone', normalizedPhone);
       navigation.replace('Dashboard');
     } finally {
       setIsSigningIn(false);

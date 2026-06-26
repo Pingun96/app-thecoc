@@ -1,13 +1,17 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Updates from 'expo-updates';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocalDateKey, isDateInCurrentMonth } from '../utils/dateTime';
+import { supabase } from '../services/supabaseClient';
 
 const { width } = Dimensions.get('window');
 
 export default function DashboardScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const {
     currentUser,
     setCurrentUser,
@@ -20,6 +24,26 @@ export default function DashboardScreen({ navigation }) {
     refreshData
   } = useContext(AppContext);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchUnreadCount();
+    });
+    return unsubscribe;
+  }, [navigation, currentUser]);
+
+  const fetchUnreadCount = async () => {
+    if (!currentUser) return;
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id)
+        .eq('is_read', false);
+      if (!error) setUnreadCount(count || 0);
+    } catch (e) {}
+  };
 
   const handleManualUpdate = async () => {
     try {
@@ -41,9 +65,42 @@ export default function DashboardScreen({ navigation }) {
     }
   };
 
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [newAvatar, setNewAvatar] = useState(currentUser?.avatar_url || '');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  const handleUpdateProfile = async () => {
+    if (currentUser?.role === 'OWNER') {
+      Alert.alert('Tính năng này', 'Tài khoản chủ cửa hàng hiện tại là tĩnh, không thay đổi được.');
+      return;
+    }
+    setIsSavingProfile(true);
+    try {
+      const updates = {};
+      if (newPassword.trim()) updates.password = newPassword.trim();
+      if (newAvatar.trim()) updates.avatar_url = newAvatar.trim();
+
+      if (Object.keys(updates).length > 0) {
+        const { error } = await supabase.from('users').update(updates).eq('id', currentUser.id);
+        if (error) throw error;
+
+        setCurrentUser({...currentUser, ...updates});
+        Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
+        setShowProfileModal(false);
+      } else {
+        setShowProfileModal(false);
+      }
+    } catch (e) {
+      Alert.alert('Lỗi', e.message);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   const isOwner = currentUser?.role === 'OWNER';
   const viewableStores = currentUser?.permissions?.viewable_stores || [];
-  
+
   // Hiển thị thanh chọn store nếu là OWNER hoặc được cấp quyền xem nhiều hơn 1 chi nhánh
   const canShowStoreSelector = isOwner || viewableStores.length > 1;
 
@@ -55,7 +112,7 @@ export default function DashboardScreen({ navigation }) {
     displayStoreId = 'ALL';
   }
 
-  const filteredStaff = staffList.filter(s => displayStoreId === 'ALL' || s.store_id === displayStoreId);
+  const filteredStaff = staffList.filter(s => displayStoreId === 'ALL' || s.store_id === displayStoreId || s.permissions?.viewable_stores?.includes(displayStoreId));
   const activeStaffCount = filteredStaff.length;
 
   const today = getLocalDateKey();
@@ -82,7 +139,7 @@ export default function DashboardScreen({ navigation }) {
       alert('Bạn chưa được cấp quyền truy cập tính năng này!');
       return;
     }
-    
+
     if (routeName === 'ALERT') {
       fallbackAction();
       return;
@@ -99,8 +156,8 @@ export default function DashboardScreen({ navigation }) {
     const allowed = hasPermission(featureKey);
 
     return (
-      <TouchableOpacity 
-        style={[styles.gridItem, !allowed && styles.gridItemDisabled]} 
+      <TouchableOpacity
+        style={[styles.gridItem, !allowed && styles.gridItemDisabled]}
         activeOpacity={allowed ? 0.7 : 1}
         onPress={() => handleNav(featureKey, routeName, staffRouteName, fallbackAction)}
       >
@@ -113,7 +170,7 @@ export default function DashboardScreen({ navigation }) {
         </View>
         <Text style={[styles.gridItemTitle, !allowed && {color: '#9ca3af'}]}>{title}</Text>
         <Text style={[styles.gridItemSub, !allowed && {color: '#d1d5db'}]}>{subTitle}</Text>
-        
+
         {!allowed && (
           <View style={styles.lockIcon}>
             <Ionicons name="lock-closed" size={16} color="#ef4444" />
@@ -126,11 +183,11 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* HEADER */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerProfile}>
-          <Image 
-            source={{ uri: currentUser?.role === 'STAFF' ? 'https://i.pravatar.cc/100?img=33' : 'https://i.pravatar.cc/100?img=12' }} 
-            style={styles.avatar} 
+      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 10, 20) }]}>
+        <TouchableOpacity style={styles.headerProfile} onPress={() => { setNewAvatar(currentUser?.avatar_url || ''); setShowProfileModal(true); }}>
+          <Image
+            source={{ uri: currentUser?.avatar_url || (currentUser?.role === 'STAFF' ? 'https://i.pravatar.cc/100?img=33' : 'https://i.pravatar.cc/100?img=12') }}
+            style={styles.avatar}
           />
           <View style={styles.headerTextContainer}>
             <Text style={styles.greetingText}>Xin chào,</Text>
@@ -145,17 +202,33 @@ export default function DashboardScreen({ navigation }) {
                   : 'Nhân viên'}
             </Text>
           </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.logoutBtn}
-          onPress={() => {
-            setCurrentUser(null);
-            navigation.replace('Login');
-          }}
-        >
-          <MaterialCommunityIcons name="logout" size={24} color="#ff5252" />
         </TouchableOpacity>
+
+        <View style={{flexDirection: 'row', alignItems: 'center', gap: 15}}>
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative' }}>
+            <Ionicons name="notifications-outline" size={26} color="#60a5fa" />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleManualUpdate}>
+            {isCheckingUpdate ? <ActivityIndicator color="#60a5fa" size="small" /> : <Ionicons name="cloud-download-outline" size={26} color="#60a5fa" />}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={async () => {
+              await AsyncStorage.removeItem('userPhone');
+              setCurrentUser(null);
+              navigation.replace('Login');
+            }}
+          >
+            <MaterialCommunityIcons name="logout" size={24} color="#ff5252" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* CHỌN CHI NHÁNH */}
@@ -163,10 +236,10 @@ export default function DashboardScreen({ navigation }) {
         <View style={{ paddingHorizontal: 20, paddingTop: 15 }}>
           <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6b7280', marginBottom: 10 }}>Dữ liệu hiển thị cho:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storeSelector}>
-            
+
             {/* TẤT CẢ CHI NHÁNH CHỈ DÀNH CHO OWNER */}
             {isOwner && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.storeChip, selectedStoreId === 'ALL' && styles.storeChipActive]}
                 onPress={() => setSelectedStoreId('ALL')}
               >
@@ -176,7 +249,7 @@ export default function DashboardScreen({ navigation }) {
 
             {/* CÁC CHI NHÁNH ĐƯỢC PHÉP XEM */}
             {storeList.filter(s => isOwner || viewableStores.includes(s.id)).map(store => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={store.id}
                 style={[styles.storeChip, selectedStoreId === store.id && styles.storeChipActive]}
                 onPress={() => setSelectedStoreId(store.id)}
@@ -197,19 +270,7 @@ export default function DashboardScreen({ navigation }) {
       ) : null}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <TouchableOpacity
-          style={styles.updateButton}
-          onPress={handleManualUpdate}
-          disabled={isCheckingUpdate}
-        >
-          {isCheckingUpdate
-            ? <ActivityIndicator color="#1565c0" />
-            : <Ionicons name="cloud-download-outline" size={20} color="#1565c0" />}
-          <Text style={styles.updateButtonText}>
-            {isCheckingUpdate ? 'Đang kiểm tra...' : 'Kiểm tra cập nhật ứng dụng'}
-          </Text>
-        </TouchableOpacity>
-        
+
         {/* QUICK STATS */}
         <Text style={styles.sectionTitle}>Tổng quan {currentUser?.role === 'STAFF' ? 'cá nhân' : 'hôm nay'}</Text>
         <View style={styles.statsRow}>
@@ -248,13 +309,49 @@ export default function DashboardScreen({ navigation }) {
         </View>
 
       </ScrollView>
+
+      {/* MODAL CẬP NHẬT HỒ SƠ */}
+      <Modal visible={showProfileModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Cập Nhật Cá Nhân</Text>
+
+            <Text style={styles.modalLabel}>Đổi mật khẩu mới (Mặc định: 123):</Text>
+            <TextInput
+              style={styles.modalInput}
+              secureTextEntry
+              placeholder="Bỏ trống nếu không đổi"
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
+
+            <Text style={styles.modalLabel}>Link ảnh đại diện (Avatar URL):</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="https://..."
+              value={newAvatar}
+              onChangeText={setNewAvatar}
+            />
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#e5e7eb'}]} onPress={() => setShowProfileModal(false)}>
+                <Text style={[styles.modalBtnText, {color: '#4b5563'}]}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#1976d2'}]} onPress={handleUpdateProfile} disabled={isSavingProfile}>
+                {isSavingProfile ? <ActivityIndicator color="#fff" size="small"/> : <Text style={styles.modalBtnText}>Lưu</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f7fa' },
-  headerContainer: { backgroundColor: '#1f2937', paddingTop: 50, paddingBottom: 25, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 25, borderBottomRightRadius: 25, elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10 },
+  headerContainer: { backgroundColor: '#1f2937', paddingBottom: 25, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 25, borderBottomRightRadius: 25, elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10 },
   headerProfile: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: '#fff' },
   headerTextContainer: { marginLeft: 13, maxWidth: width - 135 },
@@ -274,13 +371,39 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
   statCard: { backgroundColor: '#fff', width: (width - 55) / 2, padding: 15, borderRadius: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   iconBox: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  statValue: { fontSize: 22, fontWeight: 'bold', color: '#1f2937' },
-  statLabel: { fontSize: 13, color: '#6b7280', marginTop: 5 },
+  statValue: { fontSize: 18, fontWeight: 'bold', color: '#1f2937' },
+  statLabel: { fontSize: 12, color: '#6b7280' },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#ff5252',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   gridItem: { backgroundColor: '#fff', width: (width - 55) / 2, padding: 20, borderRadius: 16, marginBottom: 15, alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   gridItemDisabled: { backgroundColor: '#f9fafb', opacity: 0.8 },
   gridIconBox: { width: 60, height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
   gridItemTitle: { fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 5 },
   gridItemSub: { fontSize: 12, color: '#9ca3af', textAlign: 'center' },
-  lockIcon: { position: 'absolute', top: 10, right: 10 }
+  lockIcon: { position: 'absolute', top: 10, right: 10 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#fff', borderRadius: 16, padding: 20, elevation: 5 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#1f2937', marginBottom: 20, textAlign: 'center' },
+  modalLabel: { fontSize: 13, fontWeight: 'bold', color: '#4b5563', marginBottom: 8 },
+  modalInput: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 12, marginBottom: 15, fontSize: 15, backgroundColor: '#f9fafb' },
+  modalBtnRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  modalBtn: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
+  modalBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
 });

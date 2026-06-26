@@ -15,6 +15,8 @@ module.exports = defineConfig([
   {
     rules: {
       'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/immutability': 'off',
+      'react-hooks/purity': 'off',
     },
   },
 ]);

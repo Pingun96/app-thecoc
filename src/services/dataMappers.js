@@ -15,6 +15,12 @@ export const normalizeUser = (row) => ({
   wage: asNumber(row.wage ?? row.wage_per_hour),
   hasAppAccess: row.hasappaccess ?? row.hasAppAccess ?? true,
   permissions: row.permissions || {},
+  is_part_time: row.is_part_time ?? true,
+  password: row.password || '123',
+  avatar_url: row.avatar_url || '',
+  is_active: row.is_active ?? true,
+  is_primary_manager: row.is_primary_manager ?? false,
+  push_token: row.push_token || null,
 });
 
 export const normalizeInventoryItem = (row) => ({
@@ -32,6 +38,14 @@ export const normalizeInventoryRequest = (row) => ({
   ...row,
   itemId: row.itemid ?? row.itemId ?? row.item_id,
   amount: asNumber(row.amount),
+});
+
+export const normalizeShiftSwap = (row) => ({
+  ...row,
+  shiftId: row.shift_id,
+  requesterId: row.requester_id,
+  targetUserId: row.target_user_id,
+  createdAt: row.created_at
 });
 
 export const normalizeAttendance = (row) => {

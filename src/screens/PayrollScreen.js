@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Ref
 import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
+import { sendPushNotification } from '../services/NotificationService';
 
 export default function PayrollScreen({ navigation }) {
   const { currentUser, attendanceHistory, staffList, payrollAdjustments, setPayrollAdjustments, payrollApprovals, setPayrollApprovals, refreshData, isDataLoading } = useContext(AppContext);
@@ -116,7 +117,7 @@ export default function PayrollScreen({ navigation }) {
       setShowAdjModal(false);
       Alert.alert('Thành công', 'Đã lưu điều chỉnh thưởng/phạt!');
     } catch (e) {
-      Alert.alert('Lỗi', 'Không thể lưu. Kiểm tra kết nối mạng!');
+      Alert.alert('Lỗi', e.message || 'Không thể lưu. Kiểm tra kết nối mạng!');
     } finally {
       setIsSavingAdj(false);
     }
@@ -154,6 +155,16 @@ export default function PayrollScreen({ navigation }) {
       const newApprovals = [...(payrollApprovals || []).filter(a => a.id !== updates.id), updates];
       setPayrollApprovals(newApprovals);
       Alert.alert('Thành công', 'Đã xác nhận phiếu lương!');
+
+      // Send notification
+      const targetStaff = staffList.find(s => s.id === staffItem.id);
+      if (targetStaff) {
+        if (roleType === 'MANAGER') {
+          sendPushNotification(targetStaff.push_token, 'Duyệt lương (Quản lý) 🟢', `Quản lý đã xác nhận phiếu lương tháng ${targetMonthStr} của bạn.`, {}, targetStaff.id);
+        } else if (roleType === 'OWNER') {
+          sendPushNotification(targetStaff.push_token, 'Chốt lương (Chủ cửa hàng) ✅', `Chủ cửa hàng đã chốt phiếu lương tháng ${targetMonthStr} của bạn.`, {}, targetStaff.id);
+        }
+      }
     } catch (e) {
       Alert.alert('Lỗi xác nhận', e.message);
     }
@@ -265,6 +276,7 @@ export default function PayrollScreen({ navigation }) {
       </View>
 
       <ScrollView 
+        style={{ flex: 1 }}
         contentContainerStyle={{padding: 20, paddingBottom: 100}}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
       >
