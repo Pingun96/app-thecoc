@@ -181,9 +181,11 @@ export default function ShiftScreen({ navigation }) {
 
   const handleApproveShiftReport = async (shift) => {
     try {
-      const { error } = await supabase.from('shifts').update({ status: 'CLOSED' }).eq('id', shift.id);
+      const nowStr = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) + ' ' + new Date().toLocaleDateString('vi-VN');
+      const updateData = { status: 'CLOSED', approved_by_name: currentUser.name, approved_at: nowStr };
+      const { error } = await supabase.from('shifts').update(updateData).eq('id', shift.id);
       if (error) throw error;
-      setShifts(shifts.map(s => s.id === shift.id ? { ...s, status: 'CLOSED' } : s));
+      setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
       alert('Đã duyệt chốt ca thành công!');
 
       // Notify the person who closed the shift
@@ -269,9 +271,12 @@ export default function ShiftScreen({ navigation }) {
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={{marginBottom: 15}}>
                 <Text style={{fontWeight: 'bold'}}>Chi nhánh: {storeList.find(s=>s.id===item.store_id)?.name}</Text>
-                <Text>Mở: {item.opened_at} ({item.opened_by_name})</Text>
-                <Text>Đóng: {item.closed_at} ({item.closed_by_name})</Text>
-                <Text style={{fontWeight: 'bold', color: item.status === 'CLOSED' ? '#4caf50' : '#f59e0b'}}>Trạng thái: {item.status === 'CLOSED' ? 'Đã duyệt' : 'Chờ duyệt'}</Text>
+                <Text>Người mở ca: {item.opened_by_name} lúc {item.opened_at}</Text>
+                <Text>Người nộp báo cáo: {item.closed_by_name} lúc {item.closed_at}</Text>
+                {item.status === 'CLOSED' && item.approved_by_name && (
+                  <Text style={{color: '#4caf50', fontWeight: 'bold'}}>Người duyệt báo cáo: {item.approved_by_name} lúc {item.approved_at}</Text>
+                )}
+                <Text style={{fontWeight: 'bold', color: item.status === 'CLOSED' ? '#4caf50' : '#f59e0b', marginTop: 5}}>Trạng thái: {item.status === 'CLOSED' ? 'Đã duyệt' : 'Chờ duyệt'}</Text>
               </View>
 
               <Text style={[styles.sectionTitle, {fontSize: 14}]}>KIỂM KÊ KHO HÀNG</Text>

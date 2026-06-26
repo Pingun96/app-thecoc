@@ -137,15 +137,22 @@ export default function PayrollScreen({ navigation }) {
       status: currentApproval.status || 'DRAFT'
     };
     
+    const nowStr = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) + ' ' + new Date().toLocaleDateString('vi-VN');
+
     if (roleType === 'STAFF') {
       updates.staff_confirmed = true;
       updates.status = 'STAFF_APPROVED';
+      updates.staff_confirmed_at = nowStr;
     } else if (roleType === 'MANAGER') {
       updates.manager_confirmed = true;
       updates.status = 'MANAGER_APPROVED';
+      updates.manager_confirmed_by = currentUser.name;
+      updates.manager_confirmed_at = nowStr;
     } else if (roleType === 'OWNER') {
       updates.owner_confirmed = true;
       updates.status = 'FINALIZED';
+      updates.owner_confirmed_by = currentUser.name;
+      updates.owner_confirmed_at = nowStr;
     }
     
     try {
@@ -181,7 +188,12 @@ export default function PayrollScreen({ navigation }) {
       staff_confirmed: false,
       manager_confirmed: false,
       owner_confirmed: false,
-      status: 'DRAFT'
+      status: 'DRAFT',
+      staff_confirmed_at: null,
+      manager_confirmed_by: null,
+      manager_confirmed_at: null,
+      owner_confirmed_by: null,
+      owner_confirmed_at: null
     };
 
     try {
@@ -200,7 +212,7 @@ export default function PayrollScreen({ navigation }) {
   };
 
   const renderApprovalProgress = (item) => {
-    const { staff_confirmed, manager_confirmed, owner_confirmed } = item.approval;
+    const { staff_confirmed, manager_confirmed, owner_confirmed, staff_confirmed_at, manager_confirmed_by, manager_confirmed_at, owner_confirmed_by, owner_confirmed_at } = item.approval || {};
     const isLocked = owner_confirmed; // Khóa điều chỉnh nếu Owner đã chốt
     
     return (
@@ -216,15 +228,24 @@ export default function PayrollScreen({ navigation }) {
 
         <View style={styles.stepRow}>
           <Ionicons name={staff_confirmed ? "checkmark-circle" : "ellipse-outline"} size={20} color={staff_confirmed ? "#4CAF50" : "#ccc"} />
-          <Text style={[styles.stepText, staff_confirmed && styles.stepTextActive]}>1. Nhân viên xác nhận giờ & lương</Text>
+          <View>
+            <Text style={[styles.stepText, staff_confirmed && styles.stepTextActive]}>1. Nhân viên xác nhận giờ & lương</Text>
+            {staff_confirmed && staff_confirmed_at && <Text style={{fontSize: 11, color: '#6b7280', marginTop: 2, marginLeft: 5}}>Lúc: {staff_confirmed_at}</Text>}
+          </View>
         </View>
         <View style={styles.stepRow}>
           <Ionicons name={manager_confirmed ? "checkmark-circle" : "ellipse-outline"} size={20} color={manager_confirmed ? "#4CAF50" : "#ccc"} />
-          <Text style={[styles.stepText, manager_confirmed && styles.stepTextActive]}>2. Quản lý duyệt phiếu lương</Text>
+          <View>
+            <Text style={[styles.stepText, manager_confirmed && styles.stepTextActive]}>2. Quản lý duyệt phiếu lương</Text>
+            {manager_confirmed && manager_confirmed_by && <Text style={{fontSize: 11, color: '#6b7280', marginTop: 2, marginLeft: 5}}>Duyệt bởi: {manager_confirmed_by} - {manager_confirmed_at}</Text>}
+          </View>
         </View>
         <View style={styles.stepRow}>
           <Ionicons name={owner_confirmed ? "checkmark-circle" : "ellipse-outline"} size={20} color={owner_confirmed ? "#4CAF50" : "#ccc"} />
-          <Text style={[styles.stepText, owner_confirmed && styles.stepTextActive]}>3. Chủ quán chốt (Hoàn tất)</Text>
+          <View>
+            <Text style={[styles.stepText, owner_confirmed && styles.stepTextActive]}>3. Chủ quán chốt (Hoàn tất)</Text>
+            {owner_confirmed && owner_confirmed_by && <Text style={{fontSize: 11, color: '#6b7280', marginTop: 2, marginLeft: 5}}>Duyệt bởi: {owner_confirmed_by} - {owner_confirmed_at}</Text>}
+          </View>
         </View>
 
         {/* Nút thao tác */}
