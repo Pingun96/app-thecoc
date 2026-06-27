@@ -16,7 +16,13 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "RECORD_AUDIO",
-        "NOTIFICATIONS"
+        "NOTIFICATIONS",
+        "READ_CONTACTS",
+        "WRITE_CONTACTS",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -66,9 +72,49 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Ứng dụng cần quyền vị trí để xác minh vị trí khi chấm công.",
-          "locationWhenInUsePermission": "Ứng dụng cần quyền vị trí để xác minh vị trí khi chấm công."
+          "locationAlwaysAndWhenInUsePermission": "App The Cốc cần truy cập vị trí của bạn để xác thực tọa độ chấm công, đảm bảo bạn đang có mặt tại cửa hàng khi check-in/out.",
+          "locationWhenInUsePermission": "App The Cốc cần quyền vị trí để xác minh bạn đang ở đúng chi nhánh làm việc."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "App The Cốc cần sử dụng Camera để bạn chụp ảnh mặt khi chấm công và quét mã vạch sản phẩm."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "App The Cốc cần quyền truy cập thư viện ảnh để bạn có thể chọn và tải ảnh lên hệ thống."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "App The Cốc cần quyền truy cập danh bạ để bạn có thể dễ dàng chọn liên hệ chia sẻ thông tin."
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "App The Cốc cần quyền truy cập lịch để đồng bộ ca làm việc vào lịch của bạn."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "App The Cốc dùng FaceID/Vân tay để đăng nhập nhanh chóng và bảo mật hơn."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "App The Cốc cần quyền sử dụng Micro để hỗ trợ các tính năng gọi/ghi âm khi cần thiết."
+        }
+      ],
+      [
+        "expo-document-picker",
+        {}
       ]
     ],
     "owner": "pingun96",
