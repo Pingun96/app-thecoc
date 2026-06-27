@@ -123,7 +123,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [inventoryLogs, setInventoryLogs] = useState([]);
-  const [inventoryRequests, setInventoryRequests] = useState([]);
+  const [inventoryTickets, setInventoryTickets] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [shiftRegistrations, setShiftRegistrations] = useState([]);
@@ -143,7 +143,7 @@ export default function App() {
         supabase.from('users').select('*'),
         supabase.from('inventory_items').select('*'),
         supabase.from('inventory_logs').select('*'),
-        supabase.from('inventory_requests').select('*'),
+        supabase.from('inventory_tickets').select('*'),
         supabase.from('shifts').select('*'),
         supabase.from('attendance_logs').select('*'),
         supabase.from('shift_registrations').select('*'),
@@ -173,7 +173,7 @@ export default function App() {
       setStaffList((usersRes.data || []).map(normalizeUser));
       setInventoryItems((itemsRes.data || []).map(normalizeInventoryItem));
       setInventoryLogs((logsRes.data || []).map(normalizeInventoryLog));
-      setInventoryRequests((reqsRes.data || []).map(normalizeInventoryRequest));
+      setInventoryTickets(reqsRes.data || []);
       setShifts(shiftsRes.data || []);
       setAttendanceHistory((attendanceRes.data || []).map(normalizeAttendance));
       setShiftRegistrations(regRes.data || []);
@@ -263,7 +263,7 @@ export default function App() {
       shiftRegistrations, setShiftRegistrations,
       inventoryItems, setInventoryItems,
       inventoryLogs, setInventoryLogs,
-      inventoryRequests, setInventoryRequests,
+      inventoryTickets, setInventoryTickets,
       shifts, setShifts,
       payrollAdjustments, setPayrollAdjustments,
       payrollApprovals, setPayrollApprovals,

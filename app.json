@@ -62,6 +62,13 @@
           "photosPermission": "Ứng dụng cần quyền truy cập thư viện ảnh để tải lên báo cáo ca.",
           "cameraPermission": "Ứng dụng cần quyền truy cập camera để chụp ảnh báo cáo ca."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Ứng dụng cần quyền vị trí để xác minh vị trí khi chấm công.",
+          "locationWhenInUsePermission": "Ứng dụng cần quyền vị trí để xác minh vị trí khi chấm công."
+        }
       ]
     ],
     "owner": "pingun96",

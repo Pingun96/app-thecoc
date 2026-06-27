@@ -8,7 +8,7 @@ import { supabase } from '../services/supabaseClient';
 import { sendPushNotification } from '../services/NotificationService';
 
 export default function ShiftScreen({ navigation }) {
-  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory, payrollAdjustments, setPayrollAdjustments } = useContext(AppContext);
+  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory, payrollAdjustments, setPayrollAdjustments, inventoryLogs } = useContext(AppContext);
 
   const formatMoneyInput = (val) => {
     if (!val) return '';
@@ -321,6 +321,50 @@ export default function ShiftScreen({ navigation }) {
       if (error) throw error;
       setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
       setSelectedShiftForDetail(null);
+      
+      // Tự động ghi log trừ kho
+      if (shift.inventory_check && shift.inventory_check.length > 0) {
+        try {
+          const logsToInsert = [];
+          const d = new Date();
+          const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          
+          for (const inv of shift.inventory_check) {
+            const itemLogs = inventoryLogs.filter(l => l.itemId === inv.id && l.store_id === shift.store_id);
+            const currentStock = itemLogs.reduce((acc, curr) => {
+              if (curr.type === 'IMPORT' || curr.type === 'ADJUST_UP') return acc + curr.amount;
+              if (curr.type === 'EXPORT' || curr.type === 'ADJUST_DOWN') return acc - curr.amount;
+              return acc;
+            }, 0);
+
+            const difference = currentStock - inv.end;
+            if (difference > 0) {
+              logsToInsert.push({
+                id: `log_shift_${shift.id}_${inv.id}_exp_${Date.now()}`,
+                itemid: inv.id,
+                type: 'EXPORT',
+                amount: difference,
+                date: localDateStr,
+                store_id: shift.store_id
+              });
+            } else if (difference < 0) {
+              logsToInsert.push({
+                id: `log_shift_${shift.id}_${inv.id}_adj_${Date.now()}`,
+                itemid: inv.id,
+                type: 'ADJUST_UP',
+                amount: Math.abs(difference),
+                date: localDateStr,
+                store_id: shift.store_id
+              });
+            }
+          }
+          if (logsToInsert.length > 0) {
+            await supabase.from('inventory_logs').insert(logsToInsert);
+          }
+        } catch(e) {
+          console.error("Lỗi khi đồng bộ kho:", e);
+        }
+      }
       
       // Tự động ghi log trừ tiền nếu lệch két âm
       if (shift.discrepancy < 0 && shift.closed_by) {

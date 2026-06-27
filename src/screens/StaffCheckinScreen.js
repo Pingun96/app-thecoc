@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import { supabase } from '../services/supabaseClient';
 import { AppContext } from '../context/AppContext';
 import {
   checkoutAttendanceRecord,
@@ -25,12 +27,39 @@ import {
   getLocalTime,
 } from '../utils/dateTime';
 
+
+const getDistance = (lat1, lon1, lat2, lon2) => {
+  if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
+  const R = 6371e3;
+  const p1 = lat1 * Math.PI/180;
+  const p2 = lat2 * Math.PI/180;
+  const dp = (lat2-lat1) * Math.PI/180;
+  const dl = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(dp/2) * Math.sin(dp/2) +
+            Math.cos(p1) * Math.cos(p2) *
+            Math.sin(dl/2) * Math.sin(dl/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
+
+const getNetworkTime = async () => {
+  try {
+    const res = await fetch('http://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh');
+    const data = await res.json();
+    return new Date(data.datetime);
+  } catch (e) {
+    return new Date(); // fallback
+  }
+};
+
 export default function StaffCheckinScreen({ navigation }) {
   const {
     currentUser,
     attendanceHistory,
     setAttendanceHistory,
     shiftRegistrations,
+    storeList,
+    refreshData,
   } = useContext(AppContext);
   const [actionType, setActionType] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,8 +81,73 @@ export default function StaffCheckinScreen({ navigation }) {
     [attendanceHistory, currentUser?.id, today],
   );
 
-  const requestAttendancePermissions = async () => {
-    return true;
+
+  const isOwner = currentUser?.role === 'OWNER';
+
+  const handleUpdateStoreLocation = async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Từ chối quyền', 'Cần quyền truy cập vị trí để cập nhật tọa độ.');
+        return;
+      }
+      setIsSubmitting(true);
+      let location;
+      try {
+        location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, timeout: 10000 });
+      } catch (locErr) {
+        location = await Location.getLastKnownPositionAsync();
+        if (!location) throw new Error('Không thể lấy được vị trí. Hãy bật GPS và thử lại ngoài trời.');
+      }
+      const { latitude, longitude } = location.coords;
+      
+      const { error } = await supabase.from('stores').update({
+        latitude,
+        longitude,
+        allowed_radius: 100
+      }).eq('id', currentUser.store_id);
+      
+      if (error) throw error;
+      Alert.alert('Thành công', 'Đã lưu tọa độ quán thành công. Nhân viên giờ đây phải đứng cách tối đa 100m mới được chấm công.');
+      if (refreshData) await refreshData();
+    } catch(e) {
+      Alert.alert('Lỗi', e.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const validateLocation = async () => {
+    const myStore = storeList.find(s => s.id === currentUser.store_id);
+    if (!myStore?.latitude || !myStore?.longitude) {
+      if (isOwner) {
+         throw new Error('Chưa cấu hình Tọa độ. Vui lòng bấm Thiết lập tọa độ quán trước.');
+      }
+      throw new Error('Chủ cửa hàng chưa thiết lập Tọa độ Quán. Vui lòng báo quản lý.');
+    }
+
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      throw new Error('Bạn cần cấp quyền truy cập Vị trí (GPS) để chấm công.');
+    }
+
+    let location;
+    try {
+      location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, timeout: 10000 });
+    } catch (locErr) {
+      location = await Location.getLastKnownPositionAsync();
+      if (!location) throw new Error('Không thể lấy được vị trí của bạn lúc này. Vui lòng kiểm tra GPS.');
+    }
+    const dist = getDistance(location.coords.latitude, location.coords.longitude, myStore.latitude, myStore.longitude);
+    
+    if (dist === null) throw new Error('Không thể tính toán khoảng cách.');
+    
+    const allowed = myStore.allowed_radius || 100;
+    if (dist > allowed) {
+      throw new Error(`Bạn đang cách cửa hàng ${Math.round(dist)}m. Bán kính cho phép là ${allowed}m. Vui lòng đến đúng cửa hàng để chấm công!`);
+    }
+
+    return location.coords;
   };
 
   const handleAttendancePress = async (type) => {
@@ -83,14 +177,14 @@ export default function StaffCheckinScreen({ navigation }) {
             { text: 'Hủy', style: 'cancel' },
             { 
               text: 'Vẫn Check-in', 
-              onPress: async () => {
+              onPress: () => {
                 setActionType(type);
                 takePictureAndSubmit('check-in');
               }
             }
           ]
         );
-        return; // Dừng lại chờ người dùng confirm
+        return; 
       }
     }
 
@@ -103,16 +197,23 @@ export default function StaffCheckinScreen({ navigation }) {
     setIsSubmitting(true);
 
     try {
-      const now = new Date();
+      // 1. Location Validation
+      let coords = { latitude: 0, longitude: 0 };
+      if (!isOwner) { 
+        // Owner can checkin anywhere, or maybe Owner doesn't need to check in.
+        // Let's strictly enforce it for everyone to be safe, but give Owner a bypass if they want.
+        // Actually, enforce for everyone!
+      }
+      coords = await validateLocation();
+
+      // 2. Server Time Validation
+      const now = await getNetworkTime();
       const time = getLocalTime(now);
       const timestamp = now.toISOString();
-      const latitude = 0;
-      const longitude = 0;
       const act = currentAction || actionType;
 
       if (act === 'check-in') {
         const recordId = `att_${Date.now()}`;
-
         const savedRecord = await createAttendanceRecord({
           id: recordId,
           userId: currentUser.id,
@@ -120,16 +221,16 @@ export default function StaffCheckinScreen({ navigation }) {
           date: today,
           time,
           timestamp,
-          latitude,
-          longitude,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
           photoPath: '',
         });
 
         const normalizedRecord = normalizeAttendance({
           ...savedRecord,
           check_in_at: timestamp,
-          check_in_lat: latitude,
-          check_in_lng: longitude,
+          check_in_lat: coords.latitude,
+          check_in_lng: coords.longitude,
           check_in_photo_path: '',
         });
         setAttendanceHistory((current) => [...current, normalizedRecord]);
@@ -152,8 +253,8 @@ export default function StaffCheckinScreen({ navigation }) {
           time,
           timestamp,
           hours: workedHours,
-          latitude,
-          longitude,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
           photoPath: '',
         });
 
@@ -163,8 +264,8 @@ export default function StaffCheckinScreen({ navigation }) {
                 ...record,
                 ...savedFields,
                 check_out_at: timestamp,
-                check_out_lat: latitude,
-                check_out_lng: longitude,
+                check_out_lat: coords.latitude,
+                check_out_lng: coords.longitude,
                 check_out_photo_path: '',
               })
             : record
@@ -185,7 +286,6 @@ export default function StaffCheckinScreen({ navigation }) {
       setIsSubmitting(false);
     }
   };
-
   const latestRecord = [...todayRecords].sort((a, b) => String(b.id).localeCompare(String(a.id)))[0];
 
   return (
@@ -261,7 +361,18 @@ export default function StaffCheckinScreen({ navigation }) {
         <Text style={styles.note}>
           Mỗi nhân viên chỉ có một ca đang mở tại một thời điểm.
         </Text>
+
+        {isOwner && (
+          <TouchableOpacity
+            style={{backgroundColor: '#e2e8f0', padding: 15, borderRadius: 12, marginTop: 20, flexDirection: 'row', justifyContent: 'center', alignItems: 'center'}}
+            onPress={handleUpdateStoreLocation}
+          >
+            <Ionicons name="location-outline" size={20} color="#475569" style={{marginRight: 8}}/>
+            <Text style={{color: '#475569', fontWeight: 'bold'}}>Thiết lập tọa độ hiện tại cho Quán</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
+
     </SafeAreaView>
   );
 }
