@@ -341,7 +341,7 @@ export default function ShiftScreen({ navigation }) {
             if (difference > 0) {
               logsToInsert.push({
                 id: `log_shift_${shift.id}_${inv.id}_exp_${Date.now()}`,
-                itemid: inv.id,
+                itemId: inv.id,
                 type: 'EXPORT',
                 amount: difference,
                 date: localDateStr,
@@ -350,7 +350,7 @@ export default function ShiftScreen({ navigation }) {
             } else if (difference < 0) {
               logsToInsert.push({
                 id: `log_shift_${shift.id}_${inv.id}_adj_${Date.now()}`,
-                itemid: inv.id,
+                itemId: inv.id,
                 type: 'ADJUST_UP',
                 amount: Math.abs(difference),
                 date: localDateStr,

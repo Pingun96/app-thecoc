@@ -53,9 +53,10 @@ export const createAttendanceRecord = async ({
     hours: 0,
     check_in_location: location,
   };
+  const parsedStoreId = (storeId === 'null' || storeId === 'undefined' || !storeId) ? null : Number(storeId);
   const enhancedPayload = {
     ...legacyPayload,
-    store_id: storeId || null,
+    store_id: parsedStoreId,
     check_in_at: timestamp,
     check_in_lat: latitude,
     check_in_lng: longitude,

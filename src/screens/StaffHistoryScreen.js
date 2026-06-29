@@ -38,6 +38,22 @@ export default function StaffHistoryScreen({ navigation }) {
   );
   const estimatedSalary = totalHours * hourlyWage;
 
+  const currentHour = new Date().getHours();
+  const isMorning = currentHour < 12;
+  const isAfternoon = currentHour >= 12 && currentHour < 18;
+  const isEvening = currentHour >= 18;
+
+  // Sáng: nền xanh lá nhạt, chữ xanh đậm.
+  // Chiều: nền vàng nhạt có viền, chữ cam đậm.
+  // Tối: nền tím đậm, chữ trắng.
+  const themeStyles = {
+    cardBg: isMorning ? '#dcfce7' : isAfternoon ? '#fef9c3' : '#1e1b4b',
+    cardBorder: isAfternoon ? '#fde047' : 'transparent',
+    textColor: isMorning ? '#166534' : isAfternoon ? '#9a3412' : '#ffffff',
+    subTextColor: isMorning ? '#15803d' : isAfternoon ? '#c2410c' : '#a5b4fc',
+    dividerBg: isMorning ? 'rgba(21, 128, 61, 0.2)' : isAfternoon ? 'rgba(194, 65, 12, 0.2)' : 'rgba(255,255,255,0.2)'
+  };
+
   const renderItem = ({ item }) => {
     const isOpen = !(item.checkOut || item.check_out);
     return (
@@ -86,22 +102,22 @@ export default function StaffHistoryScreen({ navigation }) {
         </View>
       </View>
 
-      <View style={styles.salaryCard}>
-        <Text style={styles.salaryEyebrow}>LƯƠNG TẠM TÍNH THÁNG NÀY</Text>
-        <Text style={styles.salaryTotal}>{formatCurrency(estimatedSalary)}</Text>
-        <View style={styles.salaryDivider} />
+      <View style={[styles.salaryCard, { backgroundColor: themeStyles.cardBg, borderColor: themeStyles.cardBorder, borderWidth: isAfternoon ? 2 : 0 }]}>
+        <Text style={[styles.salaryEyebrow, { color: themeStyles.subTextColor }]}>LƯƠNG TẠM TÍNH THÁNG NÀY</Text>
+        <Text style={[styles.salaryTotal, { color: themeStyles.textColor }]}>{formatCurrency(estimatedSalary)}</Text>
+        <View style={[styles.salaryDivider, { backgroundColor: themeStyles.dividerBg }]} />
         <View style={styles.salaryStats}>
           <View style={styles.salaryStat}>
-            <Text style={styles.salaryStatLabel}>Tổng giờ</Text>
-            <Text style={styles.salaryStatValue}>{totalHours.toFixed(2)} giờ</Text>
+            <Text style={[styles.salaryStatLabel, { color: themeStyles.subTextColor }]}>Tổng giờ</Text>
+            <Text style={[styles.salaryStatValue, { color: themeStyles.textColor }]}>{totalHours.toFixed(2)} giờ</Text>
           </View>
           <View style={styles.salaryStat}>
-            <Text style={styles.salaryStatLabel}>Đơn giá</Text>
-            <Text style={styles.salaryStatValue}>{formatCurrency(hourlyWage)}/h</Text>
+            <Text style={[styles.salaryStatLabel, { color: themeStyles.subTextColor }]}>Đơn giá</Text>
+            <Text style={[styles.salaryStatValue, { color: themeStyles.textColor }]}>{formatCurrency(hourlyWage)}/h</Text>
           </View>
           <View style={[styles.salaryStat, styles.salaryStatLast]}>
-            <Text style={styles.salaryStatLabel}>Số ca</Text>
-            <Text style={styles.salaryStatValue}>{monthlyHistory.length}</Text>
+            <Text style={[styles.salaryStatLabel, { color: themeStyles.subTextColor }]}>Số ca</Text>
+            <Text style={[styles.salaryStatValue, { color: themeStyles.textColor }]}>{monthlyHistory.length}</Text>
           </View>
         </View>
       </View>

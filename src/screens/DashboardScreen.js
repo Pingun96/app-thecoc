@@ -26,6 +26,29 @@ export default function DashboardScreen({ navigation }) {
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Chào buổi sáng';
+    if (hour < 18) return 'Chào buổi chiều';
+    return 'Chào buổi tối';
+  };
+
+  const getThemeStyles = () => {
+    const hour = new Date().getHours();
+    const isMorning = hour < 12;
+    const isAfternoon = hour >= 12 && hour < 18;
+    return {
+      headerBg: isMorning ? '#dcfce7' : isAfternoon ? '#fef9c3' : '#1f2937',
+      nameColor: isMorning ? '#166534' : isAfternoon ? '#9a3412' : '#ffffff',
+      greetingColor: isMorning ? '#15803d' : isAfternoon ? '#c2410c' : '#9ca3af',
+      roleColor: isMorning ? '#16a34a' : isAfternoon ? '#d97706' : '#86efac',
+      iconColor: isMorning ? '#166534' : isAfternoon ? '#9a3412' : '#60a5fa',
+      borderWidth: isAfternoon ? 2 : 0,
+      borderColor: isAfternoon ? '#fde047' : 'transparent',
+    };
+  };
+  const theme = getThemeStyles();
+
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       fetchUnreadCount();
@@ -183,18 +206,18 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* HEADER */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 10, 20) }]}>
+      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 10, 20), backgroundColor: theme.headerBg, borderWidth: theme.borderWidth, borderColor: theme.borderColor, borderBottomWidth: theme.borderWidth > 0 ? theme.borderWidth : 0, borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}>
         <TouchableOpacity style={styles.headerProfile} onPress={() => { setNewAvatar(currentUser?.avatar_url || ''); setShowProfileModal(true); }}>
           <Image
             source={{ uri: currentUser?.avatar_url || (currentUser?.role === 'STAFF' ? 'https://i.pravatar.cc/100?img=33' : 'https://i.pravatar.cc/100?img=12') }}
             style={styles.avatar}
           />
           <View style={styles.headerTextContainer}>
-            <Text style={styles.greetingText}>Xin chào,</Text>
-            <Text style={styles.nameText} numberOfLines={1}>
+            <Text style={[styles.greetingText, { color: theme.greetingColor }]}>{getGreeting()},</Text>
+            <Text style={[styles.nameText, { color: theme.nameColor }]} numberOfLines={1}>
               {currentUser?.name || 'Thành viên The Cốc'}
             </Text>
-            <Text style={styles.roleText}>
+            <Text style={[styles.roleText, { color: theme.roleColor }]}>
               {currentUser?.role === 'OWNER'
                 ? 'Chủ cửa hàng'
                 : currentUser?.role === 'MANAGER'
@@ -206,7 +229,7 @@ export default function DashboardScreen({ navigation }) {
 
         <View style={{flexDirection: 'row', alignItems: 'center', gap: 15}}>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative' }}>
-            <Ionicons name="notifications-outline" size={26} color="#60a5fa" />
+            <Ionicons name="notifications-outline" size={26} color={theme.iconColor} />
             {unreadCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -215,7 +238,7 @@ export default function DashboardScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity onPress={handleManualUpdate}>
-            {isCheckingUpdate ? <ActivityIndicator color="#60a5fa" size="small" /> : <Ionicons name="cloud-download-outline" size={26} color="#60a5fa" />}
+            {isCheckingUpdate ? <ActivityIndicator color={theme.iconColor} size="small" /> : <Ionicons name="cloud-download-outline" size={26} color={theme.iconColor} />}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -303,9 +326,10 @@ export default function DashboardScreen({ navigation }) {
         <Text style={styles.sectionTitle}>Tính năng {currentUser?.role === 'STAFF' ? 'làm việc' : 'quản lý'}</Text>
         <View style={styles.gridContainer}>
           {renderGridItem('Giao Ca & Doanh Thu', 'Quản lý Két & Chốt Ca', 'cash-register', 'Material', '#e8f5e9', 'cashier', 'Shifts', 'Shifts')}
-          {renderGridItem('Kho Hàng', 'Kiểm kê & Xuất nhập', 'warehouse', 'Material', '#fce4ec', 'inventory', 'Inventory')}
+          {renderGridItem('Kho Hàng', 'Phiếu Điều Phối', 'warehouse', 'Material', '#fce4ec', 'inventory', 'InventoryTransfer', 'InventoryTransfer')}
           {renderGridItem(currentUser?.role === 'STAFF' ? 'Chấm Công' : 'Nhân Sự', currentUser?.role === 'STAFF' ? 'Định vị GPS / Camera' : 'Hồ sơ & Phân quyền', currentUser?.role === 'STAFF' ? "scan-circle" : "id-card", 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
           {renderGridItem('Bảng Lương', 'Bảng lương chi tiết', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'Payroll', 'Payroll')}
+          {currentUser?.role !== 'STAFF' && renderGridItem('Tài Chính', 'Doanh thu & Lợi nhuận', 'chart-line', 'Material', '#ede9fe', 'reports', 'Finance', 'Finance')}
         </View>
 
       </ScrollView>

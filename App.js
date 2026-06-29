@@ -6,11 +6,13 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import FinanceScreen from './src/screens/FinanceScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import StaffHistoryScreen from './src/screens/StaffHistoryScreen';
 import StaffManagementScreen from './src/screens/StaffManagementScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
+import InventoryTransferScreen from './src/screens/InventoryTransferScreen';
 import StaffCheckinScreen from './src/screens/StaffCheckinScreen';
 import ShiftScheduleScreen from './src/screens/ShiftScheduleScreen';
 import PayrollScreen from './src/screens/PayrollScreen';
@@ -275,10 +277,12 @@ export default function App() {
           <NavigationContainer ref={navigationRef}>
             <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
               <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Finance" component={FinanceScreen} />
               <Stack.Screen name="Dashboard" component={MainTabs} />
               <Stack.Screen name="StaffHistory" component={StaffHistoryScreen} />
               <Stack.Screen name="StaffManagement" component={StaffManagementScreen} />
               <Stack.Screen name="Inventory" component={InventoryScreen} />
+              <Stack.Screen name="InventoryTransfer" component={InventoryTransferScreen} />
               <Stack.Screen name="StaffCheckin" component={StaffCheckinScreen} />
               <Stack.Screen name="ShiftSchedule" component={ShiftScheduleScreen} />
               <Stack.Screen name="Payroll" component={PayrollScreen} />
