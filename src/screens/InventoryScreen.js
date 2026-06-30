@@ -469,12 +469,13 @@ export default function InventoryScreen({ navigation }) {
   };
 
   const tabs = isStaff
-    ? [{ key: 'ACTION', label: 'Thao tác' }]
+    ? [{ key: 'ACTION', label: 'Thao tác' }, { key: 'HISTORY', label: 'Lịch sử' }]
     : [
         { key: 'OVERVIEW', label: 'Tổng quan' },
         { key: 'ACTION', label: 'Thao tác' },
         { key: 'APPROVALS', label: `Duyệt${pendingRequests.length ? ` (${pendingRequests.length})` : ''}` },
-        { key: 'LOGS', label: 'Sổ kho' },
+        { key: 'HISTORY', label: 'Lịch sử' },
+        { key: 'ITEMS', label: 'Danh mục' },
       ];
 
   return (
@@ -732,7 +733,54 @@ export default function InventoryScreen({ navigation }) {
             </View>
           )}
 
-          {activeTab === 'LOGS' && !isStaff && (
+          {activeTab === 'HISTORY' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Lịch sử Nhập/Xuất kho</Text>
+              {inventoryLogs
+                .filter((log) => storeIdToView === 'ALL' || log.store_id === storeIdToView)
+                .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+                .map((log) => {
+                  const item = itemById[log.itemId];
+                  const action = ACTIONS[log.type] || ACTIONS.IMPORT;
+                  const creatorName = staffList.find(s => s.id === log.created_by)?.name || 'Hệ thống';
+                  const approverName = staffList.find(s => s.id === log.approved_by)?.name || '';
+
+                  return (
+                    <View key={log.id} style={styles.logRow}>
+                      <View style={[styles.logIcon, { backgroundColor: `${action.color}18` }]}>
+                        <Ionicons
+                          name={action.sign === '+' ? 'add' : 'remove'}
+                          size={20}
+                          color={action.color}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.logTitle}>{action.label} • {item?.name || 'Không rõ'}</Text>
+                        <Text style={styles.logMeta}>{formatTimestamp(log.date)}</Text>
+                        <Text style={[styles.logMeta, { color: '#64748b', marginTop: 4 }]}>
+                          👤 Tạo bởi: <Text style={{fontWeight: 'bold', color: '#1e293b'}}>{creatorName}</Text>
+                        </Text>
+                        {approverName ? (
+                          <Text style={[styles.logMeta, { color: '#64748b', marginTop: 2 }]}>
+                            ✅ Duyệt bởi: <Text style={{fontWeight: 'bold', color: '#16a34a'}}>{approverName}</Text>
+                          </Text>
+                        ) : null}
+                        {log.note ? (
+                          <Text style={[styles.logMeta, { color: '#64748b', marginTop: 2, fontStyle: 'italic' }]}>
+                            {"📝 \""}{log.note}{"\""}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Text style={[styles.logAmount, { color: action.color, alignSelf: 'flex-start', marginTop: 5 }]}>
+                        {action.sign}{formatQuantity(log.amount)} {item?.unit || ''}
+                      </Text>
+                    </View>
+                  );
+                })}
+            </View>
+          )}
+
+          {activeTab === 'ITEMS' && !isStaff && (
             <>
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -764,35 +812,6 @@ export default function InventoryScreen({ navigation }) {
                       </View>
                     </View>
                   ))}
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Lịch sử giao dịch</Text>
-                {inventoryLogs
-                  .filter((log) => storeIdToView === 'ALL' || log.store_id === storeIdToView)
-                  .sort((a, b) => String(b.date).localeCompare(String(a.date)))
-                  .map((log) => {
-                    const item = itemById[log.itemId];
-                    const action = ACTIONS[log.type] || ACTIONS.IMPORT;
-                    return (
-                      <View key={log.id} style={styles.logRow}>
-                        <View style={[styles.logIcon, { backgroundColor: `${action.color}18` }]}>
-                          <Ionicons
-                            name={action.sign === '+' ? 'add' : 'remove'}
-                            size={20}
-                            color={action.color}
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.logTitle}>{action.label} • {item?.name || 'Không rõ'}</Text>
-                          <Text style={styles.logMeta}>{formatTimestamp(log.date)}</Text>
-                        </View>
-                        <Text style={[styles.logAmount, { color: action.color }]}>
-                          {action.sign}{formatQuantity(log.amount)} {item?.unit || ''}
-                        </Text>
-                      </View>
-                    );
-                  })}
               </View>
             </>
           )}

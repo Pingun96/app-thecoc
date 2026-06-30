@@ -1,5 +1,14 @@
 import { supabase } from './supabaseClient';
 import { getLocalDateKey } from '../utils/dateTime';
+export const getInventoryItems = async (storeId) => {
+  let query = supabase.from('inventory_items').select('*');
+  if (storeId && storeId !== 'ALL') {
+    query = query.eq('store_id', storeId);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+};
 
 export const createInventoryLog = async (payload) => {
   const { error } = await supabase.from('inventory_logs').insert([payload]);
@@ -122,9 +131,12 @@ async function processApproval(ticket, nextStatus, approverId, sourceApprover, d
       itemid: finalItemId,
       type: logType,
       amount: Number(item.amount),
-      date: getLocalDateKey(),
+      date: new Date().toISOString(),
       store_id: storeId,
-      ticket_id: ticket.id // Cột mới để track
+      ticket_id: ticket.id,
+      created_by: ticket.requested_by,
+      approved_by: approverId,
+      note: ticket.note || `Phiếu ${logType === 'IMPORT' ? 'Nhập kho' : 'Xuất kho'}`
     });
   }
 

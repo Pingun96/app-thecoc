@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppContext } from '../context/AppContext';
 import { getTransferTickets, createTransferTicket, updateTicketStatus, processCompletedTicket } from '../services/inventoryTransferService';
 import { getInventoryItems } from '../services/inventoryService';
 
 export default function InventoryTransferScreen({ navigation }) {
   const { currentUser, storeList } = useContext(AppContext);
+  const insets = useSafeAreaInsets();
   const isOwner = currentUser?.role === 'OWNER';
   const isManager = currentUser?.role === 'MANAGER';
   const myStoreId = currentUser?.store_id;
@@ -63,8 +65,8 @@ export default function InventoryTransferScreen({ navigation }) {
       const payload = {
         id: `TICKET_${Date.now()}`,
         type: ticketType,
-        from_store_id: ticketType === 'IMPORT' ? null : fromStoreId,
-        to_store_id: ticketType === 'EXPORT' ? null : toStoreId,
+        from_store_id: ticketType === 'IMPORT' ? null : (ticketType === 'EXPORT' ? myStoreId : fromStoreId),
+        to_store_id: ticketType === 'EXPORT' ? null : (ticketType === 'IMPORT' ? myStoreId : toStoreId),
         created_by: currentUser.id,
         status: ticketType === 'TRANSFER' ? 'PENDING_DEST_MANAGER' : 'COMPLETED',
         note
@@ -115,7 +117,7 @@ export default function InventoryTransferScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 20) }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color="#fff" /></TouchableOpacity>
         <Text style={styles.headerTitle}>Phiếu Luân Chuyển / Nhập Xuất</Text>
         <TouchableOpacity onPress={fetchAll}><Ionicons name="refresh" size={24} color="#fff" /></TouchableOpacity>
@@ -160,11 +162,15 @@ export default function InventoryTransferScreen({ navigation }) {
           <Text style={styles.modalTitle}>Tạo Phiếu Mới</Text>
           
           <View style={styles.typeRow}>
-            {['IMPORT', 'EXPORT', 'TRANSFER'].map(type => (
-              <TouchableOpacity key={type} style={[styles.typeBtn, ticketType === type && styles.typeBtnActive]} onPress={() => setTicketType(type)}>
-                <Text style={[styles.typeText, ticketType === type && {color:'#fff'}]}>{type}</Text>
-              </TouchableOpacity>
-            ))}
+            <TouchableOpacity style={[styles.typeBtn, ticketType === 'IMPORT' && styles.typeBtnActive]} onPress={() => setTicketType('IMPORT')}>
+              <Text style={[styles.typeText, ticketType === 'IMPORT' && {color:'#fff'}]}>NHẬP KHO</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.typeBtn, ticketType === 'EXPORT' && styles.typeBtnActive]} onPress={() => setTicketType('EXPORT')}>
+              <Text style={[styles.typeText, ticketType === 'EXPORT' && {color:'#fff'}]}>XUẤT HỦY</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.typeBtn, ticketType === 'TRANSFER' && styles.typeBtnActive]} onPress={() => setTicketType('TRANSFER')}>
+              <Text style={[styles.typeText, ticketType === 'TRANSFER' && {color:'#fff'}]}>CHUYỂN KHO</Text>
+            </TouchableOpacity>
           </View>
 
           {ticketType === 'TRANSFER' && (
@@ -240,7 +246,7 @@ export default function InventoryTransferScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f4f7fb' },
-  header: { backgroundColor: '#1565c0', padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  header: { backgroundColor: '#1565c0', paddingBottom: 15, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   fab: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#1565c0', padding: 15, borderRadius: 30, flexDirection: 'row', zIndex: 10, elevation: 5 },
   ticketCard: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 15, elevation: 2 },

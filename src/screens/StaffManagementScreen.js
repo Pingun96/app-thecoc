@@ -16,9 +16,23 @@ export default function StaffManagementScreen({ navigation }) {
     displayStoreId = 'ALL';
   }
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [localStoreFilter, setLocalStoreFilter] = useState('ALL');
+
   // Lọc danh sách nhân sự theo chi nhánh được phép xem và chỉ lấy người còn hoạt động
   const activeStaffList = staffList.filter(s => s.is_active !== false);
-  const filteredStaffList = activeStaffList.filter(s => displayStoreId === 'ALL' || s.store_id === displayStoreId || s.permissions?.viewable_stores?.includes(displayStoreId));
+  let baseFilteredStaffList = activeStaffList.filter(s => displayStoreId === 'ALL' || s.store_id === displayStoreId || s.permissions?.viewable_stores?.includes(displayStoreId));
+  
+  if (localStoreFilter !== 'ALL') {
+    baseFilteredStaffList = baseFilteredStaffList.filter(s => s.store_id === localStoreFilter || s.permissions?.viewable_stores?.includes(localStoreFilter));
+  }
+
+  if (searchQuery.trim() !== '') {
+    const q = searchQuery.toLowerCase();
+    baseFilteredStaffList = baseFilteredStaffList.filter(s => s.name.toLowerCase().includes(q) || s.phone.includes(q));
+  }
+
+  const filteredStaffList = baseFilteredStaffList;
 
   // === THÊM MỚI NHÂN VIÊN ===
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -203,6 +217,42 @@ export default function StaffManagementScreen({ navigation }) {
           }
         >
           <View style={styles.section}>
+            <View style={styles.searchBox}>
+              <Ionicons name="search" size={20} color="#94a3b8" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Tìm nhân viên theo tên hoặc SĐT..."
+                placeholderTextColor="#94a3b8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery !== '' && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={20} color="#94a3b8" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {displayStoreId === 'ALL' && storeList && storeList.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
+                <TouchableOpacity
+                  style={[styles.filterChip, localStoreFilter === 'ALL' && styles.filterChipActive]}
+                  onPress={() => setLocalStoreFilter('ALL')}
+                >
+                  <Text style={[styles.filterChipText, localStoreFilter === 'ALL' && styles.filterChipTextActive]}>Tất cả</Text>
+                </TouchableOpacity>
+                {storeList.map(store => (
+                  <TouchableOpacity
+                    key={store.id}
+                    style={[styles.filterChip, localStoreFilter === store.id && styles.filterChipActive]}
+                    onPress={() => setLocalStoreFilter(store.id)}
+                  >
+                    <Text style={[styles.filterChipText, localStoreFilter === store.id && styles.filterChipTextActive]}>{store.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
             <Text style={styles.sectionTitle}>
               DANH SÁCH NHÂN SỰ {displayStoreId === 'ALL' ? '(TẤT CẢ CHI NHÁNH)' : `(CHI NHÁNH ${displayStoreId})`}
             </Text>
@@ -517,6 +567,12 @@ const styles = StyleSheet.create({
   header: { fontSize: 22, fontWeight: 'bold', color: '#1f2937' },
   section: { backgroundColor: '#fff', padding: 20, borderRadius: 12, margin: 20, elevation: 2 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1976d2', marginBottom: 15 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, paddingHorizontal: 12, marginBottom: 15 },
+  searchInput: { flex: 1, minHeight: 44, paddingLeft: 8, color: '#172033' },
+  filterChip: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#f1f5f9', borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: '#e2e8f0' },
+  filterChipActive: { backgroundColor: '#1976d2', borderColor: '#1976d2' },
+  filterChipText: { color: '#64748b', fontWeight: 'bold' },
+  filterChipTextActive: { color: '#fff' },
   label: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 5, marginTop: 10 },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, backgroundColor: '#fafafa', height: 45 },
   passwordHint: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eff6ff', borderRadius: 8, padding: 12, marginTop: 12 },

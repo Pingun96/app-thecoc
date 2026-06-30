@@ -326,7 +326,8 @@ export default function DashboardScreen({ navigation }) {
         <Text style={styles.sectionTitle}>Tính năng {currentUser?.role === 'STAFF' ? 'làm việc' : 'quản lý'}</Text>
         <View style={styles.gridContainer}>
           {renderGridItem('Giao Ca & Doanh Thu', 'Quản lý Két & Chốt Ca', 'cash-register', 'Material', '#e8f5e9', 'cashier', 'Shifts', 'Shifts')}
-          {renderGridItem('Kho Hàng', 'Phiếu Điều Phối', 'warehouse', 'Material', '#fce4ec', 'inventory', 'InventoryTransfer', 'InventoryTransfer')}
+          {renderGridItem('Kho Hàng', 'Tồn kho & Yêu cầu', 'warehouse', 'Material', '#fff3e0', 'inventory', 'Inventory', 'Inventory')}
+          {renderGridItem('Luân Chuyển Kho', 'Nhập/Xuất/Điều phối', 'truck-delivery-outline', 'Material', '#fce4ec', 'inventory', 'InventoryTransfer', 'InventoryTransfer')}
           {renderGridItem(currentUser?.role === 'STAFF' ? 'Chấm Công' : 'Nhân Sự', currentUser?.role === 'STAFF' ? 'Định vị GPS / Camera' : 'Hồ sơ & Phân quyền', currentUser?.role === 'STAFF' ? "scan-circle" : "id-card", 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
           {renderGridItem('Bảng Lương', 'Bảng lương chi tiết', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'Payroll', 'Payroll')}
           {currentUser?.role !== 'STAFF' && renderGridItem('Tài Chính', 'Doanh thu & Lợi nhuận', 'chart-line', 'Material', '#ede9fe', 'reports', 'Finance', 'Finance')}

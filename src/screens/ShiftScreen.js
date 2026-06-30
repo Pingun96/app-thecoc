@@ -228,7 +228,9 @@ export default function ShiftScreen({ navigation }) {
       const fileName = `${Date.now()}_${Math.floor(Math.random()*1000)}.${fileExt}`;
       const filePath = `${storeIdToView}/${fileName}`;
 
-      const { data, error } = await supabase.storage.from('shift_reports').upload(filePath, blob);
+      const { data, error } = await supabase.storage.from('shift_reports').upload(filePath, blob, {
+        contentType: 'image/jpeg',
+      });
       if (error) throw error;
       
       const { data: { publicUrl } } = supabase.storage.from('shift_reports').getPublicUrl(filePath);
