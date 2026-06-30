@@ -21,7 +21,9 @@ export default function DashboardScreen({ navigation }) {
     selectedStoreId,
     setSelectedStoreId,
     dataError,
-    refreshData
+    refreshData,
+    COLORS,
+    isDarkMode,
   } = useContext(AppContext);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -34,6 +36,17 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const getThemeStyles = () => {
+    if (isDarkMode) {
+      return {
+        headerBg: '#1e293b',
+        nameColor: '#ffffff',
+        greetingColor: '#94a3b8',
+        roleColor: '#4ade80',
+        iconColor: '#60a5fa',
+        borderWidth: 0,
+        borderColor: 'transparent',
+      };
+    }
     const hour = new Date().getHours();
     const isMorning = hour < 12;
     const isAfternoon = hour >= 12 && hour < 18;
@@ -48,6 +61,8 @@ export default function DashboardScreen({ navigation }) {
     };
   };
   const theme = getThemeStyles();
+
+  const styles = React.useMemo(() => getStyles(COLORS, isDarkMode, theme), [COLORS, isDarkMode, theme]);
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -374,9 +389,9 @@ export default function DashboardScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f7fa' },
-  headerContainer: { backgroundColor: '#1f2937', paddingBottom: 25, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 25, borderBottomRightRadius: 25, elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10 },
+const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  headerContainer: { backgroundColor: theme.headerBg, paddingBottom: 25, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 25, borderBottomRightRadius: 25, elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10 },
   headerProfile: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: '#fff' },
   headerTextContainer: { marginLeft: 13, maxWidth: width - 135 },
@@ -385,19 +400,19 @@ const styles = StyleSheet.create({
   roleText: { color: '#86efac', fontSize: 12, fontWeight: '700', marginTop: 2 },
   logoutBtn: { padding: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
   storeSelector: { flexDirection: 'row' },
-  storeChip: { backgroundColor: '#e5e7eb', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 10, height: 36, justifyContent: 'center' },
+  storeChip: { backgroundColor: COLORS.border, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 10, height: 36, justifyContent: 'center' },
   storeChipActive: { backgroundColor: '#1976d2' },
-  storeChipText: { color: '#4b5563', fontWeight: 'bold', fontSize: 13 },
+  storeChipText: { color: COLORS.textMuted, fontWeight: 'bold', fontSize: 13 },
   storeChipTextActive: { color: '#fff' },
   scrollContent: { padding: 20, paddingBottom: 40 },
-  updateButton: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', backgroundColor: '#e8f1ff', borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9, marginBottom: 16 },
+  updateButton: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', backgroundColor: isDarkMode ? '#1e293b' : '#e8f1ff', borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9, marginBottom: 16 },
   updateButtonText: { color: '#1565c0', fontWeight: '800', fontSize: 12, marginLeft: 7 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#374151', marginBottom: 15, marginTop: 5 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 15, marginTop: 5 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
-  statCard: { backgroundColor: '#fff', width: (width - 55) / 2, padding: 15, borderRadius: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  statCard: { backgroundColor: COLORS.card, width: (width - 55) / 2, padding: 15, borderRadius: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   iconBox: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  statValue: { fontSize: 18, fontWeight: 'bold', color: '#1f2937' },
-  statLabel: { fontSize: 12, color: '#6b7280' },
+  statValue: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
+  statLabel: { fontSize: 12, color: COLORS.textMuted },
   badge: {
     position: 'absolute',
     top: -4,
@@ -416,18 +431,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  gridItem: { backgroundColor: '#fff', width: (width - 55) / 2, padding: 20, borderRadius: 16, marginBottom: 15, alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
-  gridItemDisabled: { backgroundColor: '#f9fafb', opacity: 0.8 },
+  gridItem: { backgroundColor: COLORS.card, width: (width - 55) / 2, padding: 20, borderRadius: 16, marginBottom: 15, alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  gridItemDisabled: { backgroundColor: isDarkMode ? '#0f172a' : '#f9fafb', opacity: 0.8 },
   gridIconBox: { width: 60, height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
-  gridItemTitle: { fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 5 },
-  gridItemSub: { fontSize: 12, color: '#9ca3af', textAlign: 'center' },
+  gridItemTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 5 },
+  gridItemSub: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center' },
   lockIcon: { position: 'absolute', top: 10, right: 10 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 16, padding: 20, elevation: 5 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#1f2937', marginBottom: 20, textAlign: 'center' },
-  modalLabel: { fontSize: 13, fontWeight: 'bold', color: '#4b5563', marginBottom: 8 },
-  modalInput: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 12, marginBottom: 15, fontSize: 15, backgroundColor: '#f9fafb' },
+  modalContent: { backgroundColor: COLORS.card, borderRadius: 16, padding: 20, elevation: 5 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text, marginBottom: 20, textAlign: 'center' },
+  modalLabel: { fontSize: 13, fontWeight: 'bold', color: COLORS.text, marginBottom: 8 },
+  modalInput: { borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 10, padding: 12, marginBottom: 15, fontSize: 15, backgroundColor: COLORS.inputBg, color: COLORS.text },
   modalBtnRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
   modalBtn: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
   modalBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }

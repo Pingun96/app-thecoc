@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Platform, View, StyleSheet, TouchableOpacity, Pressable, Alert } from 'react-native';
+import { Platform, View, StyleSheet, TouchableOpacity, Pressable, Alert, useColorScheme } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -118,7 +118,42 @@ function MainTabs() {
   );
 }
 
+const THEMES = {
+  light: {
+    bg: '#F8FAFC',
+    card: '#FFFFFF',
+    text: '#0F172A',
+    textMuted: '#64748B',
+    border: '#E2E8F0',
+    primary: '#166534',
+    accent: '#10B981',
+    danger: '#EF4444',
+    inputBg: '#f8fafc',
+    inputBorder: '#cbd5e1',
+    inputText: '#172033',
+    headerBg: '#1f2937',
+  },
+  dark: {
+    bg: '#0F172A',
+    card: '#1E293B',
+    text: '#F8FAFC',
+    textMuted: '#94A3B8',
+    border: '#334155',
+    primary: '#4ADE80',
+    accent: '#10B981',
+    danger: '#F87171',
+    inputBg: '#1e293b',
+    inputBorder: '#475569',
+    inputText: '#f8fafc',
+    headerBg: '#090d16',
+  }
+};
+
 export default function App() {
+  const colorScheme = useColorScheme();
+  const isDarkMode = colorScheme === 'dark';
+  const COLORS = isDarkMode ? THEMES.dark : THEMES.light;
+
   const [storeList, setStoreList] = useState([]);
   const [selectedStoreId, setSelectedStoreId] = useState(1);
   const [staffList, setStaffList] = useState([]);
@@ -270,7 +305,8 @@ export default function App() {
       payrollAdjustments, setPayrollAdjustments,
       payrollApprovals, setPayrollApprovals,
       shiftSwaps, setShiftSwaps,
-      isDataLoading, dataError, refreshData
+      isDataLoading, dataError, refreshData,
+      isDarkMode, COLORS
     }}>
       <View style={styles.webContainer}>
         <View style={styles.webWrapper}>

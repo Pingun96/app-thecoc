@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -27,7 +27,10 @@ export default function LoginScreen({ navigation }) {
     isDataLoading,
     dataError,
     refreshData,
+    COLORS,
   } = useContext(AppContext);
+
+  const styles = useMemo(() => getStyles(COLORS), [COLORS]);
 
   useEffect(() => {
     const autoLogin = async () => {
@@ -178,23 +181,23 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#f4f7fb' },
+const getStyles = (COLORS) => StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: COLORS.bg },
   brand: { alignItems: 'center', marginBottom: 25 },
-  logoBox: { width: 86, height: 86, borderRadius: 25, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 10, elevation: 3 },
+  logoBox: { width: 86, height: 86, borderRadius: 25, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 10, elevation: 3 },
   logo: { width: 62, height: 62 },
-  title: { fontSize: 30, fontWeight: '900', color: '#166534', marginTop: 13 },
-  subtitle: { color: '#64748b', marginTop: 3 },
-  formCard: { backgroundColor: '#fff', borderRadius: 20, padding: 20, shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  welcome: { color: '#172033', fontSize: 23, fontWeight: '900' },
-  formCaption: { color: '#64748b', marginTop: 4, marginBottom: 13 },
-  label: { color: '#475569', fontSize: 13, fontWeight: '800', marginTop: 12, marginBottom: 7 },
-  inputBox: { minHeight: 50, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 13, backgroundColor: '#f8fafc', paddingHorizontal: 13 },
-  input: { flex: 1, color: '#172033', fontSize: 15, marginLeft: 9 },
-  button: { minHeight: 52, backgroundColor: '#166534', borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginTop: 22 },
+  title: { fontSize: 30, fontWeight: '900', color: COLORS.primary, marginTop: 13 },
+  subtitle: { color: COLORS.textMuted, marginTop: 3 },
+  formCard: { backgroundColor: COLORS.card, borderRadius: 20, padding: 20, shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  welcome: { color: COLORS.text, fontSize: 23, fontWeight: '900' },
+  formCaption: { color: COLORS.textMuted, marginTop: 4, marginBottom: 13 },
+  label: { color: COLORS.text, fontSize: 13, fontWeight: '800', marginTop: 12, marginBottom: 7 },
+  inputBox: { minHeight: 50, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 13, backgroundColor: COLORS.inputBg, paddingHorizontal: 13 },
+  input: { flex: 1, color: COLORS.text, fontSize: 15, marginLeft: 9 },
+  button: { minHeight: 52, backgroundColor: COLORS.primary, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginTop: 22 },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '900' },
   errorBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fee2e2', borderRadius: 12, padding: 12, marginTop: 13 },
   errorText: { flex: 1, color: '#991b1b', lineHeight: 18, marginLeft: 8, fontSize: 12 },
-  footer: { color: '#94a3b8', textAlign: 'center', fontSize: 11, marginTop: 20 },
+  footer: { color: COLORS.textMuted, textAlign: 'center', fontSize: 11, marginTop: 20 },
 });

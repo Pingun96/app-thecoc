@@ -171,8 +171,8 @@ function DateRangeModal({ visible, onClose, onApply, COLORS }) {
 }
 
 export default function FinanceScreen({ navigation }) {
-  // Khóa cố định giao diện Light Mode để đồng bộ thống nhất với toàn bộ App
-  const isDarkMode = false;
+  const colorScheme = useColorScheme();
+  const isDarkMode = colorScheme === 'dark';
   const COLORS = isDarkMode ? THEMES.dark : THEMES.light;
   const styles = useMemo(() => getStyles(COLORS), [COLORS]);
 
