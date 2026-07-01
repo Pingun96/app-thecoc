@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { Platform, View, StyleSheet, TouchableOpacity, Pressable, Alert, useColorScheme } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -34,16 +34,17 @@ import {
   normalizeShiftSwap,
 } from './src/services/dataMappers';
 import { AppContext } from './src/context/AppContext';
+import { getLocalDateKey } from './src/utils/dateTime';
 
 // Floating Check-in Button Component
-const CustomTabBarButton = ({ children, onPress, style }) => (
+const CustomTabBarButton = ({ children, onPress, style, buttonColor = '#e91e63', shadowColor = '#e91e63' }) => (
   <View style={style}>
     <Pressable
       onPress={onPress}
-      style={styles.floatingButtonContainer}
+      style={[styles.floatingButtonContainer, { shadowColor }]}
       android_ripple={{ color: 'rgba(255,255,255,0.3)', borderless: true, radius: 35 }}
     >
-      <View style={styles.floatingButton}>
+      <View style={[styles.floatingButton, { backgroundColor: buttonColor }]}>
         {children}
       </View>
     </Pressable>
@@ -79,6 +80,28 @@ const navigateFromNotificationData = (data = {}) => {
 };
 
 function MainTabs() {
+  const {
+    COLORS,
+    isDarkMode,
+    currentUser,
+    attendanceHistory = [],
+  } = useContext(AppContext);
+
+  const today = getLocalDateKey();
+  const hasOpenAttendance = Boolean(
+    currentUser?.id && attendanceHistory.some((record) => {
+      const recordUserId = record.user_id ?? record.userId ?? record.staff_id;
+      const isCurrentUser = String(recordUserId) === String(currentUser.id);
+      const isToday = record.date === today;
+      const hasCheckedOut = Boolean(record.checkOut || record.check_out || record.check_out_at);
+      return isCurrentUser && isToday && !hasCheckedOut;
+    })
+  );
+
+  const checkActionLabel = hasOpenAttendance ? 'Check-out' : 'Check-in';
+  const checkActionIcon = hasOpenAttendance ? 'log-out-outline' : 'log-in-outline';
+  const checkActionColor = hasOpenAttendance ? COLORS.danger : COLORS.accent;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -92,8 +115,17 @@ function MainTabs() {
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#e91e63',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: isDarkMode ? COLORS.primary : '#e91e63',
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            backgroundColor: COLORS.card,
+            borderTopColor: COLORS.border,
+            shadowOpacity: isDarkMode ? 0.35 : 0.12,
+          },
+        ],
+        tabBarLabelStyle: styles.tabBarLabel,
       })}
     >
       <Tab.Screen name="HomeTab" component={DashboardScreen} options={{ title: 'Trang Chủ' }} />
@@ -103,12 +135,18 @@ function MainTabs() {
         name="StaffCheckin"
         component={StaffCheckinScreen}
         options={{
-          title: '',
+          title: checkActionLabel,
+          tabBarLabel: () => null,
+          tabBarAccessibilityLabel: checkActionLabel,
           tabBarIcon: () => (
-            <Ionicons name="scan" size={32} color="#fff" />
+            <Ionicons name={checkActionIcon} size={32} color="#fff" />
           ),
           tabBarButton: (props) => (
-            <CustomTabBarButton {...props} />
+            <CustomTabBarButton
+              {...props}
+              buttonColor={checkActionColor}
+              shadowColor={checkActionColor}
+            />
           )
         }}
       />
@@ -308,8 +346,8 @@ export default function App() {
       isDataLoading, dataError, refreshData,
       isDarkMode, COLORS
     }}>
-      <View style={styles.webContainer}>
-        <View style={styles.webWrapper}>
+      <View style={[styles.webContainer, { backgroundColor: COLORS.bg }]}>
+        <View style={[styles.webWrapper, { backgroundColor: COLORS.bg }]}>
           <NavigationContainer ref={navigationRef}>
             <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
               <Stack.Screen name="Login" component={LoginScreen} />
@@ -342,6 +380,21 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     backgroundColor: '#fff',
+  },
+  tabBar: {
+    height: Platform.OS === 'ios' ? 88 : 72,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    elevation: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowRadius: 12,
+  },
+  tabBarLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
   },
   floatingButtonContainer: {
     top: -25,
