@@ -516,7 +516,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                 const reg = myRegs.find(r => r.status === 'APPROVED') || myRegs.find(r => r.status === 'PENDING');
                 const sName = reg ? (storeList.find(s => s.id === reg.store_id)?.name || `CN ${reg.store_id}`) : '';
                 const pendingSwap = reg ? shiftSwaps.find(s => s.shift_id === reg.id && s.status === 'PENDING') : null;
-                const bgColor = reg ? (reg.status === 'APPROVED' ? getStoreColor(reg.store_id) : '#ff9800') : '#f0fdf4';
+                const bgColor = reg ? (reg.status === 'APPROVED' ? getStoreColor(reg.store_id) : '#ff9800') : (isDarkMode ? '#12231b' : '#f0fdf4');
 
                 return (
                   <TouchableOpacity
@@ -555,7 +555,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                 const reg = myRegs.find(r => r.status === 'APPROVED') || myRegs.find(r => r.status === 'PENDING');
                 const sName = reg ? (storeList.find(s => s.id === reg.store_id)?.name || `CN ${reg.store_id}`) : '';
                 const pendingSwap = reg ? shiftSwaps.find(s => s.shift_id === reg.id && s.status === 'PENDING') : null;
-                const bgColor = reg ? (reg.status === 'APPROVED' ? getStoreColor(reg.store_id) : '#ff9800') : '#fefce8';
+                const bgColor = reg ? (reg.status === 'APPROVED' ? getStoreColor(reg.store_id) : '#ff9800') : (isDarkMode ? '#2b2110' : '#fefce8');
 
                 return (
                   <TouchableOpacity
@@ -625,7 +625,7 @@ export default function ShiftScheduleScreen({ navigation }) {
           const getStoreAbbr = (sid) => storeList.find(s => s.id === sid)?.name || `CN ${sid}`;
 
           return (
-            <View key={date} style={[styles.card, isPastDate && { opacity: 0.6, backgroundColor: '#f5f5f5' }]}>
+            <View key={date} style={[styles.card, isPastDate && styles.cardPast]}>
               <Text style={styles.dateText}>{getDayName(date)}</Text>
               <View style={styles.shiftRow}>
                 {/* CA SÁNG */}
@@ -950,7 +950,7 @@ export default function ShiftScheduleScreen({ navigation }) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Xếp Nhân Viên</Text>
               <TouchableOpacity onPress={() => setShowAssignModal(false)}>
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>
@@ -1001,7 +1001,7 @@ export default function ShiftScheduleScreen({ navigation }) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Xin Đổi Ca</Text>
               <TouchableOpacity onPress={() => setShowSwapModal(false)}>
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>
@@ -1055,6 +1055,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   tabTextActive: { color: COLORS.primary },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary, marginBottom: 15 },
   card: { backgroundColor: COLORS.card, padding: 15, borderRadius: 10, marginBottom: 15, elevation: 2, borderWidth: 1, borderColor: COLORS.border },
+  cardPast: { opacity: 0.65, backgroundColor: isDarkMode ? '#111827' : '#f5f5f5' },
   weekSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', padding: 10, borderRadius: 8, marginBottom: 15, borderWidth: 1, borderColor: COLORS.border },
   weekBtn: { padding: 5 },
   weekText: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary },
@@ -1111,8 +1112,8 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   emptyStaff: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', textAlign: 'center', marginVertical: 10 },
   staffBadgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   staffBadgeText: { fontSize: 11, color: COLORS.text, flex: 1, fontWeight: '600' },
-  addBtnSmall: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#e3f2fd', paddingVertical: 4, borderRadius: 4, marginTop: 5, borderWidth: 1, borderColor: '#bbdefb' },
-  addBtnTextSmall: { color: '#1976d2', fontWeight: 'bold', fontSize: 11, marginLeft: 2 },
+  addBtnSmall: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', paddingVertical: 4, borderRadius: 4, marginTop: 5, borderWidth: 1, borderColor: isDarkMode ? '#1d4ed8' : '#bbdefb' },
+  addBtnTextSmall: { color: isDarkMode ? '#93c5fd' : '#1976d2', fontWeight: 'bold', fontSize: 11, marginLeft: 2 },
   iconActionBtn: { padding: 2 },
 
   // Modal styles
@@ -1138,11 +1139,11 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   cellEmpty: { backgroundColor: COLORS.card },
   cellStoreText: { fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
   cellStatusText: { fontSize: 9, textAlign: 'center' },
-  cellEmptyText: { color: '#d1d5db' },
+  cellEmptyText: { color: isDarkMode ? '#64748b' : '#94a3b8' },
 
   // Swap Approval Box
-  swapApprovalContainer: { backgroundColor: '#fff8e1', borderRadius: 8, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: '#ffe082' },
-  swapApprovalTitle: { fontWeight: 'bold', color: '#f57c00', marginBottom: 10, fontSize: 15 },
+  swapApprovalContainer: { backgroundColor: isDarkMode ? '#2b2110' : '#fff8e1', borderRadius: 8, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: isDarkMode ? '#92400e' : '#ffe082' },
+  swapApprovalTitle: { fontWeight: 'bold', color: isDarkMode ? '#fbbf24' : '#f57c00', marginBottom: 10, fontSize: 15 },
   swapItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.card, padding: 10, borderRadius: 6, marginBottom: 8, elevation: 1, borderWidth: 1, borderColor: COLORS.border },
   swapItemText: { fontSize: 13, color: COLORS.text },
   swapItemDetail: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },

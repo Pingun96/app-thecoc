@@ -200,7 +200,7 @@ export default function InventoryTransferScreen({ navigation }) {
           <ScrollView style={styles.cartList}>
             {cart.map((c, i) => (
               <View key={i} style={styles.cartItem}>
-                <Text style={{flex: 1}}>{c.name}</Text>
+                <Text style={styles.cartItemName}>{c.name}</Text>
                 <TextInput style={styles.cartInput} keyboardType="numeric" value={String(c.amount)} onChangeText={v => {
                   const newCart = [...cart]; newCart[i].amount = Number(v); setCart(newCart);
                 }} />
@@ -229,7 +229,7 @@ export default function InventoryTransferScreen({ navigation }) {
               <ScrollView>
                 {itemsList.map(it => (
                   <TouchableOpacity key={it.id} style={styles.pickerItem} onPress={() => handleAddItem(it)}>
-                    <Text>{it.name}</Text>
+                    <Text style={styles.pickerItemText}>{it.name}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -270,10 +270,12 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   input: { borderWidth: 1, borderColor: COLORS.inputBorder, backgroundColor: COLORS.inputBg, color: COLORS.text, borderRadius: 8, padding: 10, marginBottom: 15 },
   cartList: { flex: 1, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 10, backgroundColor: COLORS.card },
   cartItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  cartItemName: { flex: 1, color: COLORS.text, fontWeight: '600' },
   cartInput: { borderWidth: 1, borderColor: COLORS.inputBorder, backgroundColor: COLORS.inputBg, color: COLORS.text, width: 50, textAlign: 'center', marginRight: 15, borderRadius: 5 },
   submitBtn: { flex: 0.48, backgroundColor: '#1565c0', padding: 15, borderRadius: 8, alignItems: 'center' },
 
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   pickerContent: { backgroundColor: COLORS.card, borderRadius: 10, padding: 20, maxHeight: '80%', borderWidth: 1, borderColor: COLORS.border },
-  pickerItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border }
+  pickerItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  pickerItemText: { color: COLORS.text, fontWeight: '600' }
 });

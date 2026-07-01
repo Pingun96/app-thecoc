@@ -35,6 +35,7 @@ import {
 } from './src/services/dataMappers';
 import { AppContext } from './src/context/AppContext';
 import { getLocalDateKey } from './src/utils/dateTime';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Floating Check-in Button Component
 const CustomTabBarButton = ({ children, onPress, style, buttonColor = '#e91e63', shadowColor = '#e91e63' }) => (
@@ -189,7 +190,8 @@ const THEMES = {
 
 export default function App() {
   const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === 'dark';
+  const [themeMode, setThemeMode] = useState('system');
+  const isDarkMode = themeMode === 'system' ? colorScheme === 'dark' : themeMode === 'dark';
   const COLORS = isDarkMode ? THEMES.dark : THEMES.light;
 
   const [storeList, setStoreList] = useState([]);
@@ -207,6 +209,28 @@ export default function App() {
   const [payrollApprovals, setPayrollApprovals] = useState([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [dataError, setDataError] = useState('');
+
+  useEffect(() => {
+    AsyncStorage.getItem('thecocThemeMode').then((savedMode) => {
+      if (['light', 'dark', 'system'].includes(savedMode)) {
+        setThemeMode(savedMode);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const changeThemeMode = useCallback(async (nextMode) => {
+    const safeMode = ['light', 'dark', 'system'].includes(nextMode) ? nextMode : 'system';
+    setThemeMode(safeMode);
+    try {
+      await AsyncStorage.setItem('thecocThemeMode', safeMode);
+    } catch (error) {
+      console.log('Khong the luu che do giao dien:', error);
+    }
+  }, []);
+
+  const toggleThemeMode = useCallback(() => {
+    changeThemeMode(isDarkMode ? 'light' : 'dark');
+  }, [changeThemeMode, isDarkMode]);
 
   const refreshData = useCallback(async () => {
     setIsDataLoading(true);
@@ -344,7 +368,8 @@ export default function App() {
       payrollApprovals, setPayrollApprovals,
       shiftSwaps, setShiftSwaps,
       isDataLoading, dataError, refreshData,
-      isDarkMode, COLORS
+      isDarkMode, COLORS,
+      themeMode, setThemeMode: changeThemeMode, toggleThemeMode
     }}>
       <View style={[styles.webContainer, { backgroundColor: COLORS.bg }]}>
         <View style={[styles.webWrapper, { backgroundColor: COLORS.bg }]}>

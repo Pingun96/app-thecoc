@@ -236,7 +236,7 @@ export default function PayrollScreen({ navigation }) {
     return (
       <View style={styles.progressBlock}>
         <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
-          <Text style={{fontWeight: 'bold', color: '#1976d2'}}>Tiến trình duyệt lương:</Text>
+          <Text style={styles.progressTitle}>Tiến trình duyệt lương:</Text>
           {(isOwner || (isManager && !owner_confirmed)) && (staff_confirmed || manager_confirmed || owner_confirmed) && (
             <TouchableOpacity onPress={() => handleCancelApprove(item)}>
               <Text style={{color: '#d32f2f', fontSize: 12, fontWeight: 'bold'}}>Hủy duyệt (Mở khóa)</Text>
@@ -248,21 +248,21 @@ export default function PayrollScreen({ navigation }) {
           <Ionicons name={staff_confirmed ? "checkmark-circle" : "ellipse-outline"} size={20} color={staff_confirmed ? "#4CAF50" : "#ccc"} />
           <View>
             <Text style={[styles.stepText, staff_confirmed && styles.stepTextActive]}>1. Nhân viên xác nhận giờ & lương</Text>
-            {staff_confirmed && staff_confirmed_at && <Text style={{fontSize: 11, color: '#6b7280', marginTop: 2, marginLeft: 5}}>Lúc: {staff_confirmed_at}</Text>}
+            {staff_confirmed && staff_confirmed_at && <Text style={styles.stepMeta}>Lúc: {staff_confirmed_at}</Text>}
           </View>
         </View>
         <View style={styles.stepRow}>
           <Ionicons name={manager_confirmed ? "checkmark-circle" : "ellipse-outline"} size={20} color={manager_confirmed ? "#4CAF50" : "#ccc"} />
           <View>
             <Text style={[styles.stepText, manager_confirmed && styles.stepTextActive]}>2. Quản lý duyệt phiếu lương</Text>
-            {manager_confirmed && manager_confirmed_by && <Text style={{fontSize: 11, color: '#6b7280', marginTop: 2, marginLeft: 5}}>Duyệt bởi: {manager_confirmed_by} - {manager_confirmed_at}</Text>}
+            {manager_confirmed && manager_confirmed_by && <Text style={styles.stepMeta}>Duyệt bởi: {manager_confirmed_by} - {manager_confirmed_at}</Text>}
           </View>
         </View>
         <View style={styles.stepRow}>
           <Ionicons name={owner_confirmed ? "checkmark-circle" : "ellipse-outline"} size={20} color={owner_confirmed ? "#4CAF50" : "#ccc"} />
           <View>
             <Text style={[styles.stepText, owner_confirmed && styles.stepTextActive]}>3. Chủ quán chốt (Hoàn tất)</Text>
-            {owner_confirmed && owner_confirmed_by && <Text style={{fontSize: 11, color: '#6b7280', marginTop: 2, marginLeft: 5}}>Duyệt bởi: {owner_confirmed_by} - {owner_confirmed_at}</Text>}
+            {owner_confirmed && owner_confirmed_by && <Text style={styles.stepMeta}>Duyệt bởi: {owner_confirmed_by} - {owner_confirmed_at}</Text>}
           </View>
         </View>
 
@@ -336,7 +336,7 @@ export default function PayrollScreen({ navigation }) {
           payrollData.map(item => (
             <View key={item.id} style={styles.staffCard}>
               <TouchableOpacity 
-                style={[styles.staffHeader, item.approval.owner_confirmed && {backgroundColor: '#f1f8e9'}]} 
+                style={[styles.staffHeader, item.approval.owner_confirmed && styles.staffHeaderFinalized]} 
                 onPress={() => setExpandedUser(expandedUser === item.id ? null : item.id)}
                 activeOpacity={0.7}
               >
@@ -358,11 +358,11 @@ export default function PayrollScreen({ navigation }) {
                   {/* Khối Thưởng Phạt */}
                   <View style={styles.adjBlock}>
                     <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <Text style={{fontWeight: 'bold', color: '#1976d2'}}>Lương & Thưởng / Phạt</Text>
+                      <Text style={styles.adjTitle}>Lương & Thưởng / Phạt</Text>
                       {isOwner && !item.approval.owner_confirmed && (
                         <TouchableOpacity style={styles.adjEditBtn} onPress={() => openAdjustmentModal(item)}>
                           <Ionicons name="pencil" size={14} color="#1976d2" />
-                          <Text style={{color: '#1976d2', fontSize: 12, marginLeft: 4}}>Điều chỉnh</Text>
+                          <Text style={styles.adjEditText}>Điều chỉnh</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -387,7 +387,7 @@ export default function PayrollScreen({ navigation }) {
 
                   <Text style={{fontWeight: 'bold', marginBottom: 10, color: COLORS.text, marginTop: 15}}>Chi tiết các ngày làm việc:</Text>
                   {item.records.length === 0 ? (
-                    <Text style={{color: '#999', fontStyle: 'italic'}}>Không có dữ liệu</Text>
+                    <Text style={styles.emptyText}>Không có dữ liệu</Text>
                   ) : (
                     item.records.map((r, idx) => (
                       <View key={idx} style={styles.recordRow}>
@@ -411,7 +411,7 @@ export default function PayrollScreen({ navigation }) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Thưởng / Phạt</Text>
               <TouchableOpacity onPress={() => setShowAdjModal(false)}>
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>Nhân viên: {adjTarget?.name}</Text>
@@ -459,6 +459,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   
   staffCard: { backgroundColor: COLORS.card, borderRadius: 10, marginBottom: 12, elevation: 2, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
   staffHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, alignItems: 'center' },
+  staffHeaderFinalized: { backgroundColor: isDarkMode ? '#0f2a1d' : '#f1f8e9' },
   staffName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
   staffRole: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
   staffTotal: { fontSize: 16, fontWeight: 'bold', color: '#4CAF50' },
@@ -468,13 +469,17 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   divider: { height: 1, backgroundColor: COLORS.border, marginBottom: 15, marginTop: -5 },
   
   adjBlock: { backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', padding: 12, borderRadius: 8, marginBottom: 15 },
-  adjEditBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#bbdefb', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 15 },
+  adjTitle: { fontWeight: 'bold', color: isDarkMode ? '#93c5fd' : '#1976d2' },
+  adjEditBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDarkMode ? '#1e3a8a' : '#bbdefb', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 15 },
+  adjEditText: { color: isDarkMode ? '#bfdbfe' : '#1976d2', fontSize: 12, marginLeft: 4, fontWeight: '700' },
   adjText: { fontSize: 13, color: COLORS.text },
 
   progressBlock: { backgroundColor: COLORS.card, padding: 15, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, marginBottom: 15 },
+  progressTitle: { fontWeight: 'bold', color: isDarkMode ? '#93c5fd' : '#1976d2' },
   stepRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   stepText: { fontSize: 14, color: COLORS.textMuted, marginLeft: 8 },
   stepTextActive: { color: COLORS.text, fontWeight: 'bold' },
+  stepMeta: { fontSize: 11, color: COLORS.textMuted, marginTop: 2, marginLeft: 5 },
   approveBtn: { padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   approveBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
   finalizedBadge: { flexDirection: 'row', backgroundColor: '#4CAF50', padding: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
@@ -484,6 +489,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   recordDate: { width: 90, color: COLORS.text, fontWeight: 'bold' },
   recordTime: { flex: 1, color: COLORS.textMuted, textAlign: 'center' },
   recordHours: { width: 50, color: '#1976d2', fontWeight: 'bold', textAlign: 'right' },
+  emptyText: { color: COLORS.textMuted, fontStyle: 'italic' },
 
   // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },

@@ -599,7 +599,7 @@ export default function ShiftScreen({ navigation }) {
             <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 10}}>
               <Text style={{fontSize: 18, fontWeight: 'bold', color: '#1976d2'}}>Chi Tiết Báo Cáo Chốt Ca</Text>
               <TouchableOpacity onPress={() => setSelectedShiftForDetail(null)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={isDarkMode ? '#0f172a' : COLORS.text} />
               </TouchableOpacity>
             </View>
 
@@ -616,7 +616,7 @@ export default function ShiftScreen({ navigation }) {
 
               <Text style={[styles.sectionTitle, {fontSize: 14}]}>KIỂM KÊ KHO HÀNG</Text>
               {invCheck.length > 0 ? (
-                <View style={{backgroundColor: '#f9fafb', padding: 10, borderRadius: 8, marginBottom: 15}}>
+                <View style={styles.detailBox}>
                   <View style={{flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 5, marginBottom: 5}}>
                     <Text style={{flex: 2, fontWeight: 'bold'}}>Mặt hàng</Text>
                     <Text style={{flex: 1, fontWeight: 'bold', textAlign: 'right'}}>Tồn Cuối</Text>
@@ -629,11 +629,11 @@ export default function ShiftScreen({ navigation }) {
                   ))}
                 </View>
               ) : (
-                <Text style={{fontStyle: 'italic', color: '#888', marginBottom: 15}}>Không có dữ liệu kiểm kho</Text>
+                <Text style={[styles.emptyText, {fontStyle: 'italic', marginBottom: 15}]}>Không có dữ liệu kiểm kho</Text>
               )}
 
               <Text style={[styles.sectionTitle, {fontSize: 14}]}>DOANH THU & KÉT TIỀN</Text>
-              <View style={{backgroundColor: '#f9fafb', padding: 10, borderRadius: 8, marginBottom: 15}}>
+              <View style={styles.detailBox}>
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Tiền mặt (Đầu ca):</Text><Text style={{fontWeight: 'bold'}}>{item.opening_cash.toLocaleString()}đ</Text></View>
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Tiền Mặt:</Text><Text style={{fontWeight: 'bold', color: '#1976d2'}}>{item.rev_cash.toLocaleString()}đ</Text></View>
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Momo:</Text><Text style={{fontWeight: 'bold', color: '#d82d8b'}}>{item.rev_momo.toLocaleString()}đ</Text></View>
@@ -705,7 +705,7 @@ export default function ShiftScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><Ionicons name="arrow-back" size={24} color="#1f2937" /></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
           <Text style={styles.header}>Báo Cáo Mẫu 16</Text>
         </View>
 
@@ -736,8 +736,8 @@ export default function ShiftScreen({ navigation }) {
 
           {(activeTab === 'INVENTORY' || activeTab === 'CASH') && (!hasCashierPerm ? (
             <View style={{padding: 20, alignItems: 'center', marginTop: 50}}>
-              <Ionicons name="lock-closed" size={60} color="#ccc" />
-              <Text style={{fontSize: 18, color: '#888', marginTop: 15, textAlign: 'center'}}>Bạn không được cấp quyền Thu Ngân / Bán Hàng để thực hiện chức năng này.</Text>
+              <Ionicons name="lock-closed" size={60} color={COLORS.textMuted} />
+              <Text style={{fontSize: 18, color: COLORS.textMuted, marginTop: 15, textAlign: 'center'}}>Bạn không được cấp quyền Thu Ngân / Bán Hàng để thực hiện chức năng này.</Text>
             </View>
           ) : (
             <View>
@@ -785,9 +785,9 @@ export default function ShiftScreen({ navigation }) {
                 </View>
               ) : (
                 <View>
-                  <View style={[styles.section, {backgroundColor: '#e8f5e9'}]}>
-                    <Text style={{color: '#2e7d32', fontWeight: 'bold'}}>🟢 ĐANG TRONG CA: {storeList.find(s=>s.id===storeIdToView)?.name}</Text>
-                    <Text style={{color: COLORS.textMuted}}>Mở lúc: {currentOpenShift.opened_at} bởi {currentOpenShift.opened_by_name}</Text>
+                  <View style={[styles.section, styles.openShiftBanner]}>
+                    <Text style={styles.openShiftTitle}>🟢 ĐANG TRONG CA: {storeList.find(s=>s.id===storeIdToView)?.name}</Text>
+                    <Text style={styles.openShiftMeta}>Mở lúc: {currentOpenShift.opened_at} bởi {currentOpenShift.opened_by_name}</Text>
                   </View>
 
                   {/* PHẦN 1: KIỂM KHO */}
@@ -836,9 +836,9 @@ export default function ShiftScreen({ navigation }) {
                     {renderMoneyInput('TIỀN TRONG KÉT THỰC ĐẾM (2):', actualCash, setActualCash, true, 'Đếm két...')}
 
                     <View style={styles.previewBox}>
-                      <Text style={{fontWeight: 'bold', marginBottom: 5}}>Xem Trước Báo Cáo:</Text>
-                      <Text>Doanh thu tổng: {(parseMoneyInput(revCash) + parseMoneyInput(revMomo) + parseMoneyInput(revGrab) + parseMoneyInput(revShopee) - parseMoneyInput(discount)).toLocaleString()}đ</Text>
-                      <Text>Lệch két: {(parseMoneyInput(actualCash) - (currentOpenShift.opening_cash + parseMoneyInput(revCash) - parseMoneyInput(expenses))).toLocaleString()}đ</Text>
+                      <Text style={styles.previewTitle}>Xem Trước Báo Cáo:</Text>
+                      <Text style={styles.previewText}>Doanh thu tổng: {(parseMoneyInput(revCash) + parseMoneyInput(revMomo) + parseMoneyInput(revGrab) + parseMoneyInput(revShopee) - parseMoneyInput(discount)).toLocaleString()}đ</Text>
+                      <Text style={styles.previewText}>Lệch két: {(parseMoneyInput(actualCash) - (currentOpenShift.opening_cash + parseMoneyInput(revCash) - parseMoneyInput(expenses))).toLocaleString()}đ</Text>
                     </View>
 
                     <View style={{marginTop: 15, marginBottom: 10}}>
@@ -852,13 +852,13 @@ export default function ShiftScreen({ navigation }) {
                         </View>
                       ) : (
                         <View style={{flexDirection: 'row', gap: 10, marginTop: 5}}>
-                          <TouchableOpacity style={{flex: 1, backgroundColor: '#e0e7ff', padding: 12, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center'}} onPress={() => handlePickImage(true)}>
+                          <TouchableOpacity style={styles.mediaBtn} onPress={() => handlePickImage(true)}>
                             <Ionicons name="camera" size={20} color="#4f46e5" style={{marginRight: 5}}/>
-                            <Text style={{color: '#4f46e5', fontWeight: 'bold'}}>Chụp ảnh</Text>
+                            <Text style={styles.mediaBtnText}>Chụp ảnh</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity style={{flex: 1, backgroundColor: '#e0e7ff', padding: 12, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center'}} onPress={() => handlePickImage(false)}>
+                          <TouchableOpacity style={styles.mediaBtn} onPress={() => handlePickImage(false)}>
                             <Ionicons name="image" size={20} color="#4f46e5" style={{marginRight: 5}}/>
-                            <Text style={{color: '#4f46e5', fontWeight: 'bold'}}>Thư viện</Text>
+                            <Text style={styles.mediaBtnText}>Thư viện</Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -871,8 +871,8 @@ export default function ShiftScreen({ navigation }) {
                   <View style={styles.section}>
                     <Text style={styles.sectionTitle}>PHẦN 3: CHẤM CÔNG CA</Text>
                     {todayAttendance.length > 0 ? todayAttendance.map(a => (
-                      <Text key={a.id} style={{marginBottom: 5}}>• Nhân viên {a.user_id}: Vào {a.checkIn} - Ra {a.checkOut || 'Chưa ra'}</Text>
-                    )) : <Text style={{color: '#888'}}>Chưa có dữ liệu chấm công hôm nay.</Text>}
+                      <Text key={a.id} style={styles.attendanceText}>• Nhân viên {a.user_id}: Vào {a.checkIn} - Ra {a.checkOut || 'Chưa ra'}</Text>
+                    )) : <Text style={styles.emptyText}>Chưa có dữ liệu chấm công hôm nay.</Text>}
                   </View>
                   )}
                 </View>
@@ -934,10 +934,20 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   historyCard: { backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, padding: 15, borderRadius: 10, marginBottom: 15 },
   hText: { color: COLORS.textMuted, marginBottom: 3, fontSize: 13 },
   infoText: { fontSize: 14, fontWeight: 'bold', marginBottom: 10, color: COLORS.text },
+  openShiftBanner: { backgroundColor: isDarkMode ? '#0f2a1d' : '#e8f5e9', borderColor: isDarkMode ? '#166534' : '#bbf7d0' },
+  openShiftTitle: { color: isDarkMode ? '#86efac' : '#2e7d32', fontWeight: 'bold' },
+  openShiftMeta: { color: COLORS.textMuted, marginTop: 4 },
   previewBox: { backgroundColor: isDarkMode ? '#3b2a11' : '#fff3e0', padding: 10, borderRadius: 8, marginTop: 15 },
+  previewTitle: { fontWeight: 'bold', marginBottom: 5, color: COLORS.text },
+  previewText: { color: COLORS.text, marginTop: 2 },
+  mediaBtn: { flex: 1, backgroundColor: isDarkMode ? '#1e1b4b' : '#e0e7ff', padding: 12, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: isDarkMode ? '#3730a3' : '#c7d2fe' },
+  mediaBtnText: { color: isDarkMode ? '#c7d2fe' : '#4f46e5', fontWeight: 'bold' },
+  attendanceText: { marginBottom: 5, color: COLORS.text },
+  emptyText: { color: COLORS.textMuted },
   tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingBottom: 5, marginBottom: 5 },
   tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   cell: { fontSize: 13, color: COLORS.text },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContainer: { width: '100%', maxHeight: '80%', backgroundColor: COLORS.card, borderRadius: 12, padding: 20, elevation: 5, borderWidth: 1, borderColor: COLORS.border }
+  detailBox: { backgroundColor: isDarkMode ? '#f8fafc' : '#f9fafb', padding: 10, borderRadius: 8, marginBottom: 15 },
+  modalContainer: { width: '100%', maxHeight: '80%', backgroundColor: isDarkMode ? '#f8fafc' : COLORS.card, borderRadius: 12, padding: 20, elevation: 5, borderWidth: 1, borderColor: COLORS.border }
 });

@@ -11,11 +11,13 @@ import {
   RefreshControl,
   Modal,
   TextInput,
-  useColorScheme
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import { getDailyRevenue } from '../services/financeService';
+import DateRangePickerModal from '../components/DateRangePickerModal';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -107,76 +109,209 @@ function CustomPieBars({ data, COLORS }) {
   );
 }
 
+// ---- Custom Calendar Picker Component ----
+function CalendarPicker({ startDate, endDate, onChange, COLORS }) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayIndex = new Date(year, month, 1).getDay();
+
+  const handlePrevMonth = () => {
+    setCurrentDate(new Date(year, month - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(new Date(year, month + 1, 1));
+  };
+
+  const handleDayPress = (day) => {
+    const dayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    if (!startDate || (startDate && endDate)) {
+      onChange(dayStr, null);
+    } else {
+      if (dayStr < startDate) {
+        onChange(dayStr, null);
+      } else {
+        onChange(startDate, dayStr);
+      }
+    }
+  };
+
+  const dayRows = [];
+  let currentWeek = Array(firstDayIndex).fill(null);
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    currentWeek.push(d);
+    if (currentWeek.length === 7) {
+      dayRows.push(currentWeek);
+      currentWeek = [];
+    }
+  }
+  if (currentWeek.length > 0) {
+    while (currentWeek.length < 7) {
+      currentWeek.push(null);
+    }
+    dayRows.push(currentWeek);
+  }
+
+  const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <TouchableOpacity onPress={handlePrevMonth} style={{ padding: 6 }}>
+          <Ionicons name="chevron-back" size={20} color={COLORS.text} />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 15, fontWeight: 'bold', color: COLORS.text }}>
+          {`Tháng ${month + 1} / ${year}`}
+        </Text>
+        <TouchableOpacity onPress={handleNextMonth} style={{ padding: 6 }}>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.text} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+        {dayNames.map((name, idx) => (
+          <Text key={idx} style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600', color: COLORS.textMuted }}>
+            {name}
+          </Text>
+        ))}
+      </View>
+
+      {dayRows.map((week, wIdx) => (
+        <View key={wIdx} style={{ flexDirection: 'row', marginVertical: 1 }}>
+          {week.map((day, dIdx) => {
+            if (day === null) {
+              return <View key={dIdx} style={{ flex: 1 }} />;
+            }
+
+            const dayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const isStart = dayStr === startDate;
+            const isEnd = dayStr === endDate;
+            const isWithinRange = startDate && endDate && dayStr > startDate && dayStr < endDate;
+
+            let bgStyle = {};
+            let textStyle = { color: COLORS.text, fontWeight: '500' };
+
+            if (isStart) {
+              bgStyle = { backgroundColor: COLORS.primary, borderTopLeftRadius: 16, borderBottomLeftRadius: 16 };
+              if (!endDate || startDate === endDate) bgStyle.borderRadius = 16;
+              textStyle = { color: '#ffffff', fontWeight: 'bold' };
+            } else if (isEnd) {
+              bgStyle = { backgroundColor: COLORS.primary, borderTopRightRadius: 16, borderBottomRightRadius: 16 };
+              textStyle = { color: '#ffffff', fontWeight: 'bold' };
+            } else if (isWithinRange) {
+              bgStyle = { backgroundColor: COLORS.chartBarDim };
+              textStyle = { color: COLORS.text, fontWeight: '600' };
+            }
+
+            return (
+              <TouchableOpacity
+                key={dIdx}
+                onPress={() => handleDayPress(day)}
+                style={[{ flex: 1, height: 32, justifyContent: 'center', alignItems: 'center' }, bgStyle]}
+              >
+                <Text style={[{ fontSize: 12 }, textStyle]}>
+                  {day}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 // ---- Date Range Modal ----
 function DateRangeModal({ visible, onClose, onApply, COLORS }) {
   const today = getVNDateStr();
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState(today);
+  const [endDate, setEndDate] = useState('');
+
+  // Đồng bộ lại khi Modal hiển thị
+  useEffect(() => {
+    if (visible) {
+      setStartDate('');
+      setEndDate('');
+    }
+  }, [visible]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.modalBg }}>
-        <View style={{ backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 20 }}>Chọn khoảng thời gian</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.modalBg }}
+      >
+        <View style={{ backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Chọn khoảng thời gian</Text>
 
-          <Text style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 6 }}>Từ ngày (yyyy-mm-dd)</Text>
-          <TextInput
-            value={startDate}
-            onChangeText={setStartDate}
-            placeholder="2026-01-01"
-            placeholderTextColor={COLORS.textMuted}
-            autoFocus={false}
-            style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, color: COLORS.text, fontSize: 16, marginBottom: 16 }}
-            keyboardType="numbers-and-punctuation"
+          {/* Calendar picker */}
+          <CalendarPicker
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(start, end) => {
+              setStartDate(start);
+              setEndDate(end);
+            }}
+            COLORS={COLORS}
           />
 
-          <Text style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 6 }}>Đến ngày (yyyy-mm-dd)</Text>
-          <TextInput
-            value={endDate}
-            onChangeText={setEndDate}
-            placeholder={today}
-            placeholderTextColor={COLORS.textMuted}
-            autoFocus={false}
-            style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, color: COLORS.text, fontSize: 16, marginBottom: 8 }}
-            keyboardType="numbers-and-punctuation"
-          />
+          {/* Date range display */}
+          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.bg, borderRadius: 12, padding: 10, marginBottom: 12 }}>
+            <Ionicons name="calendar-outline" size={16} color={COLORS.primary} style={{ marginRight: 6 }} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text }}>
+              {startDate ? formatDate(startDate) : 'Từ ngày'}
+            </Text>
+            <Text style={{ marginHorizontal: 8, color: COLORS.textMuted }}>→</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text }}>
+              {endDate ? formatDate(endDate) : 'Đến ngày'}
+            </Text>
+          </View>
 
           {/* Shortcut buttons */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             {[
+              { label: 'Hôm qua', start: (() => { const d = new Date(); d.setDate(d.getDate() - 1); return getVNDateStr(d); })(), end: (() => { const d = new Date(); d.setDate(d.getDate() - 1); return getVNDateStr(d); })() },
               { label: 'Tuần này', start: (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); return getVNDateStr(d); })() },
-              { label: 'Tháng này', start: getVNDateStr(new Date()).slice(0, 7) + '-01' },
+              { label: 'Tháng này', start: getVNDateStr(new Date()).slice(0, 8) + '01' },
               { label: 'Tháng trước', start: (() => { const d = new Date(); d.setMonth(d.getMonth() - 1, 1); return getVNDateStr(d); })(), end: (() => { const d = new Date(); d.setDate(0); return getVNDateStr(d); })() },
             ].map((s, i) => (
               <TouchableOpacity key={i} onPress={() => { setStartDate(s.start); setEndDate(s.end || today); }}
-                style={{ paddingHorizontal: 14, paddingVertical: 8, backgroundColor: COLORS.border, borderRadius: 16, marginRight: 10 }}>
-                <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: '600' }}>{s.label}</Text>
+                style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: COLORS.border, borderRadius: 16, marginRight: 8 }}>
+                <Text style={{ color: COLORS.text, fontSize: 12, fontWeight: '600' }}>{s.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <TouchableOpacity onPress={onClose} style={{ flex: 1, marginRight: 10, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' }}>
+            <TouchableOpacity onPress={onClose} style={{ flex: 1, marginRight: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' }}>
               <Text style={{ color: COLORS.textMuted, fontWeight: '600' }}>Huỷ</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => onApply(startDate || null, endDate || null)}
-              style={{ flex: 1, padding: 14, borderRadius: 14, backgroundColor: COLORS.primary, alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => onApply(startDate || null, endDate || startDate || null)}
+              style={{ flex: 1, padding: 12, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: 'center' }}
+            >
               <Text style={{ color: '#fff', fontWeight: 'bold' }}>Áp dụng</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 export default function FinanceScreen({ navigation }) {
-  const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === 'dark';
-  const COLORS = isDarkMode ? THEMES.dark : THEMES.light;
+  const { currentUser, storeList, COLORS: appColors, isDarkMode } = useContext(AppContext);
+  const COLORS = useMemo(() => ({
+    ...appColors,
+    chartBarDim: isDarkMode ? 'rgba(96,165,250,0.18)' : 'rgba(59,130,246,0.18)',
+    modalBg: isDarkMode ? 'rgba(2,6,23,0.78)' : 'rgba(15,23,42,0.35)',
+  }), [appColors, isDarkMode]);
   const styles = useMemo(() => getStyles(COLORS), [COLORS]);
-
-  const { currentUser, storeList } = useContext(AppContext);
   const isOwner = currentUser?.role === 'OWNER';
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -196,6 +331,17 @@ export default function FinanceScreen({ navigation }) {
         if (period === 'today') {
           startDateStr = getVNDateStr();
           endDateStr = getVNDateStr();
+        } else if (period === 'yesterday') {
+          const d = new Date(now); d.setDate(d.getDate() - 1);
+          startDateStr = getVNDateStr(d);
+          endDateStr = getVNDateStr(d);
+        } else if (period === 'week') {
+          const d = new Date(now); d.setDate(d.getDate() - d.getDay());
+          startDateStr = getVNDateStr(d);
+          endDateStr = getVNDateStr(now);
+        } else if (period === 'month') {
+          startDateStr = getVNDateStr(now).slice(0, 8) + '01';
+          endDateStr = getVNDateStr(now);
         } else if (period === '7') {
           const d = new Date(now); d.setDate(d.getDate() - 7);
           startDateStr = getVNDateStr(d);
@@ -334,7 +480,7 @@ export default function FinanceScreen({ navigation }) {
 
       {/* Period Selector */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRow} style={{ flexGrow: 0, height: 45 }}>
-        {[['today', 'Hôm nay'], ['7', '7 ngày'], ['30', '30 ngày']].map(([val, label]) => (
+        {[['today', 'Hôm nay'], ['yesterday', 'Hôm qua'], ['week', 'Tuần này'], ['month', 'Tháng này'], ['7', '7 ngày'], ['30', '30 ngày']].map(([val, label]) => (
           <TouchableOpacity key={val} style={[styles.periodBtn, period === val && styles.periodBtnActive]} onPress={() => setPeriod(val)}>
             <Text style={[styles.periodText, period === val && styles.periodTextActive]}>{label}</Text>
           </TouchableOpacity>
@@ -421,11 +567,15 @@ export default function FinanceScreen({ navigation }) {
         </ScrollView>
       )}
 
-      <DateRangeModal
+      <DateRangePickerModal
         visible={showDateModal}
         onClose={() => setShowDateModal(false)}
         onApply={onApplyDateRange}
+        initialStartDate={customRange.start}
+        initialEndDate={customRange.end}
         COLORS={COLORS}
+        isDarkMode={isDarkMode}
+        title="Chọn ngày xem báo cáo"
       />
     </SafeAreaView>
   );

@@ -24,6 +24,8 @@ export default function DashboardScreen({ navigation }) {
     refreshData,
     COLORS,
     isDarkMode,
+    themeMode,
+    toggleThemeMode,
   } = useContext(AppContext);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -258,6 +260,15 @@ export default function DashboardScreen({ navigation }) {
         </TouchableOpacity>
 
         <View style={{flexDirection: 'row', alignItems: 'center', gap: 15}}>
+          <TouchableOpacity
+            onPress={toggleThemeMode}
+            style={styles.themeToggleBtn}
+            accessibilityLabel={isDarkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
+          >
+            <Ionicons name={isDarkMode ? 'sunny-outline' : 'moon-outline'} size={24} color={theme.iconColor} />
+            {themeMode !== 'system' && <View style={styles.themeModeDot} />}
+          </TouchableOpacity>
+
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative' }}>
             <Ionicons name="notifications-outline" size={26} color={theme.iconColor} />
             {unreadCount > 0 && (
@@ -414,6 +425,8 @@ const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
   nameText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   roleText: { color: '#86efac', fontSize: 12, fontWeight: '700', marginTop: 2 },
   logoutBtn: { padding: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
+  themeToggleBtn: { padding: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, position: 'relative' },
+  themeModeDot: { position: 'absolute', right: 8, top: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.accent },
   storeSelector: { flexDirection: 'row' },
   storeChip: { backgroundColor: COLORS.border, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 10, height: 36, justifyContent: 'center' },
   storeChipActive: { backgroundColor: '#1976d2' },

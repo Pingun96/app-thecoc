@@ -493,7 +493,7 @@ export default function StaffManagementScreen({ navigation }) {
                       const isHomeStore = store.id === storeId;
                       return (
                         <View key={store.id} style={styles.permRow}>
-                          <Text style={isHomeStore ? {fontWeight: 'bold', color: '#1976d2'} : {}}>{store.name} {isHomeStore && '(Chi nhánh gốc)'}</Text>
+                          <Text style={[styles.permRowText, isHomeStore && styles.permRowTextActive]}>{store.name} {isHomeStore && '(Chi nhánh gốc)'}</Text>
                           <Switch
                             value={isHomeStore ? true : perms.viewable_stores.includes(store.id)}
                             disabled={isHomeStore}
@@ -621,7 +621,7 @@ export default function StaffManagementScreen({ navigation }) {
                         const isHomeStore = store.id === editingStaff.store_id;
                         return (
                           <View key={store.id} style={styles.permRow}>
-                            <Text style={isHomeStore ? {fontWeight: 'bold', color: '#1976d2'} : {}}>{store.name} {isHomeStore && '(Chi nhánh gốc)'}</Text>
+                            <Text style={[styles.permRowText, isHomeStore && styles.permRowTextActive]}>{store.name} {isHomeStore && '(Chi nhánh gốc)'}</Text>
                             <Switch
                               value={isHomeStore ? true : !!editingStaff.permissions?.viewable_stores?.includes(store.id)}
                               disabled={isHomeStore}
@@ -738,6 +738,8 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   storeChipTextActive: { color: '#fff' },
   permBox: { backgroundColor: COLORS.inputBg, padding: 15, borderRadius: 8, marginTop: 15, borderWidth: 1, borderColor: COLORS.border },
   permRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
+  permRowText: { color: COLORS.text, fontWeight: '600', flex: 1, paddingRight: 10 },
+  permRowTextActive: { color: COLORS.primary, fontWeight: '900' },
   permissionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   permissionTextBox: { flex: 1, paddingRight: 12 },
   permissionTitle: { color: COLORS.text, fontSize: 14, fontWeight: '800' },
