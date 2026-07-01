@@ -18,7 +18,8 @@ import {
 const formatCurrency = (value) => `${Math.round(Number(value) || 0).toLocaleString('vi-VN')} đ`;
 
 export default function StaffHistoryScreen({ navigation }) {
-  const { currentUser, attendanceHistory } = useContext(AppContext);
+  const { currentUser, attendanceHistory, COLORS, isDarkMode } = useContext(AppContext);
+  const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
 
   const myHistory = useMemo(
     () => attendanceHistory
@@ -142,12 +143,12 @@ export default function StaffHistoryScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f7fb', paddingHorizontal: 20 },
+const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg, paddingHorizontal: 20 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 20 },
   backBtn: { padding: 8, marginRight: 8, marginLeft: -8 },
-  header: { fontSize: 25, fontWeight: '800', color: '#172033' },
-  headerCaption: { color: '#64748b', marginTop: 2 },
+  header: { fontSize: 25, fontWeight: '800', color: COLORS.text },
+  headerCaption: { color: COLORS.textMuted, marginTop: 2 },
   salaryCard: {
     backgroundColor: '#166534',
     padding: 20,
@@ -173,22 +174,22 @@ const styles = StyleSheet.create({
   salaryStatLast: { borderRightWidth: 0, marginRight: 0, paddingRight: 0 },
   salaryStatLabel: { color: '#bbf7d0', fontSize: 11, marginBottom: 5 },
   salaryStatValue: { color: '#fff', fontWeight: '800', fontSize: 14 },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#334155', marginBottom: 13 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text, marginBottom: 13 },
   listContent: { paddingBottom: 40 },
   emptyContent: { flexGrow: 1 },
   historyCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     padding: 16,
     borderRadius: 14,
     marginBottom: 12,
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.06,
+    shadowColor: '#000',
+    shadowOpacity: isDarkMode ? 0.22 : 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  dateText: { fontSize: 16, fontWeight: '800', color: '#172033' },
+  dateText: { fontSize: 16, fontWeight: '800', color: COLORS.text },
   badge: { borderRadius: 20, paddingHorizontal: 9, paddingVertical: 5 },
   openBadge: { backgroundColor: '#dcfce7' },
   closedBadge: { backgroundColor: '#e0e7ff' },
@@ -201,16 +202,16 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#edf1f5',
+    borderBottomColor: COLORS.border,
   },
   timeBlock: { flex: 1 },
   timeBlockRight: { alignItems: 'flex-end' },
-  timeLabel: { color: '#64748b', fontSize: 12, marginBottom: 3 },
-  timeValue: { color: '#172033', fontSize: 20, fontWeight: '800' },
+  timeLabel: { color: COLORS.textMuted, fontSize: 12, marginBottom: 3 },
+  timeValue: { color: COLORS.text, fontSize: 20, fontWeight: '800' },
   cardFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
-  locationText: { flex: 1, color: '#64748b', fontSize: 12, marginRight: 8 },
+  locationText: { flex: 1, color: COLORS.textMuted, fontSize: 12, marginRight: 8 },
   hoursText: { color: '#ea580c', fontWeight: '800', fontSize: 12 },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 70 },
-  emptyTitle: { color: '#334155', fontWeight: '800', fontSize: 17, marginTop: 12 },
-  emptyText: { color: '#64748b', textAlign: 'center', marginTop: 5, lineHeight: 20 },
+  emptyTitle: { color: COLORS.text, fontWeight: '800', fontSize: 17, marginTop: 12 },
+  emptyText: { color: COLORS.textMuted, textAlign: 'center', marginTop: 5, lineHeight: 20 },
 });

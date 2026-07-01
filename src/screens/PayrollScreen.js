@@ -6,7 +6,8 @@ import { supabase } from '../services/supabaseClient';
 import { sendPushNotification } from '../services/NotificationService';
 
 export default function PayrollScreen({ navigation }) {
-  const { currentUser, attendanceHistory, staffList, payrollAdjustments, setPayrollAdjustments, payrollApprovals, setPayrollApprovals, refreshData, isDataLoading } = useContext(AppContext);
+  const { currentUser, attendanceHistory, staffList, payrollAdjustments, setPayrollAdjustments, payrollApprovals, setPayrollApprovals, refreshData, isDataLoading, COLORS, isDarkMode } = useContext(AppContext);
+  const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
   
   const isOwner = currentUser?.role === 'OWNER';
   const isManager = currentUser?.role === 'MANAGER';
@@ -330,7 +331,7 @@ export default function PayrollScreen({ navigation }) {
         <Text style={styles.sectionTitle}>Chi tiết nhân sự</Text>
         
         {payrollData.length === 0 ? (
-          <Text style={{textAlign: 'center', color: '#666', marginTop: 20}}>Chưa có dữ liệu chấm công tháng này</Text>
+          <Text style={{textAlign: 'center', color: COLORS.textMuted, marginTop: 20}}>Chưa có dữ liệu chấm công tháng này</Text>
         ) : (
           payrollData.map(item => (
             <View key={item.id} style={styles.staffCard}>
@@ -370,12 +371,12 @@ export default function PayrollScreen({ navigation }) {
                       {item.adjustment?.bonus_hours > 0 && <Text style={[styles.adjText, {color: '#388e3c'}]}>• Thưởng thêm giờ: +{item.adjustment.bonus_hours}h</Text>}
                       {item.adjustment?.bonus_money > 0 && <Text style={[styles.adjText, {color: '#388e3c'}]}>• Tiền thưởng (Quy định quán): +{formatMoney(item.adjustment.bonus_money)}đ</Text>}
                       {item.adjustment?.manual_penalty > 0 && <Text style={[styles.adjText, {color: 'red'}]}>• Tiền phạt (Quy định quán): -{formatMoney(item.adjustment.manual_penalty)}đ</Text>}
-                      {item.adjustment?.note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: '#666', marginLeft: 10}]}>Lý do: {item.adjustment.note}</Text> : null}
+                      {item.adjustment?.note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: COLORS.textMuted, marginLeft: 10}]}>Lý do: {item.adjustment.note}</Text> : null}
                       
                       {item.adjustment?.auto_penalty > 0 && (
                         <>
                           <Text style={[styles.adjText, {color: 'red', marginTop: 4}]}>• Lệch két (Hệ thống tự trừ): -{formatMoney(item.adjustment.auto_penalty)}đ</Text>
-                          {item.adjustment?.auto_note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: '#666', marginLeft: 10}]}>{item.adjustment.auto_note}</Text> : null}
+                          {item.adjustment?.auto_note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: COLORS.textMuted, marginLeft: 10}]}>{item.adjustment.auto_note}</Text> : null}
                         </>
                       )}
                     </View>
@@ -384,7 +385,7 @@ export default function PayrollScreen({ navigation }) {
                   {/* Khối Tiến trình Duyệt Lương */}
                   {renderApprovalProgress(item)}
 
-                  <Text style={{fontWeight: 'bold', marginBottom: 10, color: '#555', marginTop: 15}}>Chi tiết các ngày làm việc:</Text>
+                  <Text style={{fontWeight: 'bold', marginBottom: 10, color: COLORS.text, marginTop: 15}}>Chi tiết các ngày làm việc:</Text>
                   {item.records.length === 0 ? (
                     <Text style={{color: '#999', fontStyle: 'italic'}}>Không có dữ liệu</Text>
                   ) : (
@@ -440,58 +441,58 @@ export default function PayrollScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5' },
+const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg },
   headerRow: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 10 },
   backBtn: { padding: 5, marginRight: 10 },
-  header: { fontSize: 22, fontWeight: 'bold', color: '#1f2937' },
+  header: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
   
-  monthSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#e3f2fd', marginHorizontal: 20, padding: 10, borderRadius: 8, marginTop: 10 },
+  monthSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', marginHorizontal: 20, padding: 10, borderRadius: 8, marginTop: 10, borderWidth: 1, borderColor: COLORS.border },
   monthBtn: { padding: 5 },
-  monthText: { fontSize: 18, fontWeight: 'bold', color: '#1976d2' },
+  monthText: { fontSize: 18, fontWeight: 'bold', color: COLORS.primary },
   
   summaryCard: { backgroundColor: '#1976d2', padding: 20, borderRadius: 12, marginBottom: 20, alignItems: 'center', elevation: 4 },
   summaryTitle: { color: '#e3f2fd', fontSize: 16, marginBottom: 5 },
   summaryAmount: { color: '#fff', fontSize: 32, fontWeight: 'bold' },
   
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 15 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 15 },
   
-  staffCard: { backgroundColor: '#fff', borderRadius: 10, marginBottom: 12, elevation: 2, overflow: 'hidden' },
+  staffCard: { backgroundColor: COLORS.card, borderRadius: 10, marginBottom: 12, elevation: 2, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
   staffHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, alignItems: 'center' },
-  staffName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  staffRole: { fontSize: 13, color: '#666', marginTop: 4 },
+  staffName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
+  staffRole: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
   staffTotal: { fontSize: 16, fontWeight: 'bold', color: '#4CAF50' },
-  staffHours: { fontSize: 13, color: '#888', marginTop: 4 },
+  staffHours: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
   
-  staffDetails: { padding: 15, backgroundColor: '#f9fafb' },
-  divider: { height: 1, backgroundColor: '#e5e7eb', marginBottom: 15, marginTop: -5 },
+  staffDetails: { padding: 15, backgroundColor: COLORS.inputBg },
+  divider: { height: 1, backgroundColor: COLORS.border, marginBottom: 15, marginTop: -5 },
   
-  adjBlock: { backgroundColor: '#e3f2fd', padding: 12, borderRadius: 8, marginBottom: 15 },
+  adjBlock: { backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', padding: 12, borderRadius: 8, marginBottom: 15 },
   adjEditBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#bbdefb', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 15 },
-  adjText: { fontSize: 13, color: '#333' },
+  adjText: { fontSize: 13, color: COLORS.text },
 
-  progressBlock: { backgroundColor: '#fff', padding: 15, borderRadius: 8, borderWidth: 1, borderColor: '#e0e0e0', marginBottom: 15 },
+  progressBlock: { backgroundColor: COLORS.card, padding: 15, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, marginBottom: 15 },
   stepRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  stepText: { fontSize: 14, color: '#666', marginLeft: 8 },
-  stepTextActive: { color: '#333', fontWeight: 'bold' },
+  stepText: { fontSize: 14, color: COLORS.textMuted, marginLeft: 8 },
+  stepTextActive: { color: COLORS.text, fontWeight: 'bold' },
   approveBtn: { padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   approveBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
   finalizedBadge: { flexDirection: 'row', backgroundColor: '#4CAF50', padding: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   finalizedText: { color: '#fff', fontWeight: 'bold', fontSize: 13, marginLeft: 6 },
 
-  recordRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  recordDate: { width: 90, color: '#555', fontWeight: 'bold' },
-  recordTime: { flex: 1, color: '#666', textAlign: 'center' },
+  recordRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  recordDate: { width: 90, color: COLORS.text, fontWeight: 'bold' },
+  recordTime: { flex: 1, color: COLORS.textMuted, textAlign: 'center' },
   recordHours: { width: 50, color: '#1976d2', fontWeight: 'bold', textAlign: 'right' },
 
   // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 20, maxHeight: '90%' },
+  modalContent: { backgroundColor: COLORS.card, borderRadius: 12, padding: 20, maxHeight: '90%', borderWidth: 1, borderColor: COLORS.border },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
-  modalSubtitle: { fontSize: 14, color: '#666', marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 5 },
-  input: { backgroundColor: '#f5f5f5', padding: 12, borderRadius: 8, marginBottom: 15, borderWidth: 1, borderColor: '#ddd' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text },
+  modalSubtitle: { fontSize: 14, color: COLORS.textMuted, marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: 'bold', color: COLORS.text, marginBottom: 5 },
+  input: { backgroundColor: COLORS.inputBg, color: COLORS.text, padding: 12, borderRadius: 8, marginBottom: 15, borderWidth: 1, borderColor: COLORS.inputBorder },
   saveBtn: { backgroundColor: '#4CAF50', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   saveBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
 });

@@ -168,8 +168,23 @@ export default function DashboardScreen({ navigation }) {
 
   // Hàm kiểm tra quyền
   const hasPermission = (featureKey) => {
-    if (currentUser?.role === 'OWNER' || currentUser?.role === 'MANAGER') return true;
-    return currentUser?.permissions?.[featureKey] === true;
+    if (currentUser?.role === 'OWNER') return true;
+
+    const permissions = currentUser?.permissions || {};
+    const hasExplicitPermissions = Object.keys(permissions).length > 0;
+
+    // Tương thích tài khoản quản lý cũ chưa có object permissions.
+    if (currentUser?.role === 'MANAGER' && !hasExplicitPermissions) return true;
+
+    if (featureKey === 'finance') {
+      return permissions.finance === true || permissions.reports === true;
+    }
+
+    if (featureKey === 'hr') {
+      return permissions.hr === true || permissions.manage_permissions === true;
+    }
+
+    return permissions[featureKey] === true;
   };
 
   const handleNav = (featureKey, routeName, staffRouteName, fallbackAction) => {
@@ -345,7 +360,7 @@ export default function DashboardScreen({ navigation }) {
           {renderGridItem('Luân Chuyển Kho', 'Nhập/Xuất/Điều phối', 'truck-delivery-outline', 'Material', '#fce4ec', 'inventory', 'InventoryTransfer', 'InventoryTransfer')}
           {renderGridItem(currentUser?.role === 'STAFF' ? 'Chấm Công' : 'Nhân Sự', currentUser?.role === 'STAFF' ? 'Định vị GPS / Camera' : 'Hồ sơ & Phân quyền', currentUser?.role === 'STAFF' ? "scan-circle" : "id-card", 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
           {renderGridItem('Bảng Lương', 'Bảng lương chi tiết', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'Payroll', 'Payroll')}
-          {currentUser?.role !== 'STAFF' && renderGridItem('Tài Chính', 'Doanh thu & Lợi nhuận', 'chart-line', 'Material', '#ede9fe', 'reports', 'Finance', 'Finance')}
+          {renderGridItem('Tài Chính', 'Doanh thu & Lợi nhuận', 'chart-line', 'Material', '#ede9fe', 'finance', 'Finance', 'Finance')}
         </View>
 
       </ScrollView>

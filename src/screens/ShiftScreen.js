@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Alert, Modal, Image, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -8,7 +8,8 @@ import { supabase } from '../services/supabaseClient';
 import { sendPushNotification } from '../services/NotificationService';
 
 export default function ShiftScreen({ navigation }) {
-  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory, payrollAdjustments, setPayrollAdjustments, inventoryLogs } = useContext(AppContext);
+  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory, payrollAdjustments, setPayrollAdjustments, inventoryLogs, COLORS, isDarkMode } = useContext(AppContext);
+  const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
 
   const formatMoneyInput = (val) => {
     if (!val) return '';
@@ -557,7 +558,7 @@ export default function ShiftScreen({ navigation }) {
           <TouchableOpacity key={item.id} style={[styles.historyCard, isDiscrepancy && {borderColor: '#f44336', borderWidth: 2}]} onPress={() => setSelectedShiftForDetail(item)}>
             <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 8}}>
               <Text style={{fontWeight: 'bold', fontSize: 16, color: isDiscrepancy ? '#f44336' : '#1976d2'}}>{dateStr} {periodStr ? `- ${periodStr}` : ''} {isDiscrepancy ? '(Lệch)' : ''}</Text>
-              <Text style={{color: '#333', fontWeight: 'bold'}}>{storeList.find(s=>s.id===item.store_id)?.name}</Text>
+              <Text style={{color: COLORS.text, fontWeight: 'bold'}}>{storeList.find(s=>s.id===item.store_id)?.name}</Text>
             </View>
             <Text style={styles.hText}>Mở ca lúc: {openTimeStr} ({item.opened_by_name})</Text>
             <Text style={styles.hText}>Chốt ca lúc: {closeTimeStr} ({item.closed_by_name})</Text>
@@ -569,7 +570,7 @@ export default function ShiftScreen({ navigation }) {
               <View style={{height: 1, backgroundColor: '#ddd', marginVertical: 8}}/>
               <Text style={styles.hText}>Tiền đầu giờ: {item.opening_cash.toLocaleString()}đ</Text>
               <Text style={styles.hText}>Tiền trong két: {item.closing_cash_actual.toLocaleString()}đ</Text>
-              <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: '#eee'}}>
+              <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: COLORS.border}}>
                 <Text style={{fontSize: 16, fontWeight: 'bold'}}>Chênh Lệch:</Text>
                 <Text style={{fontSize: 16, fontWeight: 'bold', color: item.discrepancy < 0 ? '#f44336' : (item.discrepancy > 0 ? '#4caf50' : '#333')}}>
                   {item.discrepancy > 0 ? '+' : ''}{item.discrepancy.toLocaleString()}đ
@@ -786,7 +787,7 @@ export default function ShiftScreen({ navigation }) {
                 <View>
                   <View style={[styles.section, {backgroundColor: '#e8f5e9'}]}>
                     <Text style={{color: '#2e7d32', fontWeight: 'bold'}}>🟢 ĐANG TRONG CA: {storeList.find(s=>s.id===storeIdToView)?.name}</Text>
-                    <Text style={{color: '#555'}}>Mở lúc: {currentOpenShift.opened_at} bởi {currentOpenShift.opened_by_name}</Text>
+                    <Text style={{color: COLORS.textMuted}}>Mở lúc: {currentOpenShift.opened_at} bởi {currentOpenShift.opened_by_name}</Text>
                   </View>
 
                   {/* PHẦN 1: KIỂM KHO */}
@@ -909,34 +910,34 @@ export default function ShiftScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', paddingHorizontal: 20 },
-  mathBtn: { backgroundColor: '#e0e0e0', paddingVertical: 10, paddingHorizontal: 15, marginLeft: 8, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  mathBtnText: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg, paddingHorizontal: 20 },
+  mathBtn: { backgroundColor: COLORS.inputBg, paddingVertical: 10, paddingHorizontal: 15, marginLeft: 8, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  mathBtnText: { fontSize: 20, fontWeight: 'bold', color: COLORS.text },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 15 },
   backBtn: { padding: 5, marginRight: 10 },
-  header: { fontSize: 24, fontWeight: 'bold', color: '#1f2937' },
-  tabContainer: { flexDirection: 'row', backgroundColor: '#e5e7eb', borderRadius: 8, padding: 4, marginBottom: 20 },
+  header: { fontSize: 24, fontWeight: 'bold', color: COLORS.text },
+  tabContainer: { flexDirection: 'row', backgroundColor: COLORS.inputBg, borderRadius: 8, padding: 4, marginBottom: 20, borderWidth: 1, borderColor: COLORS.border },
   tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 6 },
-  tabBtnActive: { backgroundColor: '#fff', elevation: 2 },
-  tabText: { fontWeight: 'bold', color: '#6b7280' },
-  tabTextActive: { color: '#1976d2' },
-  section: { backgroundColor: '#fff', padding: 20, borderRadius: 12, marginBottom: 20, elevation: 3 },
-  sectionTitle: { fontSize: 16, fontWeight: '900', marginBottom: 15, color: '#1976d2' },
-  label: { fontSize: 13, fontWeight: 'bold', color: '#4b5563', marginBottom: 5, marginTop: 10 },
-  input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: '#f9fafb', marginBottom: 5 },
-  smallInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 5, fontSize: 13, textAlign: 'center' },
+  tabBtnActive: { backgroundColor: COLORS.card, elevation: 2 },
+  tabText: { fontWeight: 'bold', color: COLORS.textMuted },
+  tabTextActive: { color: COLORS.primary },
+  section: { backgroundColor: COLORS.card, padding: 20, borderRadius: 12, marginBottom: 20, elevation: 3, borderWidth: 1, borderColor: COLORS.border },
+  sectionTitle: { fontSize: 16, fontWeight: '900', marginBottom: 15, color: COLORS.primary },
+  label: { fontSize: 13, fontWeight: 'bold', color: COLORS.text, marginBottom: 5, marginTop: 10 },
+  input: { borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: COLORS.inputBg, color: COLORS.text, marginBottom: 5 },
+  smallInput: { borderWidth: 1, borderColor: COLORS.inputBorder, backgroundColor: COLORS.inputBg, color: COLORS.text, borderRadius: 4, padding: 5, fontSize: 13, textAlign: 'center' },
   openBtn: { backgroundColor: '#4caf50', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
-  fixedBottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 15, paddingHorizontal: 20, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#eee', elevation: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
+  fixedBottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 15, paddingHorizontal: 20, backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border, elevation: 10, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.25 : 0.1, shadowRadius: 5 },
   closeBtnFixed: { backgroundColor: '#f44336', padding: 15, borderRadius: 8, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  historyCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee', padding: 15, borderRadius: 10, marginBottom: 15 },
-  hText: { color: '#555', marginBottom: 3, fontSize: 13 },
-  infoText: { fontSize: 14, fontWeight: 'bold', marginBottom: 10, color: '#333' },
-  previewBox: { backgroundColor: '#fff3e0', padding: 10, borderRadius: 8, marginTop: 15 },
-  tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 5, marginBottom: 5 },
-  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
-  cell: { fontSize: 13, color: '#333' },
+  historyCard: { backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, padding: 15, borderRadius: 10, marginBottom: 15 },
+  hText: { color: COLORS.textMuted, marginBottom: 3, fontSize: 13 },
+  infoText: { fontSize: 14, fontWeight: 'bold', marginBottom: 10, color: COLORS.text },
+  previewBox: { backgroundColor: isDarkMode ? '#3b2a11' : '#fff3e0', padding: 10, borderRadius: 8, marginTop: 15 },
+  tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingBottom: 5, marginBottom: 5 },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  cell: { fontSize: 13, color: COLORS.text },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContainer: { width: '100%', maxHeight: '80%', backgroundColor: '#fff', borderRadius: 12, padding: 20, elevation: 5 }
+  modalContainer: { width: '100%', maxHeight: '80%', backgroundColor: COLORS.card, borderRadius: 12, padding: 20, elevation: 5, borderWidth: 1, borderColor: COLORS.border }
 });

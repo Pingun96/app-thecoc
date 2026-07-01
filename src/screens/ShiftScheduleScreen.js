@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl, Dimensions, Alert, Modal, Image } from 'react-native';
 import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,7 +6,8 @@ import { supabase } from '../services/supabaseClient';
 import { scheduleShiftReminder, getManagersToNotify, sendPushNotification } from '../services/NotificationService';
 
 export default function ShiftScheduleScreen({ navigation }) {
-  const { currentUser, selectedStoreId, shiftRegistrations, setShiftRegistrations, shiftSwaps, setShiftSwaps, storeList, staffList, refreshData, isDataLoading } = useContext(AppContext);
+  const { currentUser, selectedStoreId, shiftRegistrations, setShiftRegistrations, shiftSwaps, setShiftSwaps, storeList, staffList, refreshData, isDataLoading, COLORS, isDarkMode } = useContext(AppContext);
+  const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
 
   const isOwner = currentUser?.role === 'OWNER';
   const isManager = currentUser?.role === 'MANAGER';
@@ -598,7 +599,7 @@ export default function ShiftScheduleScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
       >
         <Text style={styles.sectionTitle}>Đăng ký lịch làm việc (Tối đa 4 người/ca)</Text>
-        <Text style={{fontSize: 13, color: '#666', fontStyle: 'italic', marginBottom: 15}}>Lưu ý: Bạn chỉ chọn khung giờ rảnh. Quản lý sẽ tự động điều động bạn vào chi nhánh phù hợp.</Text>
+        <Text style={{fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 15}}>Lưu ý: Bạn chỉ chọn khung giờ rảnh. Quản lý sẽ tự động điều động bạn vào chi nhánh phù hợp.</Text>
 
         <View style={styles.weekSelector}>
           <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
@@ -1042,33 +1043,33 @@ export default function ShiftScheduleScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5' },
+const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg },
   headerRow: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 10 },
   backBtn: { padding: 5, marginRight: 10 },
-  header: { fontSize: 22, fontWeight: 'bold', color: '#1f2937' },
-  tabContainer: { flexDirection: 'row', backgroundColor: '#e5e7eb', borderRadius: 8, marginHorizontal: 20, marginBottom: 15, padding: 4 },
+  header: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
+  tabContainer: { flexDirection: 'row', backgroundColor: COLORS.inputBg, borderRadius: 8, marginHorizontal: 20, marginBottom: 15, padding: 4, borderWidth: 1, borderColor: COLORS.border },
   tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 6 },
-  tabBtnActive: { backgroundColor: '#fff', elevation: 2 },
-  tabText: { fontWeight: 'bold', color: '#6b7280', fontSize: 13 },
-  tabTextActive: { color: '#1976d2' },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1976d2', marginBottom: 15 },
-  card: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 15, elevation: 2 },
-  weekSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#e3f2fd', padding: 10, borderRadius: 8, marginBottom: 15 },
+  tabBtnActive: { backgroundColor: COLORS.card, elevation: 2 },
+  tabText: { fontWeight: 'bold', color: COLORS.textMuted, fontSize: 13 },
+  tabTextActive: { color: COLORS.primary },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary, marginBottom: 15 },
+  card: { backgroundColor: COLORS.card, padding: 15, borderRadius: 10, marginBottom: 15, elevation: 2, borderWidth: 1, borderColor: COLORS.border },
+  weekSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', padding: 10, borderRadius: 8, marginBottom: 15, borderWidth: 1, borderColor: COLORS.border },
   weekBtn: { padding: 5 },
-  weekText: { fontSize: 16, fontWeight: 'bold', color: '#1976d2' },
-  dateText: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },
+  weekText: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary },
+  dateText: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 10 },
   shiftRow: { flexDirection: 'row', gap: 10 },
   shiftBtn: { flex: 1, borderWidth: 1, borderColor: '#1976d2', padding: 12, borderRadius: 8, alignItems: 'center' },
   shiftDrafted: { backgroundColor: '#1976d2' },
   shiftSubmitted: { backgroundColor: '#4CAF50', borderColor: '#4CAF50' },
   shiftPending: { backgroundColor: '#ff9800', borderColor: '#ff9800' },
-  shiftFull: { backgroundColor: '#f5f5f5', borderColor: '#ccc' },
-  shiftBtnText: { color: '#1976d2', fontWeight: 'bold', fontSize: 13, textAlign: 'center' },
+  shiftFull: { backgroundColor: COLORS.inputBg, borderColor: COLORS.border },
+  shiftBtnText: { color: COLORS.primary, fontWeight: 'bold', fontSize: 13, textAlign: 'center' },
   textWhite: { color: '#fff' },
   textFull: { color: '#aaa' },
 
-  storeChip: { backgroundColor: '#e0e0e0', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10 },
+  storeChip: { backgroundColor: COLORS.inputBg, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10, borderWidth: 1, borderColor: COLORS.border },
   storeChipActive: { backgroundColor: '#4CAF50' },
   modalCloseText: { color: '#fff', fontWeight: 'bold' },
   badge: {
@@ -1088,7 +1089,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  storeChipText: { color: '#555', fontWeight: 'bold' },
+  storeChipText: { color: COLORS.textMuted, fontWeight: 'bold' },
   storeChipTextActive: { color: '#fff' },
 
   footerContainer: { position: 'absolute', bottom: 10, left: 0, right: 0 },
@@ -1096,45 +1097,45 @@ const styles = StyleSheet.create({
   submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 
   // Lịch Tổng styles
-  storeCard: { backgroundColor: '#fff', borderRadius: 12, marginBottom: 20, elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, shadowOffset: {width: 0, height: 2}, overflow: 'hidden' },
-  storeHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fafafa', padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  storeHeaderText: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+  storeCard: { backgroundColor: COLORS.card, borderRadius: 12, marginBottom: 20, elevation: 3, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.25 : 0.1, shadowRadius: 5, shadowOffset: {width: 0, height: 2}, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
+  storeHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, padding: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  storeHeaderText: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
   horizontalScroll: { padding: 10, paddingRight: 20 },
-  dayColumn: { width: 160, marginRight: 15, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#eee', overflow: 'hidden' },
+  dayColumn: { width: 160, marginRight: 15, backgroundColor: COLORS.card, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
   dayColHeader: { backgroundColor: '#1976d2', color: '#fff', textAlign: 'center', paddingVertical: 8, fontWeight: 'bold', fontSize: 13 },
   dayColBody: { padding: 5 },
-  shiftBox: { marginBottom: 10, borderRadius: 6, borderWidth: 1, borderColor: '#eee', overflow: 'hidden' },
-  shiftBoxHeader: { paddingVertical: 4, paddingHorizontal: 6, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  shiftBox: { marginBottom: 10, borderRadius: 6, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
+  shiftBoxHeader: { paddingVertical: 4, paddingHorizontal: 6, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   shiftBoxTitle: { fontWeight: 'bold', fontSize: 11, textAlign: 'center' },
-  shiftBoxContent: { padding: 5, backgroundColor: '#fafafa', minHeight: 60 },
-  emptyStaff: { fontSize: 12, color: '#aaa', fontStyle: 'italic', textAlign: 'center', marginVertical: 10 },
+  shiftBoxContent: { padding: 5, backgroundColor: COLORS.inputBg, minHeight: 60 },
+  emptyStaff: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', textAlign: 'center', marginVertical: 10 },
   staffBadgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  staffBadgeText: { fontSize: 11, color: '#333', flex: 1, fontWeight: '600' },
+  staffBadgeText: { fontSize: 11, color: COLORS.text, flex: 1, fontWeight: '600' },
   addBtnSmall: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#e3f2fd', paddingVertical: 4, borderRadius: 4, marginTop: 5, borderWidth: 1, borderColor: '#bbdefb' },
   addBtnTextSmall: { color: '#1976d2', fontWeight: 'bold', fontSize: 11, marginLeft: 2 },
   iconActionBtn: { padding: 2 },
 
   // Modal styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 20 },
+  modalContent: { backgroundColor: COLORS.card, borderRadius: 12, padding: 20, borderWidth: 1, borderColor: COLORS.border },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
-  modalSubtitle: { fontSize: 14, color: '#666', marginTop: 5, marginBottom: 10 },
-  staffSelectBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  staffSelectName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  staffSelectRole: { fontSize: 12, color: '#888', marginTop: 2 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text },
+  modalSubtitle: { fontSize: 14, color: COLORS.textMuted, marginTop: 5, marginBottom: 10 },
+  staffSelectBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  staffSelectName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
+  staffSelectRole: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 
   // Thời Khóa Biểu
-  timetableContainer: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden' },
-  timeTableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  timeTableCell: { width: 100, minHeight: 70, borderRightWidth: 1, borderRightColor: '#e5e7eb', justifyContent: 'center', alignItems: 'center', padding: 5 },
-  timeTableHeaderCell: { backgroundColor: '#f3f4f6', minHeight: 40 },
-  timeTableSidebarCell: { backgroundColor: '#f9fafb' },
-  timeTableTitle: { fontWeight: 'bold', fontSize: 12, color: '#4b5563', textAlign: 'center' },
-  timeTableSidebarText: { fontWeight: 'bold', fontSize: 12, color: '#1f2937' },
+  timetableContainer: { backgroundColor: COLORS.card, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
+  timeTableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  timeTableCell: { width: 100, minHeight: 70, borderRightWidth: 1, borderRightColor: COLORS.border, justifyContent: 'center', alignItems: 'center', padding: 5 },
+  timeTableHeaderCell: { backgroundColor: COLORS.inputBg, minHeight: 40 },
+  timeTableSidebarCell: { backgroundColor: COLORS.inputBg },
+  timeTableTitle: { fontWeight: 'bold', fontSize: 12, color: COLORS.textMuted, textAlign: 'center' },
+  timeTableSidebarText: { fontWeight: 'bold', fontSize: 12, color: COLORS.text },
   cellApproved: { backgroundColor: '#4CAF50' },
   cellPending: { backgroundColor: '#ff9800' },
-  cellEmpty: { backgroundColor: '#fff' },
+  cellEmpty: { backgroundColor: COLORS.card },
   cellStoreText: { fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
   cellStatusText: { fontSize: 9, textAlign: 'center' },
   cellEmptyText: { color: '#d1d5db' },
@@ -1142,8 +1143,8 @@ const styles = StyleSheet.create({
   // Swap Approval Box
   swapApprovalContainer: { backgroundColor: '#fff8e1', borderRadius: 8, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: '#ffe082' },
   swapApprovalTitle: { fontWeight: 'bold', color: '#f57c00', marginBottom: 10, fontSize: 15 },
-  swapItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', padding: 10, borderRadius: 6, marginBottom: 8, elevation: 1 },
-  swapItemText: { fontSize: 13, color: '#333' },
-  swapItemDetail: { fontSize: 11, color: '#666', marginTop: 2 },
+  swapItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.card, padding: 10, borderRadius: 6, marginBottom: 8, elevation: 1, borderWidth: 1, borderColor: COLORS.border },
+  swapItemText: { fontSize: 13, color: COLORS.text },
+  swapItemDetail: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   swapActionBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4 }
 });

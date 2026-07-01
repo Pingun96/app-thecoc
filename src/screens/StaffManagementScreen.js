@@ -1,11 +1,75 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import { Alert, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, Modal, SafeAreaView, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
 import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 
+const MODULE_PERMISSIONS = [
+  { key: 'cashier', icon: '💵', title: 'Giao ca / Thu ngân', desc: 'Mở ca, kiểm két, nhập doanh thu và chốt ca.' },
+  { key: 'inventory', icon: '📦', title: 'Kho hàng', desc: 'Xem tồn kho, nhập/xuất, kiểm kê và luân chuyển kho.' },
+  { key: 'hr', icon: '👥', title: 'Nhân sự / Chấm công', desc: 'Xem nhân sự, chấm công và lịch sử làm việc.' },
+  { key: 'payroll', icon: '💰', title: 'Bảng lương', desc: 'Xem lương, điều chỉnh và duyệt/chốt lương theo quyền.' },
+  { key: 'finance', icon: '📊', title: 'Tài chính / Báo cáo', desc: 'Xem doanh thu, báo cáo tài chính và lợi nhuận.' },
+  { key: 'can_schedule_shift', icon: '🗓️', title: 'Xếp lịch & Duyệt ca', desc: 'Xếp lịch, duyệt đăng ký ca và điều động nhân sự.' },
+  { key: 'is_primary_manager', icon: '✅', title: 'Duyệt báo cáo chốt ca', desc: 'Duyệt, từ chối hoặc hủy duyệt báo cáo giao ca.' },
+  { key: 'manage_permissions', icon: '🔐', title: 'Cấp quyền nhân sự', desc: 'Tạo tài khoản, sửa thông tin và phân quyền ứng dụng.' },
+];
+
+const DEFAULT_STAFF_PERMISSIONS = {
+  cashier: false,
+  inventory: false,
+  hr: true,
+  payroll: true,
+  finance: false,
+  reports: false,
+  can_schedule_shift: false,
+  is_primary_manager: false,
+  manage_permissions: false,
+  viewable_stores: [],
+};
+
+const DEFAULT_MANAGER_PERMISSIONS = {
+  cashier: true,
+  inventory: true,
+  hr: true,
+  payroll: false,
+  finance: false,
+  reports: false,
+  can_schedule_shift: true,
+  is_primary_manager: false,
+  manage_permissions: false,
+  viewable_stores: [],
+};
+
+const buildDefaultPermissions = (role = 'STAFF') => ({
+  ...(role === 'MANAGER' ? DEFAULT_MANAGER_PERMISSIONS : DEFAULT_STAFF_PERMISSIONS),
+});
+
+const normalizePermissions = (permissions = {}, role = 'STAFF', homeStoreId) => {
+  const base = buildDefaultPermissions(role);
+  const merged = {
+    ...base,
+    ...(permissions || {}),
+  };
+
+  if (merged.reports === true && merged.finance !== true) {
+    merged.finance = true;
+  }
+  if (merged.finance === true) {
+    merged.reports = true;
+  }
+
+  const viewableStores = Array.isArray(merged.viewable_stores) ? merged.viewable_stores : [];
+  merged.viewable_stores = [...new Set([...(homeStoreId ? [homeStoreId] : []), ...viewableStores])];
+
+  return merged;
+};
+
 export default function StaffManagementScreen({ navigation }) {
-  const { staffList, setStaffList, storeList, currentUser, selectedStoreId, refreshData, isDataLoading } = useContext(AppContext);
+  const { staffList, setStaffList, storeList, currentUser, selectedStoreId, refreshData, isDataLoading, COLORS, isDarkMode } = useContext(AppContext);
+  const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
+  const currentPermissions = currentUser?.permissions || {};
+  const canEditPermissions = currentUser?.role === 'OWNER' || currentPermissions.manage_permissions === true || currentPermissions.hr === true;
 
   // OWNER luôn được thấy ALL. Quản lý thì tùy thuộc viewable_stores
   let displayStoreId = currentUser?.store_id;
@@ -44,7 +108,7 @@ export default function StaffManagementScreen({ navigation }) {
   const [isPartTime, setIsPartTime] = useState(true);
   const [, setIsLoading] = useState(false);
   const hasAccess = true;
-  const [perms, setPerms] = useState({ reports: false, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: [] });
+  const [perms, setPerms] = useState(buildDefaultPermissions('STAFF'));
 
   const handleCreateStaff = async () => {
     const cleanName = fullName.trim();
@@ -60,7 +124,7 @@ export default function StaffManagementScreen({ navigation }) {
     }
 
     // Mặc định luôn có store_id gốc trong viewable_stores
-    let finalViewableStores = [...new Set([...perms.viewable_stores, storeId])];
+    const finalPermissions = normalizePermissions(perms, role, storeId);
 
     const newStaff = {
       id: `staff_${Date.now()}`,
@@ -71,9 +135,7 @@ export default function StaffManagementScreen({ navigation }) {
       role: role,
       is_part_time: isPartTime,
       hasAppAccess: hasAccess,
-      permissions: role === 'MANAGER'
-        ? { ...perms, reports: true, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: finalViewableStores }
-        : { ...perms, viewable_stores: finalViewableStores }
+      permissions: finalPermissions
     };
 
     const { error } = await supabase.from('users').insert([{
@@ -94,11 +156,26 @@ export default function StaffManagementScreen({ navigation }) {
 
     setStaffList((current) => [...current, newStaff]);
     Alert.alert('Đã tạo tài khoản', `${cleanName} có thể đăng nhập bằng mật khẩu tạm thời 123.`);
-    setFullName(''); setPhone(''); setWage(''); setIsPartTime(true); setPerms({...perms, viewable_stores: []});
+    setFullName(''); setPhone(''); setWage(''); setIsPartTime(true); setRole('STAFF'); setPerms(buildDefaultPermissions('STAFF'));
     setShowCreateModal(false);
   };
 
-  const togglePerm = (key) => setPerms({ ...perms, [key]: !perms[key] });
+  const togglePerm = (key) => {
+    const nextValue = !perms[key];
+    setPerms({
+      ...perms,
+      [key]: nextValue,
+      ...(key === 'finance' ? { reports: nextValue } : {}),
+    });
+  };
+
+  const handleRoleChange = (nextRole) => {
+    setRole(nextRole);
+    setPerms((current) => ({
+      ...buildDefaultPermissions(nextRole),
+      viewable_stores: current.viewable_stores || [],
+    }));
+  };
 
   const toggleViewableStore = (id) => {
     if (perms.viewable_stores.includes(id)) {
@@ -108,13 +185,60 @@ export default function StaffManagementScreen({ navigation }) {
     }
   };
 
+  const setEditingRole = (nextRole) => {
+    setEditingStaff((prev) => ({
+      ...prev,
+      role: nextRole,
+      permissions: normalizePermissions(prev.permissions, nextRole, prev.store_id),
+    }));
+  };
+
+  const getGrantablePermissions = (targetRole) => {
+    const roleOptions = targetRole === 'MANAGER'
+      ? MODULE_PERMISSIONS
+      : MODULE_PERMISSIONS.filter((item) => !['can_schedule_shift', 'is_primary_manager', 'manage_permissions'].includes(item.key));
+
+    if (currentUser?.role === 'OWNER') return roleOptions;
+
+    return roleOptions.filter((item) => {
+      if (item.key === 'finance') return currentPermissions.finance === true || currentPermissions.reports === true;
+      return currentPermissions[item.key] === true;
+    });
+  };
+
+  const renderPermissionRows = (permissionState, onToggle, targetRole) => {
+    const options = getGrantablePermissions(targetRole);
+    if (!options.length) {
+      return (
+        <Text style={styles.permissionDesc}>
+          Tài khoản của bạn chưa được cấp quyền để phân quyền module cho người khác.
+        </Text>
+      );
+    }
+
+    return options.map((item) => (
+      <View key={item.key} style={styles.permissionRow}>
+        <View style={styles.permissionTextBox}>
+          <Text style={styles.permissionTitle}>{item.icon} {item.title}</Text>
+          <Text style={styles.permissionDesc}>{item.desc}</Text>
+        </View>
+        <Switch
+          value={item.key === 'finance'
+            ? !!(permissionState?.finance || permissionState?.reports)
+            : !!permissionState?.[item.key]}
+          onValueChange={() => onToggle(item.key)}
+        />
+      </View>
+    ));
+  };
+
   // === CHỈNH SỬA NHÂN VIÊN (MODAL) ===
   const [editingStaff, setEditingStaff] = useState(null);
 
   const openEditModal = (staff) => {
     setEditingStaff({
       ...staff,
-      permissions: staff.permissions || { reports: false, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: [staff.store_id] }
+      permissions: normalizePermissions(staff.permissions, staff.role, staff.store_id)
     });
   };
 
@@ -129,13 +253,9 @@ export default function StaffManagementScreen({ navigation }) {
       return;
     }
 
-    let finalViewableStores = [...new Set([...(editingStaff.permissions?.viewable_stores || []), editingStaff.store_id])];
-
     const finalStaff = {
       ...editingStaff,
-      permissions: editingStaff.role === 'MANAGER'
-        ? { ...editingStaff.permissions, reports: true, inventory: true, cashier: true, hr: true, payroll: true, viewable_stores: finalViewableStores }
-        : { ...editingStaff.permissions, viewable_stores: finalViewableStores }
+      permissions: normalizePermissions(editingStaff.permissions, editingStaff.role, editingStaff.store_id)
     };
 
     const { error } = await supabase.from('users').update({
@@ -187,7 +307,17 @@ export default function StaffManagementScreen({ navigation }) {
   };
 
   const toggleEditPerm = (key) => {
-    setEditingStaff(prev => ({ ...prev, permissions: { ...prev.permissions, [key]: !prev.permissions[key] } }));
+    setEditingStaff(prev => {
+      const nextValue = !prev.permissions?.[key];
+      return {
+        ...prev,
+        permissions: {
+          ...prev.permissions,
+          [key]: nextValue,
+          ...(key === 'finance' ? { reports: nextValue } : {}),
+        }
+      };
+    });
   };
 
   const toggleEditViewableStore = (id) => {
@@ -280,11 +410,13 @@ export default function StaffManagementScreen({ navigation }) {
                     )}
                   </View>
                 </View>
-                {currentUser?.role === 'OWNER' && (
+                {canEditPermissions && (currentUser?.role === 'OWNER' || staff.role !== 'OWNER') && (
                   <View style={{flexDirection: 'row', gap: 10}}>
+                    {currentUser?.role === 'OWNER' && staff.role !== 'OWNER' && (
                     <TouchableOpacity style={[styles.editBtn, {backgroundColor: '#ef4444'}]} onPress={() => handleDeleteStaff(staff.id, staff.name)}>
                       <Text style={[styles.editBtnText, {color: '#fff'}]}>Xóa</Text>
                     </TouchableOpacity>
+                    )}
                     <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(staff)}>
                       <Text style={styles.editBtnText}>Sửa</Text>
                     </TouchableOpacity>
@@ -320,12 +452,14 @@ export default function StaffManagementScreen({ navigation }) {
 
                 <Text style={styles.label}>Chức vụ:</Text>
                 <View style={styles.roleRow}>
-                  <TouchableOpacity style={[styles.roleChip, role === 'STAFF' && styles.roleChipActive]} onPress={() => setRole('STAFF')}>
+                  <TouchableOpacity style={[styles.roleChip, role === 'STAFF' && styles.roleChipActive]} onPress={() => handleRoleChange('STAFF')}>
                     <Text style={[styles.roleText, role === 'STAFF' && {color:'#fff'}]}>Nhân Viên</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.roleChip, role === 'MANAGER' && styles.roleChipActive]} onPress={() => setRole('MANAGER')}>
+                  {currentUser?.role === 'OWNER' && (
+                  <TouchableOpacity style={[styles.roleChip, role === 'MANAGER' && styles.roleChipActive]} onPress={() => handleRoleChange('MANAGER')}>
                     <Text style={[styles.roleText, role === 'MANAGER' && {color:'#fff'}]}>Quản Lý</Text>
                   </TouchableOpacity>
+                  )}
                 </View>
 
                 <Text style={styles.label}>Mức lương (VNĐ/h):</Text>
@@ -369,11 +503,16 @@ export default function StaffManagementScreen({ navigation }) {
                         </View>
                       );
                     })}
-                    <Text style={{fontSize: 12, color: '#666', marginTop: 10}}>*Nhân sự luôn được gắn quyền với chi nhánh gốc.</Text>
+                    <Text style={{fontSize: 12, color: COLORS.textMuted, marginTop: 10}}>*Nhân sự luôn được gắn quyền với chi nhánh gốc.</Text>
                   </View>
                 )}
 
-                {role === 'STAFF' && (
+                <View style={styles.permBox}>
+                  <Text style={[styles.label, {marginTop:0}]}>Phân quyền theo nút ứng dụng:</Text>
+                  {renderPermissionRows(perms, togglePerm, role)}
+                </View>
+
+                {false && role === 'STAFF' && (
                   <View style={styles.permBox}>
                     <Text style={[styles.label, {marginTop:0}]}>Cấp quyền sử dụng tính năng:</Text>
                     <View style={styles.permRow}><Text>💵 Thu ngân / Bán hàng</Text><Switch value={perms.cashier} onValueChange={()=>togglePerm('cashier')} /></View>
@@ -384,7 +523,7 @@ export default function StaffManagementScreen({ navigation }) {
                   </View>
                 )}
 
-                {currentUser?.role === 'OWNER' && role === 'MANAGER' && (
+                {false && currentUser?.role === 'OWNER' && role === 'MANAGER' && (
                   <View style={{flexDirection: 'column', gap: 10, marginTop: 15}}>
                     <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, backgroundColor: '#e0f2fe', borderRadius: 10, borderWidth: 1, borderColor: '#bae6fd'}}>
                       <View>
@@ -438,12 +577,14 @@ export default function StaffManagementScreen({ navigation }) {
                     </View>
                   ) : (
                     <View style={styles.roleRow}>
-                      <TouchableOpacity style={[styles.roleChip, editingStaff.role === 'STAFF' && styles.roleChipActive]} onPress={() => setEditingStaff({...editingStaff, role: 'STAFF'})}>
+                      <TouchableOpacity style={[styles.roleChip, editingStaff.role === 'STAFF' && styles.roleChipActive]} onPress={() => setEditingRole('STAFF')}>
                         <Text style={[styles.roleText, editingStaff.role === 'STAFF' && {color:'#fff'}]}>Nhân Viên</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={[styles.roleChip, editingStaff.role === 'MANAGER' && styles.roleChipActive]} onPress={() => setEditingStaff({...editingStaff, role: 'MANAGER'})}>
+                      {currentUser?.role === 'OWNER' && (
+                      <TouchableOpacity style={[styles.roleChip, editingStaff.role === 'MANAGER' && styles.roleChipActive]} onPress={() => setEditingRole('MANAGER')}>
                         <Text style={[styles.roleText, editingStaff.role === 'MANAGER' && {color:'#fff'}]}>Quản Lý</Text>
                       </TouchableOpacity>
+                      )}
                     </View>
                   )}
 
@@ -490,11 +631,18 @@ export default function StaffManagementScreen({ navigation }) {
                           </View>
                         );
                       })}
-                      <Text style={{fontSize: 12, color: '#666', marginTop: 10}}>*Nhân sự luôn được gắn quyền với chi nhánh gốc.</Text>
+                      <Text style={{fontSize: 12, color: COLORS.textMuted, marginTop: 10}}>*Nhân sự luôn được gắn quyền với chi nhánh gốc.</Text>
                     </View>
                   )}
 
-                  {editingStaff.role === 'STAFF' && editingStaff.permissions && (
+                  {editingStaff.role !== 'OWNER' && editingStaff.permissions && (
+                    <View style={styles.permBox}>
+                      <Text style={[styles.label, {marginTop:0}]}>Phân quyền theo nút ứng dụng:</Text>
+                      {renderPermissionRows(editingStaff.permissions, toggleEditPerm, editingStaff.role)}
+                    </View>
+                  )}
+
+                  {false && editingStaff.role === 'STAFF' && editingStaff.permissions && (
                     <View style={styles.permBox}>
                       <Text style={[styles.label, {marginTop:0}]}>Phân quyền hiển thị:</Text>
                   <View style={styles.permRow}><Text>💵 Thu ngân / Bán hàng</Text><Switch value={!!editingStaff.permissions.cashier} onValueChange={()=>toggleEditPerm('cashier')} /></View>
@@ -505,7 +653,7 @@ export default function StaffManagementScreen({ navigation }) {
                     </View>
                   )}
 
-                  {currentUser?.role === 'OWNER' && editingStaff?.role === 'MANAGER' && (
+                  {false && currentUser?.role === 'OWNER' && editingStaff?.role === 'MANAGER' && (
                     <View style={{flexDirection: 'column', gap: 10, marginTop: 15}}>
                       <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, backgroundColor: '#fdf2f8', borderRadius: 10, borderWidth: 1, borderColor: '#fbcfe8'}}>
                         <View>
@@ -552,53 +700,59 @@ export default function StaffManagementScreen({ navigation }) {
           )}
         </Modal>
 
-        <TouchableOpacity style={styles.fab} onPress={() => setShowCreateModal(true)}>
-          <Ionicons name="add" size={32} color="#fff" />
-        </TouchableOpacity>
+        {canEditPermissions && (
+          <TouchableOpacity style={styles.fab} onPress={() => setShowCreateModal(true)}>
+            <Ionicons name="add" size={32} color="#fff" />
+          </TouchableOpacity>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5' },
+const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg },
   headerRow: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 10 },
   backBtn: { padding: 5, marginRight: 10 },
-  header: { fontSize: 22, fontWeight: 'bold', color: '#1f2937' },
-  section: { backgroundColor: '#fff', padding: 20, borderRadius: 12, margin: 20, elevation: 2 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1976d2', marginBottom: 15 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, paddingHorizontal: 12, marginBottom: 15 },
-  searchInput: { flex: 1, minHeight: 44, paddingLeft: 8, color: '#172033' },
-  filterChip: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#f1f5f9', borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: '#e2e8f0' },
+  header: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
+  section: { backgroundColor: COLORS.card, padding: 20, borderRadius: 12, margin: 20, elevation: 2, borderWidth: 1, borderColor: COLORS.border },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary, marginBottom: 15 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 12, paddingHorizontal: 12, marginBottom: 15 },
+  searchInput: { flex: 1, minHeight: 44, paddingLeft: 8, color: COLORS.text },
+  filterChip: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: COLORS.inputBg, borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: COLORS.border },
   filterChipActive: { backgroundColor: '#1976d2', borderColor: '#1976d2' },
-  filterChipText: { color: '#64748b', fontWeight: 'bold' },
+  filterChipText: { color: COLORS.textMuted, fontWeight: 'bold' },
   filterChipTextActive: { color: '#fff' },
-  label: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 5, marginTop: 10 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, backgroundColor: '#fafafa', height: 45 },
-  passwordHint: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eff6ff', borderRadius: 8, padding: 12, marginTop: 12 },
+  label: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 5, marginTop: 10 },
+  input: { borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 8, padding: 12, backgroundColor: COLORS.inputBg, color: COLORS.text, height: 45 },
+  passwordHint: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDarkMode ? '#0f2a44' : '#eff6ff', borderRadius: 8, padding: 12, marginTop: 12 },
   passwordHintText: { color: '#1d4ed8', fontWeight: '700', marginLeft: 8 },
   roleRow: { flexDirection: 'row', marginBottom: 10 },
-  roleChip: { flex: 1, padding: 10, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, alignItems: 'center', marginRight: 5 },
+  roleChip: { flex: 1, padding: 10, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, alignItems: 'center', marginRight: 5 },
   roleChipActive: { backgroundColor: '#1976d2', borderColor: '#1976d2' },
-  roleText: { fontWeight: 'bold', color: '#555' },
+  roleText: { fontWeight: 'bold', color: COLORS.textMuted },
   storeSelectRow: { flexDirection: 'row', marginTop: 5 },
-  storeChip: { backgroundColor: '#e0e0e0', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10 },
+  storeChip: { backgroundColor: COLORS.inputBg, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10, borderWidth: 1, borderColor: COLORS.border },
   storeChipActive: { backgroundColor: '#4CAF50' },
-  storeChipText: { color: '#555', fontWeight: 'bold' },
+  storeChipText: { color: COLORS.textMuted, fontWeight: 'bold' },
   storeChipTextActive: { color: '#fff' },
-  permBox: { backgroundColor: '#f9fafb', padding: 15, borderRadius: 8, marginTop: 15, borderWidth: 1, borderColor: '#eee' },
+  permBox: { backgroundColor: COLORS.inputBg, padding: 15, borderRadius: 8, marginTop: 15, borderWidth: 1, borderColor: COLORS.border },
   permRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
+  permissionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  permissionTextBox: { flex: 1, paddingRight: 12 },
+  permissionTitle: { color: COLORS.text, fontSize: 14, fontWeight: '800' },
+  permissionDesc: { color: COLORS.textMuted, fontSize: 12, lineHeight: 17, marginTop: 3 },
   accessRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 15 },
   createBtn: { backgroundColor: '#4CAF50', padding: 15, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  staffCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  staffName: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 5 },
-  staffDetail: { color: '#666', fontSize: 13, marginBottom: 2 },
+  staffCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  staffName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 5 },
+  staffDetail: { color: COLORS.textMuted, fontSize: 13, marginBottom: 2 },
   statusRow: { flexDirection: 'row', marginTop: 5, alignItems: 'center' },
-  editBtn: { backgroundColor: '#e3f2fd', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
+  editBtn: { backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
   editBtnText: { color: '#1976d2', fontWeight: 'bold' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 20, maxHeight: '80%' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: '#1f2937', textAlign: 'center' },
+  modalContent: { backgroundColor: COLORS.card, borderRadius: 12, padding: 20, maxHeight: '80%', borderWidth: 1, borderColor: COLORS.border },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: COLORS.text, textAlign: 'center' },
   fab: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#1976d2', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowOffset: { width: 0, height: 2 }, shadowRadius: 5 }
 });

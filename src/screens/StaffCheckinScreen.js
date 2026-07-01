@@ -60,7 +60,10 @@ export default function StaffCheckinScreen({ navigation }) {
     shiftRegistrations,
     storeList,
     refreshData,
+    COLORS,
+    isDarkMode,
   } = useContext(AppContext);
+  const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
   const [actionType, setActionType] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -364,10 +367,10 @@ export default function StaffCheckinScreen({ navigation }) {
 
         {isOwner && (
           <TouchableOpacity
-            style={{backgroundColor: '#e2e8f0', padding: 15, borderRadius: 12, marginTop: 20, flexDirection: 'row', justifyContent: 'center', alignItems: 'center'}}
+            style={{backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.border, padding: 15, borderRadius: 12, marginTop: 20, flexDirection: 'row', justifyContent: 'center', alignItems: 'center'}}
             onPress={handleUpdateStoreLocation}
           >
-            <Ionicons name="location-outline" size={20} color="#475569" style={{marginRight: 8}}/>
+            <Ionicons name="location-outline" size={20} color={COLORS.textMuted} style={{marginRight: 8}}/>
             <Text style={{color: '#475569', fontWeight: 'bold'}}>Thiết lập tọa độ hiện tại cho Quán</Text>
           </TouchableOpacity>
         )}
@@ -377,53 +380,55 @@ export default function StaffCheckinScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f7fb' },
+const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg },
   scrollContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 22 },
   backBtn: { padding: 8, marginRight: 8, marginLeft: -8 },
-  header: { fontSize: 26, fontWeight: '800', color: '#172033' },
-  headerCaption: { color: '#64748b', marginTop: 2 },
+  header: { fontSize: 26, fontWeight: '800', color: COLORS.text },
+  headerCaption: { color: COLORS.textMuted, marginTop: 2 },
   statusCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 18,
     padding: 20,
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.08,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#000',
+    shadowOpacity: isDarkMode ? 0.22 : 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 5 },
     elevation: 3,
   },
   statusHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  statusDate: { color: '#64748b', fontWeight: '600', marginBottom: 5 },
-  statusTitle: { color: '#172033', fontWeight: '800', fontSize: 18 },
+  statusDate: { color: COLORS.textMuted, fontWeight: '600', marginBottom: 5 },
+  statusTitle: { color: COLORS.text, fontWeight: '800', fontSize: 18 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
   badgeActive: { backgroundColor: '#dcfce7' },
-  badgeIdle: { backgroundColor: '#e2e8f0' },
+  badgeIdle: { backgroundColor: COLORS.inputBg },
   statusBadgeText: { fontSize: 11, fontWeight: '800' },
   badgeActiveText: { color: '#15803d' },
-  badgeIdleText: { color: '#475569' },
+  badgeIdleText: { color: COLORS.textMuted },
   timeline: {
     marginTop: 22,
     paddingTop: 18,
     borderTopWidth: 1,
-    borderTopColor: '#edf1f5',
+    borderTopColor: COLORS.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   timelineItem: { flex: 1 },
-  timelineLabel: { color: '#64748b', fontSize: 12, marginBottom: 4 },
-  timelineValue: { color: '#172033', fontWeight: '800', fontSize: 24 },
+  timelineLabel: { color: COLORS.textMuted, fontSize: 12, marginBottom: 4 },
+  timelineValue: { color: COLORS.text, fontWeight: '800', fontSize: 24 },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: '#e8f1ff',
+    backgroundColor: isDarkMode ? '#0f2a44' : '#e8f1ff',
     borderRadius: 14,
     padding: 15,
     marginTop: 18,
     alignItems: 'flex-start',
   },
-  infoText: { flex: 1, color: '#334155', lineHeight: 20, marginLeft: 10 },
+  infoText: { flex: 1, color: COLORS.text, lineHeight: 20, marginLeft: 10 },
   primaryButton: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -431,8 +436,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 17,
     marginTop: 22,
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.12,
+    shadowColor: '#000',
+    shadowOpacity: isDarkMode ? 0.25 : 0.12,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
@@ -440,7 +445,7 @@ const styles = StyleSheet.create({
   checkInButton: { backgroundColor: '#16a34a' },
   checkOutButton: { backgroundColor: '#dc2626' },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '800', marginLeft: 9 },
-  note: { color: '#64748b', textAlign: 'center', marginTop: 14, fontSize: 12 },
+  note: { color: COLORS.textMuted, textAlign: 'center', marginTop: 14, fontSize: 12 },
   cameraContainer: { flex: 1, backgroundColor: '#000' },
   cameraTop: {
     position: 'absolute',

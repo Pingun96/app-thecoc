@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +7,8 @@ import { getTransferTickets, createTransferTicket, updateTicketStatus, processCo
 import { getInventoryItems } from '../services/inventoryService';
 
 export default function InventoryTransferScreen({ navigation }) {
-  const { currentUser, storeList } = useContext(AppContext);
+  const { currentUser, storeList, COLORS, isDarkMode } = useContext(AppContext);
+  const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
   const insets = useSafeAreaInsets();
   const isOwner = currentUser?.role === 'OWNER';
   const isManager = currentUser?.role === 'MANAGER';
@@ -244,35 +245,35 @@ export default function InventoryTransferScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f7fb' },
+const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg },
   header: { backgroundColor: '#1565c0', paddingBottom: 15, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   fab: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#1565c0', padding: 15, borderRadius: 30, flexDirection: 'row', zIndex: 10, elevation: 5 },
-  ticketCard: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 15, elevation: 2 },
-  ticketType: { fontWeight: 'bold', color: '#1565c0', fontSize: 16 },
+  ticketCard: { backgroundColor: COLORS.card, padding: 15, borderRadius: 10, marginBottom: 15, elevation: 2, borderWidth: 1, borderColor: COLORS.border },
+  ticketType: { fontWeight: 'bold', color: COLORS.primary, fontSize: 16 },
   status: { color: '#f59e0b', fontWeight: 'bold' },
-  route: { color: '#475569', marginVertical: 5 },
-  note: { fontStyle: 'italic', color: '#64748b' },
-  itemLine: { marginLeft: 10, color: '#334155' },
+  route: { color: COLORS.textMuted, marginVertical: 5 },
+  note: { fontStyle: 'italic', color: COLORS.textMuted },
+  itemLine: { marginLeft: 10, color: COLORS.text },
   approveBtn: { backgroundColor: '#10b981', padding: 10, borderRadius: 8, marginTop: 15 },
   
-  modalContainer: { flex: 1, padding: 20, backgroundColor: '#fff', paddingTop: 50 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
+  modalContainer: { flex: 1, padding: 20, backgroundColor: COLORS.bg, paddingTop: 50 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: COLORS.text },
   typeRow: { flexDirection: 'row', marginBottom: 15 },
   typeBtn: { flex: 1, padding: 10, borderWidth: 1, borderColor: '#1565c0', alignItems: 'center' },
   typeBtnActive: { backgroundColor: '#1565c0' },
   typeText: { color: '#1565c0', fontWeight: 'bold' },
-  label: { fontWeight: 'bold', marginBottom: 5, color: '#334155' },
-  storeBtn: { padding: 10, backgroundColor: '#e2e8f0', borderRadius: 8, marginRight: 10 },
+  label: { fontWeight: 'bold', marginBottom: 5, color: COLORS.text },
+  storeBtn: { padding: 10, backgroundColor: COLORS.inputBg, borderRadius: 8, marginRight: 10, borderWidth: 1, borderColor: COLORS.border },
   storeBtnActive: { backgroundColor: '#1565c0' },
-  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, padding: 10, marginBottom: 15 },
-  cartList: { flex: 1, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, padding: 10 },
-  cartItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
-  cartInput: { borderWidth: 1, borderColor: '#cbd5e1', width: 50, textAlign: 'center', marginRight: 15, borderRadius: 5 },
+  input: { borderWidth: 1, borderColor: COLORS.inputBorder, backgroundColor: COLORS.inputBg, color: COLORS.text, borderRadius: 8, padding: 10, marginBottom: 15 },
+  cartList: { flex: 1, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 10, backgroundColor: COLORS.card },
+  cartItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  cartInput: { borderWidth: 1, borderColor: COLORS.inputBorder, backgroundColor: COLORS.inputBg, color: COLORS.text, width: 50, textAlign: 'center', marginRight: 15, borderRadius: 5 },
   submitBtn: { flex: 0.48, backgroundColor: '#1565c0', padding: 15, borderRadius: 8, alignItems: 'center' },
 
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  pickerContent: { backgroundColor: '#fff', borderRadius: 10, padding: 20, maxHeight: '80%' },
-  pickerItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }
+  pickerContent: { backgroundColor: COLORS.card, borderRadius: 10, padding: 20, maxHeight: '80%', borderWidth: 1, borderColor: COLORS.border },
+  pickerItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border }
 });

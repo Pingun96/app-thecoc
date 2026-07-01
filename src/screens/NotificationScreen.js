@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
@@ -11,7 +11,8 @@ import {
 } from '../services/NotificationService';
 
 export default function NotificationScreen({ navigation }) {
-  const { currentUser } = useContext(AppContext);
+  const { currentUser, COLORS, isDarkMode } = useContext(AppContext);
+  const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -128,7 +129,7 @@ export default function NotificationScreen({ navigation }) {
       onPress={() => handlePressNotification(item)}
     >
       <View style={styles.iconContainer}>
-        <Ionicons name={item.is_read ? "notifications-outline" : "notifications"} size={24} color={item.is_read ? "#9e9e9e" : "#1976d2"} />
+        <Ionicons name={item.is_read ? "notifications-outline" : "notifications"} size={24} color={item.is_read ? COLORS.textMuted : COLORS.primary} />
       </View>
       <View style={styles.contentContainer}>
         <Text style={[styles.title, !item.is_read && styles.unreadText]}>{item.title}</Text>
@@ -143,24 +144,24 @@ export default function NotificationScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#1976d2" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Thông báo</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity onPress={handleSendTestNotification} style={styles.markAllBtn}>
-            <Ionicons name="paper-plane-outline" size={23} color="#1976d2" />
+            <Ionicons name="paper-plane-outline" size={23} color={COLORS.primary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={markAllAsRead} style={styles.markAllBtn}>
-            <Ionicons name="checkmark-done-circle-outline" size={24} color="#1976d2" />
+            <Ionicons name="checkmark-done-circle-outline" size={24} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1976d2" style={{ marginTop: 50 }} />
+        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 50 }} />
       ) : notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="notifications-off-outline" size={60} color="#ccc" />
+          <Ionicons name="notifications-off-outline" size={60} color={COLORS.textMuted} />
           <Text style={styles.emptyText}>Bạn không có thông báo nào</Text>
         </View>
       ) : (
@@ -175,43 +176,45 @@ export default function NotificationScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 15,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: COLORS.border,
   },
   backBtn: { padding: 5 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   markAllBtn: { padding: 5 },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { marginTop: 10, fontSize: 16, color: '#999' },
+  emptyText: { marginTop: 10, fontSize: 16, color: COLORS.textMuted },
   notificationCard: {
     flexDirection: 'row',
     padding: 15,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 8,
     marginBottom: 10,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: isDarkMode ? 0.25 : 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 2,
   },
   readCard: { opacity: 0.7 },
-  unreadCard: { backgroundColor: '#e3f2fd' },
+  unreadCard: { backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd' },
   iconContainer: { marginRight: 15 },
   contentContainer: { flex: 1 },
-  title: { fontSize: 15, color: '#333', marginBottom: 5 },
+  title: { fontSize: 15, color: COLORS.text, marginBottom: 5 },
   unreadText: { fontWeight: 'bold' },
-  body: { fontSize: 14, color: '#666', marginBottom: 5 },
-  time: { fontSize: 12, color: '#999' },
+  body: { fontSize: 14, color: COLORS.textMuted, marginBottom: 5 },
+  time: { fontSize: 12, color: COLORS.textMuted },
   unreadDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#1976d2', marginLeft: 10 },
 });
