@@ -78,9 +78,29 @@ export const getShiftStatusFromTimes = ({
     lateMinutes,
     earlyLeaveMinutes,
     overtimeMinutes,
+    scheduledMinutes: Math.max(0, endMinutes - startMinutes),
     isLate: lateMinutes > GRACE_MINUTES,
     isEarlyLeave: earlyLeaveMinutes > GRACE_MINUTES,
   };
+};
+
+const formatMinutes = (minutes = 0) => {
+  const safe = Math.max(0, Number(minutes) || 0);
+  const hours = Math.floor(safe / 60);
+  const mins = safe % 60;
+  if (hours > 0 && mins > 0) return `${hours}g ${mins}p`;
+  if (hours > 0) return `${hours}g`;
+  return `${mins}p`;
+};
+
+const buildPayrollImpact = (type, minutes = 0) => {
+  if (type === 'missing_checkin') return 'Không có lượt chấm công cho ca đã duyệt. Cần xác minh trước khi tính lương.';
+  if (type === 'outside_schedule') return 'Có giờ công ngoài lịch/sai chi nhánh. Cần duyệt vào lịch hoặc loại khỏi bảng lương.';
+  if (type === 'missing_checkout') return 'Thiếu checkout nên giờ công chưa minh bạch. Cần nhân viên/quản lý bổ sung trước khi chốt lương.';
+  if (type === 'late') return `Đi trễ ${formatMinutes(minutes)}. Cần áp dụng quy định trừ công/phạt nếu có.`;
+  if (type === 'early_leave') return `Về sớm ${formatMinutes(minutes)}. Cần áp dụng quy định trừ công/phạt nếu có.`;
+  if (type === 'overtime') return `Tăng ca ${formatMinutes(minutes)}. Cần duyệt nếu được cộng giờ/thưởng.`;
+  return 'Cần kiểm tra trước khi chốt lương.';
 };
 
 export const findApprovedShiftForAttendance = ({
@@ -156,8 +176,11 @@ export const buildAttendanceReview = ({
       rows.push({
         id: `missing_${shift.id}`,
         type: 'missing_checkin',
+        category: 'absence',
         severity: 'danger',
         title: 'Có lịch nhưng chưa check-in',
+        payrollImpact: buildPayrollImpact('missing_checkin'),
+        impactMinutes: timeToMinutes(getShiftWindow(shift.shift_type)?.end) - timeToMinutes(getShiftWindow(shift.shift_type)?.start),
         staff: getStaff(shift.user_id),
         store: getStore(shift.store_id),
         shift,
@@ -176,8 +199,12 @@ export const buildAttendanceReview = ({
       rows.push({
         id: `late_${matchedRecord.id}`,
         type: 'late',
+        category: 'time',
         severity: 'warning',
         title: `Đi trễ ${timeStatus.lateMinutes} phút`,
+        payrollImpact: buildPayrollImpact('late', timeStatus.lateMinutes),
+        impactMinutes: timeStatus.lateMinutes,
+        timeStatus,
         staff: getStaff(shift.user_id),
         store: getStore(shift.store_id),
         shift,
@@ -190,8 +217,12 @@ export const buildAttendanceReview = ({
       rows.push({
         id: `open_${matchedRecord.id}`,
         type: 'missing_checkout',
-        severity: 'warning',
+        category: 'missing_data',
+        severity: 'danger',
         title: 'Chưa checkout',
+        payrollImpact: buildPayrollImpact('missing_checkout'),
+        impactMinutes: 0,
+        timeStatus,
         staff: getStaff(shift.user_id),
         store: getStore(shift.store_id),
         shift,
@@ -202,8 +233,12 @@ export const buildAttendanceReview = ({
       rows.push({
         id: `early_${matchedRecord.id}`,
         type: 'early_leave',
+        category: 'time',
         severity: 'warning',
         title: `Về sớm ${timeStatus.earlyLeaveMinutes} phút`,
+        payrollImpact: buildPayrollImpact('early_leave', timeStatus.earlyLeaveMinutes),
+        impactMinutes: timeStatus.earlyLeaveMinutes,
+        timeStatus,
         staff: getStaff(shift.user_id),
         store: getStore(shift.store_id),
         shift,
@@ -214,8 +249,12 @@ export const buildAttendanceReview = ({
       rows.push({
         id: `overtime_${matchedRecord.id}`,
         type: 'overtime',
+        category: 'overtime',
         severity: 'info',
         title: `Tăng ca ${timeStatus.overtimeMinutes} phút`,
+        payrollImpact: buildPayrollImpact('overtime', timeStatus.overtimeMinutes),
+        impactMinutes: timeStatus.overtimeMinutes,
+        timeStatus,
         staff: getStaff(shift.user_id),
         store: getStore(shift.store_id),
         shift,
@@ -239,8 +278,11 @@ export const buildAttendanceReview = ({
       rows.push({
         id: `outside_${record.id}`,
         type: 'outside_schedule',
+        category: 'schedule',
         severity: 'danger',
         title: 'Check-in ngoài lịch hoặc sai chi nhánh',
+        payrollImpact: buildPayrollImpact('outside_schedule'),
+        impactMinutes: Math.round(Number(record.hours || 0) * 60),
         staff: getStaff(record.user_id),
         store: getStore(record.store_id),
         record,
