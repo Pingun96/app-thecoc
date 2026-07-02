@@ -1,0 +1,28 @@
+{
+  "name": "The Cốc",
+  "short_name": "The Cốc",
+  "description": "Ứng dụng vận hành The Cốc: chấm công, giao ca, kho, nhân sự và báo cáo.",
+  "id": ".",
+  "start_url": ".?source=pwa",
+  "scope": ".",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "browser"],
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#208AEF",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "icons/thecoc-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/apple-touch-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

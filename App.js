@@ -17,6 +17,7 @@ import ShiftScheduleScreen from './src/screens/ShiftScheduleScreen';
 import PayrollScreen from './src/screens/PayrollScreen';
 import NotificationScreen from './src/screens/NotificationScreen';
 import AttendanceReviewScreen from './src/screens/AttendanceReviewScreen';
+import PwaInstallBanner from './src/components/PwaInstallBanner';
 import { supabase } from './src/services/supabaseClient';
 import {
   getLastNotificationData,
@@ -35,6 +36,7 @@ import {
 } from './src/services/dataMappers';
 import { AppContext } from './src/context/AppContext';
 import { getLocalDateKey } from './src/utils/dateTime';
+import { setupPwaExperience } from './src/services/pwaService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Floating Check-in Button Component
@@ -190,6 +192,10 @@ const THEMES = {
 
 export default function App() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    setupPwaExperience();
+  }, []);
   const [themeMode, setThemeMode] = useState('system');
   const isDarkMode = themeMode === 'system' ? colorScheme === 'dark' : themeMode === 'dark';
   const COLORS = isDarkMode ? THEMES.dark : THEMES.light;
@@ -386,6 +392,7 @@ export default function App() {
             </Stack.Navigator>
           </NavigationContainer>
         </View>
+        <PwaInstallBanner COLORS={COLORS} isDarkMode={isDarkMode} />
       </View>
     </AppContext.Provider>
   );
