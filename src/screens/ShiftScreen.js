@@ -366,16 +366,58 @@ export default function ShiftScreen({ navigation }) {
     }
   };
 
-  const uploadReportImage = async (uri) => {
+  const readImageAsArrayBuffer = async (uri) => {
     try {
       const response = await fetch(uri);
-      const blob = await response.blob();
-      const fileExt = uri.split('.').pop() || 'jpg';
+      const arrayBuffer = await response.arrayBuffer();
+      if (arrayBuffer?.byteLength > 0) return arrayBuffer;
+    } catch (error) {
+      console.log('Fetch image as ArrayBuffer failed, trying XHR:', error?.message || error);
+    }
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = () => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (reader.result && reader.result.byteLength > 0) {
+            resolve(reader.result);
+          } else {
+            reject(new Error('Ảnh đọc được nhưng dung lượng bằng 0 byte.'));
+          }
+        };
+        reader.onerror = () => reject(new Error('Không thể đọc dữ liệu ảnh.'));
+        reader.readAsArrayBuffer(xhr.response);
+      };
+      xhr.onerror = () => reject(new Error('Không thể mở file ảnh trên thiết bị.'));
+      xhr.responseType = 'blob';
+      xhr.open('GET', uri, true);
+      xhr.send(null);
+    });
+  };
+
+  const uploadReportImage = async (uri) => {
+    try {
+      const imageBuffer = await readImageAsArrayBuffer(uri);
+      if (!imageBuffer?.byteLength) {
+        throw new Error('Ảnh đang bị rỗng 0 byte, vui lòng chụp/chọn lại ảnh.');
+      }
+
+      const uriWithoutQuery = String(uri).split('?')[0];
+      const rawExt = uriWithoutQuery.includes('.') ? uriWithoutQuery.split('.').pop() : 'jpg';
+      const fileExt = ['jpg', 'jpeg', 'png', 'heic', 'webp'].includes(String(rawExt).toLowerCase()) ? String(rawExt).toLowerCase() : 'jpg';
+      const contentType = fileExt === 'png'
+        ? 'image/png'
+        : fileExt === 'webp'
+          ? 'image/webp'
+          : fileExt === 'heic'
+            ? 'image/heic'
+            : 'image/jpeg';
       const fileName = `${Date.now()}_${Math.floor(Math.random()*1000)}.${fileExt}`;
       const filePath = `${storeIdToView}/${fileName}`;
 
-      const { error } = await supabase.storage.from('shift_reports').upload(filePath, blob, {
-        contentType: 'image/jpeg',
+      const { error } = await supabase.storage.from('shift_reports').upload(filePath, imageBuffer, {
+        contentType,
       });
       if (error) throw error;
 
