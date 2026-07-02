@@ -17,6 +17,7 @@ import StaffCheckinScreen from './src/screens/StaffCheckinScreen';
 import ShiftScheduleScreen from './src/screens/ShiftScheduleScreen';
 import PayrollScreen from './src/screens/PayrollScreen';
 import NotificationScreen from './src/screens/NotificationScreen';
+import AttendanceReviewScreen from './src/screens/AttendanceReviewScreen';
 import { supabase } from './src/services/supabaseClient';
 import {
   getLastNotificationData,
@@ -385,6 +386,7 @@ export default function App() {
               <Stack.Screen name="StaffCheckin" component={StaffCheckinScreen} />
               <Stack.Screen name="ShiftSchedule" component={ShiftScheduleScreen} />
               <Stack.Screen name="Payroll" component={PayrollScreen} />
+              <Stack.Screen name="AttendanceReview" component={AttendanceReviewScreen} />
               <Stack.Screen name="Notifications" component={NotificationScreen} />
               <Stack.Screen name="Shifts" component={require('./src/screens/ShiftScreen').default} />
             </Stack.Navigator>

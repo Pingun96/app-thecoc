@@ -26,6 +26,13 @@ import {
   getLocalDateKey,
   getLocalTime,
 } from '../utils/dateTime';
+import {
+  findBestShiftForCheckIn,
+  getAttendanceShiftType,
+  getShiftLabel,
+  getShiftStatusFromTimes,
+  getShiftWindow,
+} from '../utils/attendanceRules';
 
 
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -84,6 +91,19 @@ export default function StaffCheckinScreen({ navigation }) {
     [attendanceHistory, currentUser?.id, today],
   );
 
+  const todayApprovedShifts = useMemo(
+    () => shiftRegistrations.filter(
+      (record) => String(record.user_id) === String(currentUser?.id)
+        && record.date === today
+        && record.status === 'APPROVED',
+    ),
+    [shiftRegistrations, currentUser?.id, today],
+  );
+
+  const getStoreName = (storeId) => (
+    storeList.find((store) => String(store.id) === String(storeId))?.name || `Chi nhánh ${storeId || '--'}`
+  );
+
 
   const isOwner = currentUser?.role === 'OWNER';
 
@@ -120,8 +140,8 @@ export default function StaffCheckinScreen({ navigation }) {
     }
   };
 
-  const validateLocation = async () => {
-    const myStore = storeList.find(s => s.id === currentUser.store_id);
+  const validateLocation = async (targetStoreId = currentUser.store_id) => {
+    const myStore = storeList.find(s => String(s.id) === String(targetStoreId));
     if (!myStore?.latitude || !myStore?.longitude) {
       if (isOwner) {
          throw new Error('Chưa cấu hình Tọa độ. Vui lòng bấm Thiết lập tọa độ quán trước.');
@@ -207,20 +227,45 @@ export default function StaffCheckinScreen({ navigation }) {
         // Let's strictly enforce it for everyone to be safe, but give Owner a bypass if they want.
         // Actually, enforce for everyone!
       }
-      coords = await validateLocation();
-
-      // 2. Server Time Validation
       const now = await getNetworkTime();
       const time = getLocalTime(now);
       const timestamp = now.toISOString();
       const act = currentAction || actionType;
+
+      let scheduledShift = null;
+      let scheduledShiftType = null;
+      let targetStoreId = currentUser.store_id;
+      let attendanceStatus = 'ON_SCHEDULE';
+
+      if (act === 'check-in') {
+        const plan = findBestShiftForCheckIn({
+          shiftRegistrations,
+          userId: currentUser.id,
+          date: today,
+          currentTime: time,
+        });
+        scheduledShift = plan.shift;
+        scheduledShiftType = plan.shift?.shift_type || plan.preferredShiftType;
+
+        if (!scheduledShift) {
+          attendanceStatus = plan.approvedToday.length > 0 ? 'WRONG_SHIFT' : 'OUTSIDE_SCHEDULE';
+          targetStoreId = currentUser.store_id;
+        } else {
+          targetStoreId = scheduledShift.store_id;
+        }
+      } else if (currentRecord) {
+        scheduledShiftType = getAttendanceShiftType(currentRecord);
+        targetStoreId = currentRecord.store_id || currentUser.store_id;
+      }
+
+      coords = await validateLocation(targetStoreId);
 
       if (act === 'check-in') {
         const recordId = `att_${Date.now()}`;
         const savedRecord = await createAttendanceRecord({
           id: recordId,
           userId: currentUser.id,
-          storeId: currentUser.store_id,
+          storeId: targetStoreId,
           date: today,
           time,
           timestamp,
@@ -235,12 +280,15 @@ export default function StaffCheckinScreen({ navigation }) {
           check_in_lat: coords.latitude,
           check_in_lng: coords.longitude,
           check_in_photo_path: '',
+          store_id: targetStoreId,
+          scheduled_shift_type: scheduledShiftType,
+          attendance_status: attendanceStatus,
         });
         setAttendanceHistory((current) => [...current, normalizedRecord]);
 
         Alert.alert(
           'Check-in thành công',
-          `${time} • Đã lưu dữ liệu chấm công.`,
+          `${time} • ${scheduledShift ? `${getShiftLabel(scheduledShiftType)} tại ${getStoreName(targetStoreId)}` : 'Chấm công ngoài lịch, quản lý cần đối chiếu.'}`,
         );
       } else {
         const workedHours = calculateWorkedHours({
@@ -249,6 +297,11 @@ export default function StaffCheckinScreen({ navigation }) {
           checkOut: time,
           checkInAt: currentRecord.check_in_at,
           checkOutAt: timestamp,
+        });
+        const checkoutStatus = getShiftStatusFromTimes({
+          shiftType: scheduledShiftType,
+          checkIn: currentRecord.checkIn || currentRecord.check_in,
+          checkOut: time,
         });
 
         const savedFields = await checkoutAttendanceRecord({
@@ -270,13 +323,15 @@ export default function StaffCheckinScreen({ navigation }) {
                 check_out_lat: coords.latitude,
                 check_out_lng: coords.longitude,
                 check_out_photo_path: '',
+                scheduled_shift_type: scheduledShiftType,
+                attendance_status: checkoutStatus.isEarlyLeave ? 'EARLY_LEAVE' : (checkoutStatus.overtimeMinutes > 5 ? 'OVERTIME' : 'ON_SCHEDULE'),
               })
             : record
         )));
 
         Alert.alert(
           'Check-out thành công',
-          `${time} • Tổng thời gian: ${formatDuration(workedHours)}`,
+          `${time} • Tổng thời gian: ${formatDuration(workedHours)}${checkoutStatus.isEarlyLeave ? ` • Về sớm ${checkoutStatus.earlyLeaveMinutes} phút` : checkoutStatus.overtimeMinutes > 5 ? ` • Tăng ca ${checkoutStatus.overtimeMinutes} phút` : ''}`,
         );
       }
     } catch (error) {
@@ -341,6 +396,26 @@ export default function StaffCheckinScreen({ navigation }) {
           <Text style={styles.infoText}>
             Thời gian bắt đầu và kết thúc ca làm việc sẽ được ghi nhận.
           </Text>
+        </View>
+
+        <View style={styles.scheduleCard}>
+          <Text style={styles.scheduleTitle}>Lịch đã duyệt hôm nay</Text>
+          {todayApprovedShifts.length > 0 ? (
+            todayApprovedShifts.map((shift) => {
+              const window = getShiftWindow(shift.shift_type);
+              return (
+                <View key={shift.id} style={styles.scheduleRow}>
+                  <View>
+                    <Text style={styles.scheduleShift}>{getShiftLabel(shift.shift_type)}</Text>
+                    <Text style={styles.scheduleTime}>{window?.start} - {window?.end}</Text>
+                  </View>
+                  <Text style={styles.scheduleStore}>{getStoreName(shift.store_id)}</Text>
+                </View>
+              );
+            })
+          ) : (
+            <Text style={styles.scheduleEmpty}>Hôm nay chưa có ca đã duyệt. Nếu vẫn đi làm, lượt chấm công sẽ được đưa vào mục đối chiếu.</Text>
+          )}
         </View>
 
         {!currentRecord ? (
@@ -429,6 +504,13 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
     alignItems: 'flex-start',
   },
   infoText: { flex: 1, color: COLORS.text, lineHeight: 20, marginLeft: 10 },
+  scheduleCard: { backgroundColor: COLORS.card, borderRadius: 16, padding: 16, marginTop: 16, borderWidth: 1, borderColor: COLORS.border },
+  scheduleTitle: { color: COLORS.text, fontSize: 16, fontWeight: '900', marginBottom: 10 },
+  scheduleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: COLORS.border },
+  scheduleShift: { color: COLORS.text, fontWeight: '800' },
+  scheduleTime: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
+  scheduleStore: { color: COLORS.primary, fontWeight: '900', maxWidth: '50%', textAlign: 'right' },
+  scheduleEmpty: { color: COLORS.textMuted, lineHeight: 20 },
   primaryButton: {
     flexDirection: 'row',
     justifyContent: 'center',

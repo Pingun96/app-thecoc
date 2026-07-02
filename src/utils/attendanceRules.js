@@ -1,0 +1,253 @@
+export const SHIFT_WINDOWS = {
+  MORNING: {
+    key: 'MORNING',
+    label: 'Ca sáng',
+    shortLabel: 'Sáng',
+    start: '06:30',
+    end: '14:00',
+    checkInFrom: '06:00',
+  },
+  AFTERNOON: {
+    key: 'AFTERNOON',
+    label: 'Ca chiều',
+    shortLabel: 'Chiều',
+    start: '14:00',
+    end: '22:00',
+    checkInFrom: '13:30',
+  },
+};
+
+export const GRACE_MINUTES = 5;
+
+export const timeToMinutes = (timeValue) => {
+  const match = String(timeValue || '').match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+};
+
+export const minutesToTime = (minutes) => {
+  const safe = Math.max(0, Number(minutes) || 0);
+  const hh = Math.floor(safe / 60);
+  const mm = safe % 60;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+};
+
+export const getShiftWindow = (shiftType) => SHIFT_WINDOWS[shiftType] || null;
+
+export const getShiftLabel = (shiftType) => getShiftWindow(shiftType)?.label || 'Ngoài lịch';
+
+export const inferShiftTypeFromTime = (timeValue) => {
+  const minutes = timeToMinutes(timeValue);
+  if (minutes == null) return null;
+  return minutes < timeToMinutes(SHIFT_WINDOWS.AFTERNOON.checkInFrom) ? 'MORNING' : 'AFTERNOON';
+};
+
+export const getAttendanceShiftType = (record = {}) => (
+  record.scheduled_shift_type
+  || record.shift_type
+  || record.shiftType
+  || inferShiftTypeFromTime(record.checkIn || record.check_in)
+);
+
+export const getShiftStatusFromTimes = ({
+  shiftType,
+  checkIn,
+  checkOut,
+}) => {
+  const window = getShiftWindow(shiftType);
+  if (!window) {
+    return {
+      isLate: false,
+      isEarlyLeave: false,
+      overtimeMinutes: 0,
+      lateMinutes: 0,
+      earlyLeaveMinutes: 0,
+    };
+  }
+
+  const inMinutes = timeToMinutes(checkIn);
+  const outMinutes = timeToMinutes(checkOut);
+  const startMinutes = timeToMinutes(window.start);
+  const endMinutes = timeToMinutes(window.end);
+
+  const lateMinutes = inMinutes == null ? 0 : Math.max(0, inMinutes - startMinutes);
+  const earlyLeaveMinutes = outMinutes == null ? 0 : Math.max(0, endMinutes - outMinutes);
+  const overtimeMinutes = outMinutes == null ? 0 : Math.max(0, outMinutes - endMinutes);
+
+  return {
+    lateMinutes,
+    earlyLeaveMinutes,
+    overtimeMinutes,
+    isLate: lateMinutes > GRACE_MINUTES,
+    isEarlyLeave: earlyLeaveMinutes > GRACE_MINUTES,
+  };
+};
+
+export const findApprovedShiftForAttendance = ({
+  shiftRegistrations = [],
+  userId,
+  date,
+  storeId,
+  shiftType,
+}) => shiftRegistrations.find((shift) => (
+  String(shift.user_id) === String(userId)
+  && shift.date === date
+  && shift.status === 'APPROVED'
+  && (!shiftType || shift.shift_type === shiftType)
+  && (storeId == null || String(shift.store_id) === String(storeId))
+));
+
+export const findBestShiftForCheckIn = ({
+  shiftRegistrations = [],
+  userId,
+  date,
+  currentTime,
+}) => {
+  const approvedToday = shiftRegistrations.filter((shift) => (
+    String(shift.user_id) === String(userId)
+    && shift.date === date
+    && shift.status === 'APPROVED'
+  ));
+
+  if (!approvedToday.length) {
+    return { shift: null, approvedToday, preferredShiftType: inferShiftTypeFromTime(currentTime) };
+  }
+
+  const preferredShiftType = inferShiftTypeFromTime(currentTime);
+  const exactShift = approvedToday.find((shift) => shift.shift_type === preferredShiftType);
+  if (exactShift) return { shift: exactShift, approvedToday, preferredShiftType };
+
+  return { shift: null, approvedToday, preferredShiftType };
+};
+
+export const buildAttendanceReview = ({
+  attendanceHistory = [],
+  shiftRegistrations = [],
+  staffList = [],
+  storeList = [],
+  date,
+  storeId = 'ALL',
+}) => {
+  const approvedShifts = shiftRegistrations.filter((shift) => (
+    shift.date === date
+    && shift.status === 'APPROVED'
+    && (storeId === 'ALL' || String(shift.store_id) === String(storeId))
+  ));
+
+  const records = attendanceHistory.filter((record) => (
+    record.date === date
+    && (storeId === 'ALL' || String(record.store_id) === String(storeId))
+  ));
+
+  const getStaff = (userId) => staffList.find((staff) => String(staff.id) === String(userId));
+  const getStore = (id) => storeList.find((store) => String(store.id) === String(id));
+
+  const rows = [];
+
+  approvedShifts.forEach((shift) => {
+    const matchedRecord = records.find((record) => {
+      const recordShiftType = getAttendanceShiftType(record);
+      return String(record.user_id) === String(shift.user_id)
+        && String(record.store_id) === String(shift.store_id)
+        && recordShiftType === shift.shift_type;
+    });
+
+    if (!matchedRecord) {
+      rows.push({
+        id: `missing_${shift.id}`,
+        type: 'missing_checkin',
+        severity: 'danger',
+        title: 'Có lịch nhưng chưa check-in',
+        staff: getStaff(shift.user_id),
+        store: getStore(shift.store_id),
+        shift,
+        shiftType: shift.shift_type,
+      });
+      return;
+    }
+
+    const timeStatus = getShiftStatusFromTimes({
+      shiftType: shift.shift_type,
+      checkIn: matchedRecord.checkIn || matchedRecord.check_in,
+      checkOut: matchedRecord.checkOut || matchedRecord.check_out,
+    });
+
+    if (timeStatus.isLate) {
+      rows.push({
+        id: `late_${matchedRecord.id}`,
+        type: 'late',
+        severity: 'warning',
+        title: `Đi trễ ${timeStatus.lateMinutes} phút`,
+        staff: getStaff(shift.user_id),
+        store: getStore(shift.store_id),
+        shift,
+        record: matchedRecord,
+        shiftType: shift.shift_type,
+      });
+    }
+
+    if (!matchedRecord.checkOut && !matchedRecord.check_out) {
+      rows.push({
+        id: `open_${matchedRecord.id}`,
+        type: 'missing_checkout',
+        severity: 'warning',
+        title: 'Chưa checkout',
+        staff: getStaff(shift.user_id),
+        store: getStore(shift.store_id),
+        shift,
+        record: matchedRecord,
+        shiftType: shift.shift_type,
+      });
+    } else if (timeStatus.isEarlyLeave) {
+      rows.push({
+        id: `early_${matchedRecord.id}`,
+        type: 'early_leave',
+        severity: 'warning',
+        title: `Về sớm ${timeStatus.earlyLeaveMinutes} phút`,
+        staff: getStaff(shift.user_id),
+        store: getStore(shift.store_id),
+        shift,
+        record: matchedRecord,
+        shiftType: shift.shift_type,
+      });
+    } else if (timeStatus.overtimeMinutes > GRACE_MINUTES) {
+      rows.push({
+        id: `overtime_${matchedRecord.id}`,
+        type: 'overtime',
+        severity: 'info',
+        title: `Tăng ca ${timeStatus.overtimeMinutes} phút`,
+        staff: getStaff(shift.user_id),
+        store: getStore(shift.store_id),
+        shift,
+        record: matchedRecord,
+        shiftType: shift.shift_type,
+      });
+    }
+  });
+
+  records.forEach((record) => {
+    const recordShiftType = getAttendanceShiftType(record);
+    const matchedShift = findApprovedShiftForAttendance({
+      shiftRegistrations,
+      userId: record.user_id,
+      date: record.date,
+      storeId: record.store_id,
+      shiftType: recordShiftType,
+    });
+
+    if (!matchedShift) {
+      rows.push({
+        id: `outside_${record.id}`,
+        type: 'outside_schedule',
+        severity: 'danger',
+        title: 'Check-in ngoài lịch hoặc sai chi nhánh',
+        staff: getStaff(record.user_id),
+        store: getStore(record.store_id),
+        record,
+        shiftType: recordShiftType,
+      });
+    }
+  });
+
+  return rows;
+};

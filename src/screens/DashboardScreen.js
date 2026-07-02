@@ -370,6 +370,7 @@ export default function DashboardScreen({ navigation }) {
           {renderGridItem('Kho Hàng', 'Tồn kho & Yêu cầu', 'warehouse', 'Material', '#fff3e0', 'inventory', 'Inventory', 'Inventory')}
           {renderGridItem('Luân Chuyển Kho', 'Nhập/Xuất/Điều phối', 'truck-delivery-outline', 'Material', '#fce4ec', 'inventory', 'InventoryTransfer', 'InventoryTransfer')}
           {renderGridItem(currentUser?.role === 'STAFF' ? 'Chấm Công' : 'Nhân Sự', currentUser?.role === 'STAFF' ? 'Định vị GPS / Camera' : 'Hồ sơ & Phân quyền', currentUser?.role === 'STAFF' ? "scan-circle" : "id-card", 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
+          {currentUser?.role !== 'STAFF' && renderGridItem('Đối Chiếu Công', 'Lịch làm vs chấm công', 'clipboard-check-outline', 'Material', '#dcfce7', 'hr', 'AttendanceReview', 'AttendanceReview')}
           {renderGridItem('Bảng Lương', 'Bảng lương chi tiết', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'Payroll', 'Payroll')}
           {renderGridItem('Tài Chính', 'Doanh thu & Lợi nhuận', 'chart-line', 'Material', '#ede9fe', 'finance', 'Finance', 'Finance')}
         </View>
