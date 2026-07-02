@@ -8,6 +8,7 @@ import { supabase } from '../services/supabaseClient';
 import { sendPushNotification } from '../services/NotificationService';
 import { getDailyRevenue } from '../services/financeService';
 import { getLocalDateKey } from '../utils/dateTime';
+import DateRangePickerModal from '../components/DateRangePickerModal';
 
 export default function ShiftScreen({ navigation }) {
   const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory, payrollAdjustments, setPayrollAdjustments, inventoryLogs, COLORS, isDarkMode } = useContext(AppContext);
@@ -65,6 +66,9 @@ export default function ShiftScreen({ navigation }) {
 
   const [activeTab, setActiveTab] = useState('INVENTORY');
   const [selectedShiftForDetail, setSelectedShiftForDetail] = useState(null);
+  const [historyPeriod, setHistoryPeriod] = useState('all');
+  const [historyRange, setHistoryRange] = useState({ start: null, end: null });
+  const [showHistoryDateModal, setShowHistoryDateModal] = useState(false);
   const currentOpenShift = shifts.find(s => s.status === 'OPEN' && s.store_id === storeIdToView);
 
   // === MỞ CA ===
@@ -325,6 +329,86 @@ export default function ShiftScreen({ navigation }) {
     if (Number.isNaN(parsed.getTime())) return String(value);
     return parsed.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
   };
+  const padDatePart = (value) => String(value).padStart(2, '0');
+  const toDateKey = (date = new Date()) => {
+    const local = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    return `${local.getFullYear()}-${padDatePart(local.getMonth() + 1)}-${padDatePart(local.getDate())}`;
+  };
+  const formatDateKey = (dateKey) => {
+    if (!dateKey) return '';
+    const [year, month, day] = String(dateKey).split('-');
+    return `${day}/${month}/${year}`;
+  };
+  const parseViDateKey = (value) => {
+    if (!value) return null;
+    const text = String(value);
+    const isoMatch = text.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    const viMatch = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (!viMatch) return null;
+    return `${viMatch[3]}-${padDatePart(viMatch[2])}-${padDatePart(viMatch[1])}`;
+  };
+  const getShiftSubmittedDateKey = (shift) => parseViDateKey(shift?.closed_at) || parseViDateKey(shift?.opened_at);
+  const getShiftSortTime = (shift) => {
+    const dateKey = getShiftSubmittedDateKey(shift);
+    const idTime = Number(String(shift?.id || '').replace(/\D/g, '')) || 0;
+    if (!dateKey) return idTime;
+    const timeMatch = String(shift?.closed_at || shift?.opened_at || '').match(/(\d{1,2}):(\d{2})/);
+    const hour = Number(timeMatch?.[1] || 0);
+    const minute = Number(timeMatch?.[2] || 0);
+    return new Date(`${dateKey}T${padDatePart(hour)}:${padDatePart(minute)}:00`).getTime() || idTime;
+  };
+  const getHistoryRangeForPeriod = (period = historyPeriod, range = historyRange) => {
+    const now = new Date();
+    if (period === 'today') {
+      const key = toDateKey(now);
+      return { start: key, end: key };
+    }
+    if (period === 'yesterday') {
+      const d = new Date(now);
+      d.setDate(now.getDate() - 1);
+      const key = toDateKey(d);
+      return { start: key, end: key };
+    }
+    if (period === 'month') {
+      return { start: toDateKey(new Date(now.getFullYear(), now.getMonth(), 1)), end: toDateKey(now) };
+    }
+    if (period === 'lastMonth') {
+      return {
+        start: toDateKey(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
+        end: toDateKey(new Date(now.getFullYear(), now.getMonth(), 0)),
+      };
+    }
+    if (period === 'custom') return range;
+    return { start: null, end: null };
+  };
+  const filterAndSortShiftReports = (rows) => {
+    const { start, end } = getHistoryRangeForPeriod();
+    return [...rows]
+      .filter((shift) => {
+        if (!start || !end) return true;
+        const dateKey = getShiftSubmittedDateKey(shift);
+        return dateKey && dateKey >= start && dateKey <= end;
+      })
+      .sort((a, b) => getShiftSortTime(b) - getShiftSortTime(a));
+  };
+  const historyPeriodLabel = () => {
+    if (historyPeriod === 'custom') {
+      return `${formatDateKey(historyRange.start) || '...'} → ${formatDateKey(historyRange.end) || '...'}`;
+    }
+    return {
+      all: 'Tất cả',
+      today: 'Hôm nay',
+      yesterday: 'Hôm qua',
+      month: 'Tháng này',
+      lastMonth: 'Tháng trước',
+    }[historyPeriod] || 'Tất cả';
+  };
+  const applyHistoryRange = (start, end) => {
+    setHistoryRange({ start, end });
+    setHistoryPeriod('custom');
+    setShowHistoryDateModal(false);
+  };
   const syncCashToOcha = () => {
     if (!ochaAmount) {
       Alert.alert('Chưa có doanh thu Ocha', 'App chưa lấy được doanh thu Ocha của quán hôm nay nên chưa thể tự cân tiền mặt.');
@@ -551,8 +635,12 @@ export default function ShiftScreen({ navigation }) {
     );
   };
 
-  const historyShifts = shifts.filter(s => s.status === 'CLOSED' && (storeIdToView === 'ALL' || s.store_id === storeIdToView)).reverse();
-  const pendingShifts = shifts.filter(s => s.status === 'PENDING_APPROVAL' && (storeIdToView === 'ALL' || s.store_id === storeIdToView)).reverse();
+  const historyShifts = filterAndSortShiftReports(
+    shifts.filter(s => s.status === 'CLOSED' && (storeIdToView === 'ALL' || s.store_id === storeIdToView))
+  );
+  const pendingShifts = filterAndSortShiftReports(
+    shifts.filter(s => s.status === 'PENDING_APPROVAL' && (storeIdToView === 'ALL' || s.store_id === storeIdToView))
+  );
 
   const handleApproveShiftReport = async (shift) => {
     try {
@@ -782,13 +870,53 @@ export default function ShiftScreen({ navigation }) {
     </View>
   );
 
+  const renderHistoryFilter = () => (
+    <View style={styles.historyFilterCard}>
+      <View style={styles.historyFilterHeader}>
+        <View>
+          <Text style={styles.historyFilterTitle}>Lọc báo cáo theo ngày nộp</Text>
+          <Text style={styles.historyFilterSubtitle}>Đang xem: {historyPeriodLabel()}</Text>
+        </View>
+        <TouchableOpacity style={styles.historyCalendarBtn} onPress={() => setShowHistoryDateModal(true)}>
+          <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
+          <Text style={styles.historyCalendarText}>Tùy chọn</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyQuickRow}>
+        {[
+          ['all', 'Tất cả'],
+          ['today', 'Hôm nay'],
+          ['yesterday', 'Hôm qua'],
+          ['month', 'Tháng này'],
+          ['lastMonth', 'Tháng trước'],
+        ].map(([value, label]) => (
+          <TouchableOpacity
+            key={value}
+            style={[styles.historyQuickBtn, historyPeriod === value && styles.historyQuickBtnActive]}
+            onPress={() => setHistoryPeriod(value)}
+          >
+            <Text style={[styles.historyQuickText, historyPeriod === value && styles.historyQuickTextActive]}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
   const renderHistoryTab = (data) => (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+    <View style={{ paddingBottom: 80 }}>
+      {renderHistoryFilter()}
+      {data.length === 0 && (
+        <View style={styles.emptyHistoryBox}>
+          <Ionicons name="receipt-outline" size={42} color={COLORS.textMuted} />
+          <Text style={styles.emptyHistoryText}>Không có báo cáo trong khoảng thời gian này.</Text>
+        </View>
+      )}
       {data.map(item => {
         let dateStr = item.opened_at.split(' ')[0];
         let periodStr = item.opened_at.includes('Sáng') ? 'Ca Sáng' : (item.opened_at.includes('Chiều') ? 'Ca Chiều' : '');
         let openTimeStr = item.opened_at.split(' ').pop();
         let closeTimeStr = item.closed_at ? item.closed_at.split(' ').pop() : '';
+        let submittedDateStr = getShiftSubmittedDateKey(item);
 
         let isDiscrepancy = item.discrepancy && item.discrepancy !== 0;
 
@@ -800,6 +928,7 @@ export default function ShiftScreen({ navigation }) {
             </View>
             <Text style={styles.hText}>Mở ca lúc: {openTimeStr} ({item.opened_by_name})</Text>
             <Text style={styles.hText}>Chốt ca lúc: {closeTimeStr} ({item.closed_by_name})</Text>
+            <Text style={styles.hText}>Ngày nộp: {formatDateKey(submittedDateStr)}</Text>
             <View style={{backgroundColor: '#f5f5f5', padding: 10, borderRadius: 8, marginTop: 10}}>
               <Text style={{fontWeight: 'bold'}}>TỔNG DOANH THU: {(item.rev_cash + item.rev_momo + item.rev_grab + item.rev_shopee - item.discount).toLocaleString()}đ</Text>
               <Text style={styles.hText}>- Tiền mặt: {item.rev_cash.toLocaleString()}đ</Text>
@@ -822,7 +951,7 @@ export default function ShiftScreen({ navigation }) {
           </TouchableOpacity>
         );
       })}
-    </ScrollView>
+    </View>
   );
 
   const renderDetailModal = () => {
@@ -1260,6 +1389,16 @@ export default function ShiftScreen({ navigation }) {
         )}
       </KeyboardAvoidingView>
       {renderDetailModal()}
+      <DateRangePickerModal
+        visible={showHistoryDateModal}
+        onClose={() => setShowHistoryDateModal(false)}
+        onApply={applyHistoryRange}
+        initialStartDate={historyRange.start}
+        initialEndDate={historyRange.end}
+        COLORS={COLORS}
+        isDarkMode={isDarkMode}
+        title="Chọn ngày xem lịch sử chốt ca"
+      />
     </SafeAreaView>
   );
 }
@@ -1285,6 +1424,19 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   fixedBottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 15, paddingHorizontal: 20, backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border, elevation: 10, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.25 : 0.1, shadowRadius: 5 },
   closeBtnFixed: { backgroundColor: '#f44336', padding: 15, borderRadius: 8, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  historyFilterCard: { backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, padding: 12, borderRadius: 12, marginBottom: 14 },
+  historyFilterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  historyFilterTitle: { color: COLORS.text, fontWeight: '900', fontSize: 14 },
+  historyFilterSubtitle: { color: COLORS.textMuted, marginTop: 3, fontSize: 12 },
+  historyCalendarBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDarkMode ? '#1e1b4b' : '#eef2ff', borderWidth: 1, borderColor: isDarkMode ? '#3730a3' : '#c7d2fe', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10 },
+  historyCalendarText: { color: COLORS.primary, fontWeight: '900', marginLeft: 6, fontSize: 12 },
+  historyQuickRow: { paddingTop: 12, gap: 8 },
+  historyQuickBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 18, backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.border },
+  historyQuickBtnActive: { backgroundColor: isDarkMode ? '#14532d' : '#dcfce7', borderColor: isDarkMode ? '#22c55e' : '#86efac' },
+  historyQuickText: { color: COLORS.textMuted, fontWeight: '800', fontSize: 12 },
+  historyQuickTextActive: { color: isDarkMode ? '#bbf7d0' : '#166534' },
+  emptyHistoryBox: { alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, marginBottom: 15 },
+  emptyHistoryText: { color: COLORS.textMuted, marginTop: 10, fontWeight: '700', textAlign: 'center' },
   historyCard: { backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, padding: 15, borderRadius: 10, marginBottom: 15 },
   hText: { color: COLORS.textMuted, marginBottom: 3, fontSize: 13 },
   infoText: { fontSize: 14, fontWeight: 'bold', marginBottom: 10, color: COLORS.text },
