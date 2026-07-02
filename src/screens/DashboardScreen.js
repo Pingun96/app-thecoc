@@ -28,7 +28,6 @@ export default function DashboardScreen({ navigation }) {
     toggleThemeMode,
   } = useContext(AppContext);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -65,25 +64,6 @@ export default function DashboardScreen({ navigation }) {
   const theme = getThemeStyles();
 
   const styles = React.useMemo(() => getStyles(COLORS, isDarkMode, theme), [COLORS, isDarkMode, theme]);
-
-  React.useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchUnreadCount();
-    });
-    return unsubscribe;
-  }, [navigation, currentUser]);
-
-  const fetchUnreadCount = async () => {
-    if (!currentUser) return;
-    try {
-      const { count, error } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', currentUser.id)
-        .eq('is_read', false);
-      if (!error) setUnreadCount(count || 0);
-    } catch (e) {}
-  };
 
   const handleManualUpdate = async () => {
     try {
@@ -269,15 +249,6 @@ export default function DashboardScreen({ navigation }) {
             {themeMode !== 'system' && <View style={styles.themeModeDot} />}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative' }}>
-            <Ionicons name="notifications-outline" size={26} color={theme.iconColor} />
-            {unreadCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
           <TouchableOpacity onPress={handleManualUpdate}>
             {isCheckingUpdate ? <ActivityIndicator color={theme.iconColor} size="small" /> : <Ionicons name="cloud-download-outline" size={26} color={theme.iconColor} />}
           </TouchableOpacity>
@@ -442,23 +413,6 @@ const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
   iconBox: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   statValue: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
   statLabel: { fontSize: 12, color: COLORS.textMuted },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#ff5252',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   gridItem: { backgroundColor: COLORS.card, width: (width - 55) / 2, padding: 20, borderRadius: 16, marginBottom: 15, alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   gridItemDisabled: { backgroundColor: isDarkMode ? '#0f172a' : '#f9fafb', opacity: 0.8 },
