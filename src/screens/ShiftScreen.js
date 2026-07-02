@@ -6,6 +6,8 @@ import { AppContext } from '../context/AppContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 import { sendPushNotification } from '../services/NotificationService';
+import { getDailyRevenue } from '../services/financeService';
+import { getLocalDateKey } from '../utils/dateTime';
 
 export default function ShiftScreen({ navigation }) {
   const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory, payrollAdjustments, setPayrollAdjustments, inventoryLogs, COLORS, isDarkMode } = useContext(AppContext);
@@ -95,8 +97,48 @@ export default function ShiftScreen({ navigation }) {
   const [actualCash, setActualCash] = useState('');
   const [reportImage, setReportImage] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [ochaRevenue, setOchaRevenue] = useState(null);
+  const [isLoadingOcha, setIsLoadingOcha] = useState(false);
+  const [detailReportImageUrl, setDetailReportImageUrl] = useState(null);
+  const [isResolvingReportImage, setIsResolvingReportImage] = useState(false);
 
   const CACHE_KEY = `SHIFT_DRAFT_${storeIdToView}`;
+  const ochaDateKey = getLocalDateKey();
+
+  const getReportImagePath = (value) => {
+    if (!value) return null;
+    const text = String(value);
+    if (!/^https?:\/\//i.test(text)) return text;
+    const marker = '/shift_reports/';
+    const markerIndex = text.indexOf(marker);
+    if (markerIndex >= 0) {
+      return decodeURIComponent(text.slice(markerIndex + marker.length).split('?')[0]);
+    }
+    const publicMarker = '/object/public/shift_reports/';
+    const publicIndex = text.indexOf(publicMarker);
+    if (publicIndex >= 0) {
+      return decodeURIComponent(text.slice(publicIndex + publicMarker.length).split('?')[0]);
+    }
+    return null;
+  };
+
+  const resolveReportImageUrl = async (value) => {
+    if (!value) return null;
+    const fallbackUrl = /^https?:\/\//i.test(String(value)) ? String(value) : null;
+    const path = getReportImagePath(value);
+    if (!path) return fallbackUrl;
+
+    const { data, error } = await supabase.storage
+      .from('shift_reports')
+      .createSignedUrl(path, 60 * 60);
+
+    if (error) {
+      console.log('Cannot create signed report image URL:', error.message);
+      return fallbackUrl;
+    }
+
+    return data?.signedUrl || fallbackUrl;
+  };
 
   // Load cache on mount or store change
   useEffect(() => {
@@ -158,9 +200,89 @@ export default function ShiftScreen({ navigation }) {
     return () => clearTimeout(timeoutId);
   }, [inventoryCheck, revCash, revMomo, revGrab, revShopee, discount, expenses, expensesNote, actualCash, storeIdToView]);
 
+  useEffect(() => {
+    if (!storeIdToView || storeIdToView === 'ALL') {
+      setOchaRevenue(null);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchOchaRevenue = async () => {
+      try {
+        setIsLoadingOcha(true);
+        const rows = await getDailyRevenue(storeIdToView, ochaDateKey, ochaDateKey);
+        if (!isMounted) return;
+        const row = (rows || []).find((item) => String(item.store_id) === String(storeIdToView) && item.date === ochaDateKey);
+        setOchaRevenue(row || null);
+      } catch (error) {
+        console.log('Error loading Ocha revenue for shift:', error);
+        if (isMounted) setOchaRevenue(null);
+      } finally {
+        if (isMounted) setIsLoadingOcha(false);
+      }
+    };
+
+    fetchOchaRevenue();
+    return () => { isMounted = false; };
+  }, [storeIdToView, ochaDateKey]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadReportImage = async () => {
+      const imageValue = selectedShiftForDetail?.report_image;
+      if (!imageValue) {
+        setDetailReportImageUrl(null);
+        return;
+      }
+
+      try {
+        setIsResolvingReportImage(true);
+        const url = await resolveReportImageUrl(imageValue);
+        if (isMounted) setDetailReportImageUrl(url);
+      } catch (error) {
+        console.log('Error resolving report image:', error);
+        if (isMounted) setDetailReportImageUrl(/^https?:\/\//i.test(String(imageValue)) ? String(imageValue) : null);
+      } finally {
+        if (isMounted) setIsResolvingReportImage(false);
+      }
+    };
+
+    loadReportImage();
+    return () => { isMounted = false; };
+  }, [selectedShiftForDetail?.report_image]);
+
   const storeInventory = inventoryItems.filter(i => i.store_id === storeIdToView);
   const todayStr = new Date().toLocaleDateString('vi-VN');
   const todayAttendance = attendanceHistory.filter(a => a.date === todayStr); // Giả lập chấm công hôm nay
+  const ochaAmount = Number(ochaRevenue?.total_amount || ochaRevenue?.amount || 0);
+  const ochaOrders = Number(ochaRevenue?.order_count || ochaRevenue?.orders || 0);
+  const manualCash = parseMoneyInput(revCash);
+  const manualMomo = parseMoneyInput(revMomo);
+  const manualGrab = parseMoneyInput(revGrab);
+  const manualShopee = parseMoneyInput(revShopee);
+  const manualNonCash = manualMomo + manualGrab + manualShopee;
+  const manualDiscount = parseMoneyInput(discount);
+  const manualExpenses = parseMoneyInput(expenses);
+  const manualActualCash = parseMoneyInput(actualCash);
+  const manualTotalRevenue = manualCash + manualNonCash - manualDiscount;
+  const revenueDiffVsOcha = ochaAmount > 0 ? manualTotalRevenue - ochaAmount : 0;
+  const suggestedCashFromOcha = ochaAmount > 0 ? Math.max(0, ochaAmount + manualDiscount - manualNonCash) : 0;
+  const currentExpectedCash = currentOpenShift ? currentOpenShift.opening_cash + manualCash - manualExpenses : 0;
+  const currentCashDiff = currentOpenShift ? manualActualCash - currentExpectedCash : 0;
+  const formatCurrency = (value) => `${Math.round(Number(value) || 0).toLocaleString('vi-VN')}đ`;
+  const formatSyncTime = (value) => {
+    if (!value) return 'Chưa có giờ đồng bộ';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return parsed.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+  };
+  const syncCashToOcha = () => {
+    if (!ochaAmount) {
+      Alert.alert('Chưa có doanh thu Ocha', 'App chưa lấy được doanh thu Ocha của quán hôm nay nên chưa thể tự cân tiền mặt.');
+      return;
+    }
+    setRevCash(String(Math.round(suggestedCashFromOcha)));
+  };
 
   const handleSaveInventory = async () => {
     try {
@@ -229,13 +351,12 @@ export default function ShiftScreen({ navigation }) {
       const fileName = `${Date.now()}_${Math.floor(Math.random()*1000)}.${fileExt}`;
       const filePath = `${storeIdToView}/${fileName}`;
 
-      const { data, error } = await supabase.storage.from('shift_reports').upload(filePath, blob, {
+      const { error } = await supabase.storage.from('shift_reports').upload(filePath, blob, {
         contentType: 'image/jpeg',
       });
       if (error) throw error;
-      
-      const { data: { publicUrl } } = supabase.storage.from('shift_reports').getPublicUrl(filePath);
-      return publicUrl;
+
+      return filePath;
     } catch (error) {
       console.log('Error uploading image:', error);
       throw error;
@@ -259,10 +380,13 @@ export default function ShiftScreen({ navigation }) {
 
     const expectedCash = currentOpenShift.opening_cash + rCash - exp;
     const discrepancy = aCash - expectedCash;
+    const closeManualTotal = rCash + rMomo + rGrab + rShopee - disc;
+    const closeRevenueDiff = ochaAmount > 0 ? closeManualTotal - ochaAmount : 0;
+    const hasWarning = discrepancy !== 0 || closeRevenueDiff !== 0;
 
-    const confirmMessage = discrepancy !== 0 
-      ? `⚠️ CA CỦA BẠN ĐANG LỆCH KÉT!\n\nTiền lý thuyết: ${expectedCash.toLocaleString()}đ\nTiền thực đếm: ${aCash.toLocaleString()}đ\nLệch: ${discrepancy.toLocaleString()}đ\n\nBạn có chắc chắn muốn nộp báo cáo không?`
-      : 'Bạn có chắc chắn muốn nộp báo cáo doanh thu và chốt két không?';
+    const confirmMessage = hasWarning
+      ? `⚠️ Báo cáo cần kiểm tra lại trước khi nộp\n\nDoanh thu nhân viên nhập: ${formatCurrency(closeManualTotal)}${ochaAmount > 0 ? `\nDoanh thu Ocha: ${formatCurrency(ochaAmount)}\nLệch Ocha: ${formatCurrency(closeRevenueDiff)}` : '\nDoanh thu Ocha: chưa có dữ liệu'}\n\nKét lý thuyết: ${formatCurrency(expectedCash)}\nKét thực đếm: ${formatCurrency(aCash)}\nLệch két: ${formatCurrency(discrepancy)}\n\nBạn vẫn muốn nộp báo cáo không?`
+      : `Doanh thu và két đang khớp.\n\nDoanh thu: ${formatCurrency(closeManualTotal)}\nKét thực đếm: ${formatCurrency(aCash)}\n\nBạn có chắc chắn muốn nộp báo cáo doanh thu và chốt két không?`;
 
     Alert.alert(
       'Xác nhận Chốt Két',
@@ -655,7 +779,19 @@ export default function ShiftScreen({ navigation }) {
               {item.report_image ? (
                 <>
                   <Text style={[styles.sectionTitle, {fontSize: 14, marginTop: 10}]}>HÌNH ẢNH BÁO CÁO</Text>
-                  <Image source={{uri: item.report_image}} style={{width: '100%', height: 250, borderRadius: 8, marginBottom: 15, resizeMode: 'cover'}} />
+                  {isResolvingReportImage ? (
+                    <View style={styles.reportImageLoading}>
+                      <ActivityIndicator color={COLORS.primary} />
+                      <Text style={styles.reportImageLoadingText}>Đang tải ảnh báo cáo...</Text>
+                    </View>
+                  ) : detailReportImageUrl ? (
+                    <Image source={{uri: detailReportImageUrl}} style={{width: '100%', height: 250, borderRadius: 8, marginBottom: 15, resizeMode: 'cover'}} />
+                  ) : (
+                    <View style={styles.reportImageError}>
+                      <Ionicons name="image-outline" size={28} color="#991b1b" />
+                      <Text style={styles.reportImageErrorText}>Không thể mở ảnh báo cáo. Vui lòng thử tải lại hoặc kiểm tra quyền bucket shift_reports.</Text>
+                    </View>
+                  )}
                 </>
               ) : null}
 
@@ -821,6 +957,57 @@ export default function ShiftScreen({ navigation }) {
                     <Text style={styles.sectionTitle}>PHẦN 2: DOANH THU & KÉT TIỀN</Text>
                     <Text style={styles.infoText}>Tiền đầu giờ (1): {currentOpenShift.opening_cash.toLocaleString()}đ</Text>
 
+                    <View style={styles.ochaCard}>
+                      <View style={styles.ochaHeader}>
+                        <View>
+                          <Text style={styles.ochaTitle}>Đối chiếu Ocha hôm nay</Text>
+                          <Text style={styles.ochaMeta}>{storeList.find(s=>s.id===storeIdToView)?.name || 'Chi nhánh'} · {ochaDateKey}</Text>
+                        </View>
+                        {isLoadingOcha ? <ActivityIndicator color={COLORS.primary} /> : <Ionicons name={ochaAmount > 0 ? 'checkmark-circle' : 'alert-circle'} size={24} color={ochaAmount > 0 ? '#16a34a' : '#f59e0b'} />}
+                      </View>
+
+                      {isLoadingOcha ? (
+                        <Text style={styles.ochaHint}>Đang tải doanh thu Ocha...</Text>
+                      ) : ochaAmount > 0 ? (
+                        <>
+                          <View style={styles.ochaGrid}>
+                            <View style={styles.ochaMetric}>
+                              <Text style={styles.ochaMetricLabel}>Ocha</Text>
+                              <Text style={styles.ochaMetricValue}>{formatCurrency(ochaAmount)}</Text>
+                              <Text style={styles.ochaMetricSub}>{ochaOrders.toLocaleString('vi-VN')} đơn · {formatSyncTime(ochaRevenue?.updated_at || ochaRevenue?.synced_at || ochaRevenue?.created_at)}</Text>
+                            </View>
+                            <View style={styles.ochaMetric}>
+                              <Text style={styles.ochaMetricLabel}>Nhân viên nhập</Text>
+                              <Text style={styles.ochaMetricValue}>{formatCurrency(manualTotalRevenue)}</Text>
+                              <Text style={[styles.ochaMetricSub, revenueDiffVsOcha === 0 ? styles.okText : styles.dangerText]}>
+                                Lệch Ocha: {formatCurrency(revenueDiffVsOcha)}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.ochaSuggestion}>
+                            <View style={{flex: 1}}>
+                              <Text style={styles.ochaMetricLabel}>Tiền mặt gợi ý theo Ocha</Text>
+                              <Text style={styles.ochaMetricValue}>{formatCurrency(suggestedCashFromOcha)}</Text>
+                              <Text style={styles.ochaMetricSub}>Ocha + giảm bill - Momo/Grab/Shopee</Text>
+                            </View>
+                            <TouchableOpacity style={styles.ochaSyncBtn} onPress={syncCashToOcha}>
+                              <Ionicons name="sync" size={16} color="#fff" style={{marginRight: 6}} />
+                              <Text style={styles.ochaSyncBtnText}>Cân tiền mặt</Text>
+                            </TouchableOpacity>
+                          </View>
+                          <View style={styles.ochaDrawerLine}>
+                            <Text style={styles.ochaDrawerText}>Két lý thuyết: {formatCurrency(currentExpectedCash)}</Text>
+                            <Text style={[styles.ochaDrawerText, currentCashDiff === 0 ? styles.okText : styles.dangerText]}>Lệch két hiện tại: {formatCurrency(currentCashDiff)}</Text>
+                          </View>
+                        </>
+                      ) : (
+                        <View style={styles.ochaWarning}>
+                          <Ionicons name="warning-outline" size={20} color="#b45309" style={{marginRight: 8}} />
+                          <Text style={styles.ochaWarningText}>Chưa có dữ liệu Ocha của quán hôm nay. Vẫn có thể chốt ca, nhưng nên kiểm tra lại phần đồng bộ Ocha trước khi duyệt.</Text>
+                        </View>
+                      )}
+                    </View>
+
                     {renderMoneyInput('Doanh thu Tiền Mặt (3):', revCash, setRevCash)}
                     {renderMoneyInput('Tổng tiền giảm bill (4):', discount, setDiscount)}
                     {renderMoneyInput('Tổng tiền MOMO:', revMomo, setRevMomo)}
@@ -837,8 +1024,10 @@ export default function ShiftScreen({ navigation }) {
 
                     <View style={styles.previewBox}>
                       <Text style={styles.previewTitle}>Xem Trước Báo Cáo:</Text>
-                      <Text style={styles.previewText}>Doanh thu tổng: {(parseMoneyInput(revCash) + parseMoneyInput(revMomo) + parseMoneyInput(revGrab) + parseMoneyInput(revShopee) - parseMoneyInput(discount)).toLocaleString()}đ</Text>
-                      <Text style={styles.previewText}>Lệch két: {(parseMoneyInput(actualCash) - (currentOpenShift.opening_cash + parseMoneyInput(revCash) - parseMoneyInput(expenses))).toLocaleString()}đ</Text>
+                      <Text style={styles.previewText}>Doanh thu tổng: {formatCurrency(manualTotalRevenue)}</Text>
+                      {ochaAmount > 0 && <Text style={[styles.previewText, revenueDiffVsOcha === 0 ? styles.okText : styles.dangerText]}>Lệch so với Ocha: {formatCurrency(revenueDiffVsOcha)}</Text>}
+                      <Text style={styles.previewText}>Két lý thuyết: {formatCurrency(currentExpectedCash)}</Text>
+                      <Text style={[styles.previewText, currentCashDiff === 0 ? styles.okText : styles.dangerText]}>Lệch két: {formatCurrency(currentCashDiff)}</Text>
                     </View>
 
                     <View style={{marginTop: 15, marginBottom: 10}}>
@@ -934,6 +1123,25 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   historyCard: { backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, padding: 15, borderRadius: 10, marginBottom: 15 },
   hText: { color: COLORS.textMuted, marginBottom: 3, fontSize: 13 },
   infoText: { fontSize: 14, fontWeight: 'bold', marginBottom: 10, color: COLORS.text },
+  ochaCard: { backgroundColor: isDarkMode ? '#0f172a' : '#f8fafc', borderWidth: 1, borderColor: isDarkMode ? '#334155' : '#e2e8f0', padding: 12, borderRadius: 12, marginBottom: 14 },
+  ochaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  ochaTitle: { color: COLORS.text, fontWeight: '900', fontSize: 15 },
+  ochaMeta: { color: COLORS.textMuted, marginTop: 3, fontSize: 12 },
+  ochaHint: { color: COLORS.textMuted, fontStyle: 'italic' },
+  ochaGrid: { flexDirection: 'row', gap: 10 },
+  ochaMetric: { flex: 1, backgroundColor: isDarkMode ? '#111827' : '#fff', borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 10 },
+  ochaMetricLabel: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700' },
+  ochaMetricValue: { color: COLORS.text, fontSize: 18, fontWeight: '900', marginTop: 3 },
+  ochaMetricSub: { color: COLORS.textMuted, fontSize: 11, marginTop: 3 },
+  ochaSuggestion: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: isDarkMode ? '#052e16' : '#ecfdf5', borderWidth: 1, borderColor: isDarkMode ? '#166534' : '#bbf7d0', borderRadius: 10, padding: 10, marginTop: 10 },
+  ochaSyncBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#16a34a', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 9 },
+  ochaSyncBtnText: { color: '#fff', fontWeight: '900', fontSize: 12 },
+  ochaDrawerLine: { borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 10, paddingTop: 10, gap: 4 },
+  ochaDrawerText: { color: COLORS.text, fontWeight: '700' },
+  ochaWarning: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: isDarkMode ? '#451a03' : '#fffbeb', borderWidth: 1, borderColor: isDarkMode ? '#92400e' : '#fde68a', borderRadius: 10, padding: 10 },
+  ochaWarningText: { flex: 1, color: isDarkMode ? '#fde68a' : '#92400e', fontWeight: '700', lineHeight: 18 },
+  okText: { color: '#16a34a' },
+  dangerText: { color: '#dc2626' },
   openShiftBanner: { backgroundColor: isDarkMode ? '#0f2a1d' : '#e8f5e9', borderColor: isDarkMode ? '#166534' : '#bbf7d0' },
   openShiftTitle: { color: isDarkMode ? '#86efac' : '#2e7d32', fontWeight: 'bold' },
   openShiftMeta: { color: COLORS.textMuted, marginTop: 4 },
@@ -949,5 +1157,9 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   cell: { fontSize: 13, color: COLORS.text },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   detailBox: { backgroundColor: isDarkMode ? '#f8fafc' : '#f9fafb', padding: 10, borderRadius: 8, marginBottom: 15 },
+  reportImageLoading: { height: 160, borderRadius: 8, marginBottom: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? '#e2e8f0' : '#f1f5f9' },
+  reportImageLoadingText: { marginTop: 10, color: '#334155', fontWeight: '700' },
+  reportImageError: { minHeight: 140, borderRadius: 8, marginBottom: 15, alignItems: 'center', justifyContent: 'center', padding: 14, backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fecaca' },
+  reportImageErrorText: { marginTop: 8, color: '#991b1b', fontWeight: '700', textAlign: 'center' },
   modalContainer: { width: '100%', maxHeight: '80%', backgroundColor: isDarkMode ? '#f8fafc' : COLORS.card, borderRadius: 12, padding: 20, elevation: 5, borderWidth: 1, borderColor: COLORS.border }
 });
