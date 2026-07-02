@@ -374,14 +374,25 @@ export default function ShiftScreen({ navigation }) {
   const handlePickImage = async (useCamera) => {
     try {
       let result;
+      const compatibleImageOptions = {
+        allowsEditing: false,
+        quality: 0.35,
+        mediaTypes: ['images'],
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode?.Compatible,
+      };
       if (useCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') return Alert.alert('Lỗi', 'Cần quyền truy cập camera để chụp ảnh.');
-        result = await ImagePicker.launchCameraAsync({ allowsEditing: false, quality: 0.35 });
+        result = await ImagePicker.launchCameraAsync(compatibleImageOptions);
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') return Alert.alert('Lỗi', 'Cần quyền truy cập thư viện ảnh.');
-        result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, allowsMultipleSelection: true, selectionLimit: 6, quality: 0.35 });
+        result = await ImagePicker.launchImageLibraryAsync({
+          ...compatibleImageOptions,
+          allowsMultipleSelection: true,
+          selectionLimit: 6,
+          orderedSelection: true,
+        });
       }
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -438,14 +449,16 @@ export default function ShiftScreen({ navigation }) {
 
       const uriWithoutQuery = String(uri).split('?')[0];
       const rawExt = uriWithoutQuery.includes('.') ? uriWithoutQuery.split('.').pop() : 'jpg';
-      const fileExt = ['jpg', 'jpeg', 'png', 'heic', 'webp'].includes(String(rawExt).toLowerCase()) ? String(rawExt).toLowerCase() : 'jpg';
+      const normalizedExt = String(rawExt).toLowerCase();
+      if (['heic', 'heif'].includes(normalizedExt)) {
+        throw new Error('Ảnh HEIC của iPhone chưa upload được. App đã chuyển sang chế độ lấy ảnh JPG; vui lòng chọn/chụp lại ảnh sau khi cập nhật.');
+      }
+      const fileExt = ['jpg', 'jpeg', 'png', 'webp'].includes(normalizedExt) ? normalizedExt : 'jpg';
       const contentType = fileExt === 'png'
         ? 'image/png'
         : fileExt === 'webp'
           ? 'image/webp'
-          : fileExt === 'heic'
-            ? 'image/heic'
-            : 'image/jpeg';
+          : 'image/jpeg';
       const fileName = `${Date.now()}_${Math.floor(Math.random()*1000)}.${fileExt}`;
       const filePath = `${storeIdToView}/${fileName}`;
 
@@ -529,7 +542,8 @@ export default function ShiftScreen({ navigation }) {
               try { await AsyncStorage.removeItem(CACHE_KEY); } catch(e){}
             } catch(e) {
               setIsUploading(false);
-              Alert.alert('Lỗi ứng dụng', 'Chi tiết: ' + e.message);
+              const message = e?.message || 'Không thể nộp báo cáo.';
+              Alert.alert(message.includes('HEIC') ? 'Ảnh chưa đúng định dạng' : 'Lỗi nộp báo cáo', message);
             }
           }
         }

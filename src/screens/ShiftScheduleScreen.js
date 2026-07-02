@@ -35,6 +35,26 @@ export default function ShiftScheduleScreen({ navigation }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [draftShifts, setDraftShifts] = useState([]); // [{date, shiftType, storeId}]
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchUnreadCount();
+    });
+    return unsubscribe;
+  }, [navigation, currentUser]);
+
+  const fetchUnreadCount = async () => {
+    if (!currentUser) return;
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id)
+        .eq('is_read', false);
+      if (!error) setUnreadCount(count || 0);
+    } catch (e) {}
+  };
 
   const staffAllowedStores = currentUser?.permissions?.viewable_stores?.length > 0
     ? currentUser.permissions.viewable_stores
@@ -895,6 +915,14 @@ export default function ShiftScheduleScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="#1976d2" />
         </TouchableOpacity>
         <Text style={styles.header}>Quản lý Lịch Làm Việc</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative', marginRight: 10 }}>
+          <Ionicons name="notifications-outline" size={26} color="#60a5fa" />
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.tabContainer}>
@@ -1045,6 +1073,23 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   storeChip: { backgroundColor: COLORS.inputBg, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10, borderWidth: 1, borderColor: COLORS.border },
   storeChipActive: { backgroundColor: '#4CAF50' },
   modalCloseText: { color: '#fff', fontWeight: 'bold' },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#ff5252',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   storeChipText: { color: COLORS.textMuted, fontWeight: 'bold' },
   storeChipTextActive: { color: '#fff' },
 

@@ -1,14 +1,8 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 import { AppContext } from '../context/AppContext';
-import {
-  registerForPushNotificationsAsync,
-  savePushTokenToDB,
-  sendNotificationToUser,
-  showLocalNotification,
-} from '../services/NotificationService';
 
 export default function NotificationScreen({ navigation }) {
   const { currentUser, COLORS, isDarkMode } = useContext(AppContext);
@@ -72,43 +66,6 @@ export default function NotificationScreen({ navigation }) {
     }
   };
 
-  const handleSendTestNotification = async () => {
-    if (!currentUser) return;
-
-    try {
-      const token = await registerForPushNotificationsAsync();
-      if (token) {
-        await savePushTokenToDB(currentUser.id, token, { storeId: currentUser.store_id });
-      }
-
-      await showLocalNotification(
-        'Thông báo thử từ The Cốc',
-        'Nếu bạn thấy banner này, quyền thông báo local đã hoạt động.',
-        { route: 'Notifications', type: 'notification_test' },
-      );
-
-      await sendNotificationToUser(
-        currentUser.id,
-        'Thông báo thử từ The Cốc',
-        token
-          ? 'Push token đã được lưu. Hãy thử khóa màn hình rồi gửi lại để kiểm tra push.'
-          : 'App chưa lấy được push token; hãy kiểm tra build/credential.',
-        { route: 'Notifications', type: 'notification_test' },
-        { type: 'notification_test', route: 'Notifications', storeId: currentUser.store_id },
-      );
-
-      await fetchNotifications();
-      Alert.alert(
-        'Đã gửi thử',
-        token
-          ? 'Đã gửi local notification và thử gửi push tới chính thiết bị này.'
-          : 'Đã gửi local notification, nhưng chưa lấy được Expo Push Token.',
-      );
-    } catch (error) {
-      Alert.alert('Không thể gửi thử', error?.message || 'Có lỗi khi kiểm tra thông báo.');
-    }
-  };
-
   const handlePressNotification = (item) => {
     markAsRead(item.id, item.is_read);
 
@@ -148,9 +105,6 @@ export default function NotificationScreen({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Thông báo</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleSendTestNotification} style={styles.markAllBtn}>
-            <Ionicons name="paper-plane-outline" size={23} color={COLORS.primary} />
-          </TouchableOpacity>
           <TouchableOpacity onPress={markAllAsRead} style={styles.markAllBtn}>
             <Ionicons name="checkmark-done-circle-outline" size={24} color={COLORS.primary} />
           </TouchableOpacity>

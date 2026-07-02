@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
 import React, { useState, useEffect, useCallback, useContext } from 'react';
-import { Platform, View, StyleSheet, Pressable, useColorScheme } from 'react-native';
+import { Platform, View, StyleSheet, TouchableOpacity, Pressable, useColorScheme } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -16,11 +16,15 @@ import InventoryTransferScreen from './src/screens/InventoryTransferScreen';
 import StaffCheckinScreen from './src/screens/StaffCheckinScreen';
 import ShiftScheduleScreen from './src/screens/ShiftScheduleScreen';
 import PayrollScreen from './src/screens/PayrollScreen';
+import NotificationScreen from './src/screens/NotificationScreen';
 import AttendanceReviewScreen from './src/screens/AttendanceReviewScreen';
 import { supabase } from './src/services/supabaseClient';
 import {
+  getLastNotificationData,
+  observeNotificationResponses,
   registerForPushNotificationsAsync,
   savePushTokenToDB,
+  showLocalNotification,
 } from './src/services/NotificationService';
 import {
   normalizeAttendance,
@@ -52,6 +56,30 @@ const CustomTabBarButton = ({ children, onPress, style, buttonColor = '#e91e63',
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 const navigationRef = createNavigationContainerRef();
+
+const navigateFromNotificationData = (data = {}) => {
+  if (!navigationRef.isReady()) return;
+
+  const route = data?.route;
+  if (route === 'Inventory') {
+    navigationRef.navigate('Inventory');
+    return;
+  }
+  if (route === 'Payroll') {
+    navigationRef.navigate('Payroll');
+    return;
+  }
+  if (route === 'Shifts') {
+    navigationRef.navigate('Shifts');
+    return;
+  }
+  if (route === 'ScheduleTab') {
+    navigationRef.navigate('Dashboard', { screen: 'ScheduleTab' });
+    return;
+  }
+
+  navigationRef.navigate('Notifications');
+};
 
 function MainTabs() {
   const {
@@ -272,7 +300,19 @@ export default function App() {
     }
   }, [storeList, selectedStoreId]);
 
-  // Đăng ký Push Token khi có currentUser. Đã tắt popup/thông báo nội bộ trong app.
+  useEffect(() => {
+    const unsubscribe = observeNotificationResponses(navigateFromNotificationData);
+
+    getLastNotificationData().then((data) => {
+      if (data) {
+        setTimeout(() => navigateFromNotificationData(data), 600);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Đăng ký Push Notification và Realtime Notification khi có currentUser
   useEffect(() => {
     if (!currentUser) return undefined;
 
@@ -284,7 +324,29 @@ export default function App() {
       });
     }
 
-    return undefined;
+    // Bật tính năng In-App Realtime Notification (Supabase)
+    const channel = supabase
+      .channel(`realtime-notifications-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          const { title, body, data, route } = payload.new;
+          const notificationData = data || { route };
+
+          showLocalNotification(title, body, notificationData);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentUser]);
 
   return (
@@ -321,6 +383,7 @@ export default function App() {
               <Stack.Screen name="ShiftSchedule" component={ShiftScheduleScreen} />
               <Stack.Screen name="Payroll" component={PayrollScreen} />
               <Stack.Screen name="AttendanceReview" component={AttendanceReviewScreen} />
+              <Stack.Screen name="Notifications" component={NotificationScreen} />
               <Stack.Screen name="Shifts" component={require('./src/screens/ShiftScreen').default} />
             </Stack.Navigator>
           </NavigationContainer>
