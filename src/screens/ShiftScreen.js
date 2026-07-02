@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Alert, Modal, Image, ActivityIndicator, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,7 +11,7 @@ import { getLocalDateKey } from '../utils/dateTime';
 import DateRangePickerModal from '../components/DateRangePickerModal';
 
 export default function ShiftScreen({ navigation }) {
-  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, attendanceHistory, payrollAdjustments, setPayrollAdjustments, inventoryLogs, COLORS, isDarkMode } = useContext(AppContext);
+  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, inventoryLogs, setInventoryLogs, attendanceHistory, payrollAdjustments, setPayrollAdjustments, COLORS, isDarkMode } = useContext(AppContext);
   const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
 
   const formatMoneyInput = (val) => {
@@ -304,7 +304,6 @@ export default function ShiftScreen({ navigation }) {
     return () => { isMounted = false; };
   }, [selectedShiftForDetail?.report_image]);
 
-  const storeInventory = inventoryItems.filter(i => i.store_id === storeIdToView);
   const todayStr = new Date().toLocaleDateString('vi-VN');
   const todayAttendance = attendanceHistory.filter(a => a.date === todayStr); // Giả lập chấm công hôm nay
   const ochaAmount = Number(ochaRevenue?.total_amount || ochaRevenue?.amount || 0);
@@ -409,6 +408,91 @@ export default function ShiftScreen({ navigation }) {
     setHistoryPeriod('custom');
     setShowHistoryDateModal(false);
   };
+  const formatQuantity = (value) => Number(value || 0).toLocaleString('vi-VN', {
+    maximumFractionDigits: 2,
+  });
+  const getShiftInventoryLogId = (shiftId, itemId) => `log_shift_${shiftId}_${itemId}_stock_count`;
+  const getInventoryStock = useCallback((itemId, storeId, excludedShiftId = currentOpenShift?.id) => {
+    const excludedLogId = excludedShiftId ? getShiftInventoryLogId(excludedShiftId, itemId) : null;
+    return Number(inventoryLogs
+      .filter((log) => (
+        String(log.itemId ?? log.itemid ?? log.item_id) === String(itemId)
+        && String(log.store_id) === String(storeId)
+        && String(log.id) !== String(excludedLogId)
+      ))
+      .reduce((total, log) => {
+        const amount = Number(log.amount || 0);
+        if (log.type === 'IMPORT' || log.type === 'ADJUST_UP') return total + amount;
+        if (log.type === 'EXPORT' || log.type === 'ADJUST_DOWN') return total - amount;
+        return total;
+      }, 0)
+      .toFixed(2));
+  }, [inventoryLogs, currentOpenShift?.id]);
+  const storeInventoryWithStock = useMemo(() => (
+    inventoryItems
+      .filter(i => i.store_id === storeIdToView)
+      .map((item) => ({
+        ...item,
+        currentStock: getInventoryStock(item.id, item.store_id),
+      }))
+  ), [inventoryItems, storeIdToView, getInventoryStock]);
+  const buildFinalInventoryCheck = () => storeInventoryWithStock.map((item) => {
+    const rawEnd = inventoryCheck[item.id];
+    const hasInput = rawEnd !== undefined && String(rawEnd).trim() !== '';
+    const endStock = hasInput ? Number(String(rawEnd).replace(',', '.')) : Number(item.currentStock || 0);
+    return {
+      item_id: item.id,
+      name: item.name,
+      unit: item.unit,
+      start: Number(item.currentStock || 0),
+      end: Number.isFinite(endStock) ? endStock : Number(item.currentStock || 0),
+    };
+  });
+  const syncInventoryCountLogs = async (finalInvCheck, shift = currentOpenShift) => {
+    if (!shift?.id || !finalInvCheck?.length) return [];
+
+    const nowIso = new Date().toISOString();
+    const adjustmentLogs = [];
+    const allLogIds = finalInvCheck.map((inv) => getShiftInventoryLogId(shift.id, inv.item_id));
+
+    for (const inv of finalInvCheck) {
+      const startStock = Number(inv.start || 0);
+      const endStock = Number(inv.end || 0);
+      const diff = Number((endStock - startStock).toFixed(2));
+      if (diff === 0) continue;
+
+      const logId = getShiftInventoryLogId(shift.id, inv.item_id);
+      adjustmentLogs.push({
+        id: logId,
+        itemid: inv.item_id,
+        type: diff > 0 ? 'ADJUST_UP' : 'ADJUST_DOWN',
+        amount: Math.abs(diff),
+        date: nowIso,
+        store_id: shift.store_id,
+        created_by: currentUser?.id,
+        approved_by: currentUser?.id,
+        note: `Kiểm kho báo cáo ca ${shift.opened_at || shift.id} bởi ${currentUser?.name || 'Nhân viên'}: ${formatQuantity(startStock)} → ${formatQuantity(endStock)} ${inv.unit || ''}`,
+      });
+    }
+
+    const { error: deleteError } = await supabase.from('inventory_logs').delete().in('id', allLogIds);
+    if (deleteError) throw deleteError;
+    if (adjustmentLogs.length > 0) {
+      const { error } = await supabase.from('inventory_logs').insert(adjustmentLogs);
+      if (error) throw error;
+    }
+
+    setInventoryLogs?.((current = []) => {
+      const filtered = current.filter((log) => !allLogIds.includes(log.id));
+      const normalized = adjustmentLogs.map((log) => ({
+        ...log,
+        itemId: log.itemid,
+      }));
+      return [...filtered, ...normalized];
+    });
+
+    return adjustmentLogs;
+  };
   const syncCashToOcha = () => {
     if (!ochaAmount) {
       Alert.alert('Chưa có doanh thu Ocha', 'App chưa lấy được doanh thu Ocha của quán hôm nay nên chưa thể tự cân tiền mặt.');
@@ -419,11 +503,7 @@ export default function ShiftScreen({ navigation }) {
 
   const handleSaveInventory = async () => {
     try {
-      // Build inventory check data
-      const finalInvCheck = storeInventory.map(item => {
-        const endStock = inventoryCheck[item.id] !== undefined && inventoryCheck[item.id] !== '' ? Number(inventoryCheck[item.id]) : 0;
-        return { item_id: item.id, name: item.name, unit: item.unit, end: endStock };
-      });
+      const finalInvCheck = buildFinalInventoryCheck();
 
       const updatedShift = {
         ...currentOpenShift,
@@ -440,16 +520,19 @@ export default function ShiftScreen({ navigation }) {
       // Update global shifts
       setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
 
-      // Update global inventory stock based on inventory check
+      await syncInventoryCountLogs(finalInvCheck, currentOpenShift);
+
+      // Keep item.quantity roughly in sync for older screens/data exports. Main stock source is inventory_logs.
       const updatedInventoryItems = inventoryItems.map(item => {
-        if (item.store_id === storeIdToView && inventoryCheck[item.id] !== undefined && inventoryCheck[item.id] !== '') {
-          return { ...item, quantity: Number(inventoryCheck[item.id]) };
+        const counted = finalInvCheck.find((inv) => String(inv.item_id) === String(item.id));
+        if (item.store_id === storeIdToView && counted) {
+          return { ...item, quantity: Number(counted.end || 0) };
         }
         return item;
       });
       setInventoryItems(updatedInventoryItems);
 
-      Alert.alert('Thành công', 'Đã lưu phiếu kiểm kho!');
+      Alert.alert('Thành công', 'Đã lưu phiếu kiểm kho và cập nhật log kho!');
     } catch(e) {
       Alert.alert('Lỗi ứng dụng', 'Chi tiết: ' + e.message);
     }
@@ -598,7 +681,7 @@ export default function ShiftScreen({ navigation }) {
                 imageUrl = encodeReportImages(uploadedUrls);
               }
 
-              const finalInvCheck = currentOpenShift.inventory_check || [];
+              const finalInvCheck = buildFinalInventoryCheck();
 
               const updatedShift = {
                 ...currentOpenShift,
@@ -617,6 +700,8 @@ export default function ShiftScreen({ navigation }) {
                 Alert.alert('Lỗi mạng', 'Không thể lưu dữ liệu: ' + error.message);
                 return;
               }
+
+              await syncInventoryCountLogs(finalInvCheck, currentOpenShift);
 
               setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
 
@@ -651,49 +736,7 @@ export default function ShiftScreen({ navigation }) {
       setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
       setSelectedShiftForDetail(null);
       
-      // Tự động ghi log trừ kho
-      if (shift.inventory_check && shift.inventory_check.length > 0) {
-        try {
-          const logsToInsert = [];
-          const d = new Date();
-          const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          
-          for (const inv of shift.inventory_check) {
-            const itemLogs = inventoryLogs.filter(l => l.itemId === inv.id && l.store_id === shift.store_id);
-            const currentStock = itemLogs.reduce((acc, curr) => {
-              if (curr.type === 'IMPORT' || curr.type === 'ADJUST_UP') return acc + curr.amount;
-              if (curr.type === 'EXPORT' || curr.type === 'ADJUST_DOWN') return acc - curr.amount;
-              return acc;
-            }, 0);
-
-            const difference = currentStock - inv.end;
-            if (difference > 0) {
-              logsToInsert.push({
-                id: `log_shift_${shift.id}_${inv.id}_exp_${Date.now()}`,
-                itemId: inv.id,
-                type: 'EXPORT',
-                amount: difference,
-                date: localDateStr,
-                store_id: shift.store_id
-              });
-            } else if (difference < 0) {
-              logsToInsert.push({
-                id: `log_shift_${shift.id}_${inv.id}_adj_${Date.now()}`,
-                itemId: inv.id,
-                type: 'ADJUST_UP',
-                amount: Math.abs(difference),
-                date: localDateStr,
-                store_id: shift.store_id
-              });
-            }
-          }
-          if (logsToInsert.length > 0) {
-            await supabase.from('inventory_logs').insert(logsToInsert);
-          }
-        } catch(e) {
-          console.error("Lỗi khi đồng bộ kho:", e);
-        }
-      }
+      // Kho đã được đồng bộ khi nhân viên lưu/nộp báo cáo ca bằng log điều chỉnh cố định theo ca.
       
       // Tự động ghi log trừ tiền nếu lệch két âm
       if (shift.discrepancy < 0 && shift.closed_by) {
@@ -990,12 +1033,14 @@ export default function ShiftScreen({ navigation }) {
                 <View style={styles.detailBox}>
                   <View style={{flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 5, marginBottom: 5}}>
                     <Text style={{flex: 2, fontWeight: 'bold'}}>Mặt hàng</Text>
-                    <Text style={{flex: 1, fontWeight: 'bold', textAlign: 'right'}}>Tồn Cuối</Text>
+                    <Text style={{flex: 1, fontWeight: 'bold', textAlign: 'right'}}>Tồn đầu</Text>
+                    <Text style={{flex: 1, fontWeight: 'bold', textAlign: 'right'}}>Tồn cuối</Text>
                   </View>
                   {invCheck.map((inv, idx) => (
                     <View key={idx} style={{flexDirection: 'row', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#f3f4f6'}}>
                       <Text style={{flex: 2}}>{inv.name}</Text>
-                      <Text style={{flex: 1, textAlign: 'right', fontWeight: 'bold'}}>{inv.end} {inv.unit}</Text>
+                      <Text style={{flex: 1, textAlign: 'right', fontWeight: 'bold'}}>{formatQuantity(inv.start)} {inv.unit}</Text>
+                      <Text style={{flex: 1, textAlign: 'right', fontWeight: 'bold'}}>{formatQuantity(inv.end)} {inv.unit}</Text>
                     </View>
                   ))}
                 </View>
@@ -1221,13 +1266,13 @@ export default function ShiftScreen({ navigation }) {
                       <Text style={[styles.cell, {flex: 1}]}>Tồn Đầu</Text>
                       <Text style={[styles.cell, {flex: 1.5}]}>Tồn Cuối</Text>
                     </View>
-                    {storeInventory.map(item => (
+                    {storeInventoryWithStock.map(item => (
                       <View key={item.id} style={styles.tableRow}>
                         <Text style={[styles.cell, {flex: 2}]} numberOfLines={1}>{item.name}</Text>
-                        <Text style={[styles.cell, {flex: 1}]}>--</Text>
+                        <Text style={[styles.cell, {flex: 1}]}>{formatQuantity(item.currentStock)}</Text>
                         <View style={{flex: 1.5, paddingHorizontal: 5}}>
                           <TextInput
-                            style={styles.smallInput} keyboardType="numbers-and-punctuation" placeholder="Nhập"
+                            style={styles.smallInput} keyboardType="numbers-and-punctuation" placeholder={formatQuantity(item.currentStock)}
                             value={inventoryCheck[item.id] !== undefined ? String(inventoryCheck[item.id]) : ''}
                             onChangeText={(val) => setInventoryCheck({...inventoryCheck, [item.id]: val})}
                           />
