@@ -95,14 +95,13 @@ export default function ShiftScreen({ navigation }) {
   const [expenses, setExpenses] = useState('');
   const [expensesNote, setExpensesNote] = useState('');
   const [actualCash, setActualCash] = useState('');
-  const [reportImage, setReportImage] = useState(null);
+  const [reportImages, setReportImages] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [ochaRevenue, setOchaRevenue] = useState(null);
   const [isLoadingOcha, setIsLoadingOcha] = useState(false);
-  const [detailReportImageUrl, setDetailReportImageUrl] = useState(null);
+  const [detailReportImageUrls, setDetailReportImageUrls] = useState([]);
   const [isResolvingReportImage, setIsResolvingReportImage] = useState(false);
-  const [reportImageLoaded, setReportImageLoaded] = useState(false);
-  const [reportImageLoadFailed, setReportImageLoadFailed] = useState(false);
+  const [reportImageLoadState, setReportImageLoadState] = useState({});
 
   const CACHE_KEY = `SHIFT_DRAFT_${storeIdToView}`;
   const ochaDateKey = getLocalDateKey();
@@ -149,13 +148,39 @@ export default function ShiftScreen({ navigation }) {
     return data?.signedUrl || publicUrl;
   };
 
-  const openReportImageExternally = async () => {
-    if (!detailReportImageUrl) {
+  const parseReportImages = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+        } catch (error) {
+          console.log('Cannot parse report images JSON:', error?.message || error);
+        }
+      }
+      return [trimmed];
+    }
+    return [];
+  };
+
+  const encodeReportImages = (urls) => {
+    const safeUrls = (urls || []).filter(Boolean);
+    if (safeUrls.length === 0) return null;
+    if (safeUrls.length === 1) return safeUrls[0];
+    return JSON.stringify(safeUrls);
+  };
+
+  const openReportImageExternally = async (url) => {
+    if (!url) {
       Alert.alert('Chưa có ảnh', 'App chưa lấy được link ảnh báo cáo để mở.');
       return;
     }
     try {
-      await Linking.openURL(detailReportImageUrl);
+      await Linking.openURL(url);
     } catch (error) {
       Alert.alert('Không mở được ảnh', error?.message || 'Vui lòng thử lại sau.');
     }
@@ -250,21 +275,22 @@ export default function ShiftScreen({ navigation }) {
   useEffect(() => {
     let isMounted = true;
     const loadReportImage = async () => {
-      const imageValue = selectedShiftForDetail?.report_image;
-      setReportImageLoaded(false);
-      setReportImageLoadFailed(false);
-      if (!imageValue) {
-        setDetailReportImageUrl(null);
+      const imageValues = parseReportImages(selectedShiftForDetail?.report_image);
+      setReportImageLoadState({});
+      if (imageValues.length === 0) {
+        setDetailReportImageUrls([]);
         return;
       }
 
       try {
         setIsResolvingReportImage(true);
-        const url = await resolveReportImageUrl(imageValue);
-        if (isMounted) setDetailReportImageUrl(url);
+        const urls = (await Promise.all(imageValues.map(resolveReportImageUrl))).filter(Boolean);
+        if (isMounted) setDetailReportImageUrls(urls);
       } catch (error) {
         console.log('Error resolving report image:', error);
-        if (isMounted) setDetailReportImageUrl(/^https?:\/\//i.test(String(imageValue)) ? String(imageValue) : null);
+        if (isMounted) {
+          setDetailReportImageUrls(imageValues.filter((imageValue) => /^https?:\/\//i.test(String(imageValue))));
+        }
       } finally {
         if (isMounted) setIsResolvingReportImage(false);
       }
@@ -351,15 +377,22 @@ export default function ShiftScreen({ navigation }) {
       if (useCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') return Alert.alert('Lỗi', 'Cần quyền truy cập camera để chụp ảnh.');
-        result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.5 });
+        result = await ImagePicker.launchCameraAsync({ allowsEditing: false, quality: 0.35 });
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') return Alert.alert('Lỗi', 'Cần quyền truy cập thư viện ảnh.');
-        result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, quality: 0.5 });
+        result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: false, allowsMultipleSelection: true, selectionLimit: 6, quality: 0.35 });
       }
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setReportImage(result.assets[0].uri);
+        const newUris = result.assets.map((asset) => asset.uri).filter(Boolean);
+        setReportImages((prev) => {
+          const merged = [...prev, ...newUris].filter((uri, index, arr) => arr.indexOf(uri) === index);
+          if (merged.length > 6) {
+            Alert.alert('Giới hạn ảnh', 'Mỗi phiếu chốt ca nên tối đa 6 ảnh để tránh đầy dung lượng.');
+          }
+          return merged.slice(0, 6);
+        });
       }
     } catch(e) {
       Alert.alert('Lỗi', 'Không thể chọn ảnh: ' + e.message);
@@ -463,8 +496,9 @@ export default function ShiftScreen({ navigation }) {
             try {
               setIsUploading(true);
               let imageUrl = null;
-              if (reportImage) {
-                imageUrl = await uploadReportImage(reportImage);
+              if (reportImages.length > 0) {
+                const uploadedUrls = await Promise.all(reportImages.map(uploadReportImage));
+                imageUrl = encodeReportImages(uploadedUrls);
               }
 
               const finalInvCheck = currentOpenShift.inventory_check || [];
@@ -490,7 +524,7 @@ export default function ShiftScreen({ navigation }) {
               setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
 
               Alert.alert('Thành công', 'Đã nộp Báo Cáo Doanh Thu (Chốt Ca)!');
-              setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({}); setReportImage(null);
+              setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({}); setReportImages([]);
               setIsUploading(false);
               try { await AsyncStorage.removeItem(CACHE_KEY); } catch(e){}
             } catch(e) {
@@ -781,7 +815,10 @@ export default function ShiftScreen({ navigation }) {
     if (!selectedShiftForDetail) return null;
     const item = selectedShiftForDetail;
     const invCheck = item.inventory_check || [];
-    const canApproveWithImage = Boolean(item.report_image && detailReportImageUrl && reportImageLoaded && !reportImageLoadFailed);
+    const hasReportImages = parseReportImages(item.report_image).length > 0;
+    const canApproveWithImage = hasReportImages
+      && detailReportImageUrls.length > 0
+      && detailReportImageUrls.every((url) => reportImageLoadState[url] === 'loaded');
 
     return (
       <Modal visible={true} transparent={true} animationType="slide">
@@ -843,43 +880,45 @@ export default function ShiftScreen({ navigation }) {
                 </View>
               </View>
 
-              {item.report_image ? (
+              {hasReportImages ? (
                 <>
-                  <Text style={[styles.sectionTitle, {fontSize: 14, marginTop: 10}]}>HÌNH ẢNH BÁO CÁO</Text>
+                  <Text style={[styles.sectionTitle, {fontSize: 14, marginTop: 10}]}>HÌNH ẢNH BÁO CÁO ({detailReportImageUrls.length || parseReportImages(item.report_image).length})</Text>
                   {isResolvingReportImage ? (
                     <View style={styles.reportImageLoading}>
                       <ActivityIndicator color={COLORS.primary} />
                       <Text style={styles.reportImageLoadingText}>Đang tải ảnh báo cáo...</Text>
                     </View>
-                  ) : detailReportImageUrl ? (
+                  ) : detailReportImageUrls.length > 0 ? (
                     <>
-                      <Image
-                        key={detailReportImageUrl}
-                        source={{uri: detailReportImageUrl}}
-                        style={{width: '100%', height: 250, borderRadius: 8, marginBottom: 10, resizeMode: 'cover', backgroundColor: '#e5e7eb'}}
-                        onLoad={() => {
-                          setReportImageLoaded(true);
-                          setReportImageLoadFailed(false);
-                        }}
-                        onError={() => {
-                          setReportImageLoaded(false);
-                          setReportImageLoadFailed(true);
-                        }}
-                      />
-                      {reportImageLoadFailed ? (
-                        <View style={styles.reportImageError}>
-                          <Ionicons name="alert-circle-outline" size={28} color="#991b1b" />
-                          <Text style={styles.reportImageErrorText}>Ảnh có link nhưng app chưa tải được. Người duyệt không nên duyệt khi chưa xem ảnh.</Text>
-                          <TouchableOpacity style={styles.openImageBtn} onPress={openReportImageExternally}>
-                            <Text style={styles.openImageBtnText}>Mở ảnh ngoài app</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
-                        <TouchableOpacity style={styles.openImageInlineBtn} onPress={openReportImageExternally}>
-                          <Ionicons name="open-outline" size={16} color={COLORS.primary} style={{marginRight: 6}} />
-                          <Text style={styles.openImageInlineText}>Mở ảnh lớn</Text>
-                        </TouchableOpacity>
-                      )}
+                      {detailReportImageUrls.map((url, index) => {
+                        const loadState = reportImageLoadState[url];
+                        return (
+                          <View key={`${url}_${index}`} style={styles.detailImageWrap}>
+                            <Image
+                              source={{uri: url}}
+                              style={styles.detailReportImage}
+                              onLoad={() => setReportImageLoadState((prev) => ({...prev, [url]: 'loaded'}))}
+                              onError={() => setReportImageLoadState((prev) => ({...prev, [url]: 'failed'}))}
+                            />
+                            <View style={styles.detailImageFooter}>
+                              <Text style={styles.detailImageIndex}>Ảnh {index + 1}/{detailReportImageUrls.length}</Text>
+                              <TouchableOpacity style={styles.openImageInlineBtn} onPress={() => openReportImageExternally(url)}>
+                                <Ionicons name="open-outline" size={16} color={COLORS.primary} style={{marginRight: 6}} />
+                                <Text style={styles.openImageInlineText}>Mở ảnh lớn</Text>
+                              </TouchableOpacity>
+                            </View>
+                            {loadState === 'failed' && (
+                              <View style={styles.reportImageError}>
+                                <Ionicons name="alert-circle-outline" size={28} color="#991b1b" />
+                                <Text style={styles.reportImageErrorText}>Ảnh {index + 1} có link nhưng app chưa tải được. Người duyệt không nên duyệt khi chưa xem đủ ảnh.</Text>
+                                <TouchableOpacity style={styles.openImageBtn} onPress={() => openReportImageExternally(url)}>
+                                  <Text style={styles.openImageBtnText}>Mở ảnh ngoài app</Text>
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
                     </>
                   ) : (
                     <View style={styles.reportImageError}>
@@ -1136,25 +1175,33 @@ export default function ShiftScreen({ navigation }) {
 
                     <View style={{marginTop: 15, marginBottom: 10}}>
                       <Text style={[styles.label, {marginTop: 0}]}>Hình ảnh báo cáo (Tùy chọn):</Text>
-                      {reportImage ? (
-                        <View style={{position: 'relative', marginTop: 10}}>
-                          <Image source={{uri: reportImage}} style={{width: '100%', height: 200, borderRadius: 8, resizeMode: 'cover'}} />
-                          <TouchableOpacity style={{position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20}} onPress={() => setReportImage(null)}>
-                            <Ionicons name="close" size={20} color="#fff" />
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
-                        <View style={{flexDirection: 'row', gap: 10, marginTop: 5}}>
-                          <TouchableOpacity style={styles.mediaBtn} onPress={() => handlePickImage(true)}>
-                            <Ionicons name="camera" size={20} color="#4f46e5" style={{marginRight: 5}}/>
-                            <Text style={styles.mediaBtnText}>Chụp ảnh</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.mediaBtn} onPress={() => handlePickImage(false)}>
-                            <Ionicons name="image" size={20} color="#4f46e5" style={{marginRight: 5}}/>
-                            <Text style={styles.mediaBtnText}>Thư viện</Text>
-                          </TouchableOpacity>
+                      {reportImages.length > 0 && (
+                        <View style={styles.selectedImagesGrid}>
+                          {reportImages.map((uri, index) => (
+                            <View key={`${uri}_${index}`} style={styles.selectedImageWrap}>
+                              <Image source={{uri}} style={styles.selectedReportImage} />
+                              <Text style={styles.selectedImageLabel}>Ảnh {index + 1}/{reportImages.length}</Text>
+                              <TouchableOpacity
+                                style={styles.removeImageBtn}
+                                onPress={() => setReportImages((prev) => prev.filter((_, idx) => idx !== index))}
+                              >
+                                <Ionicons name="close" size={18} color="#fff" />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
                         </View>
                       )}
+                      <View style={{flexDirection: 'row', gap: 10, marginTop: 5}}>
+                        <TouchableOpacity style={styles.mediaBtn} onPress={() => handlePickImage(true)}>
+                          <Ionicons name="camera" size={20} color="#4f46e5" style={{marginRight: 5}}/>
+                          <Text style={styles.mediaBtnText}>{reportImages.length > 0 ? 'Chụp thêm' : 'Chụp ảnh'}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.mediaBtn} onPress={() => handlePickImage(false)}>
+                          <Ionicons name="image" size={20} color="#4f46e5" style={{marginRight: 5}}/>
+                          <Text style={styles.mediaBtnText}>{reportImages.length > 0 ? 'Thêm từ thư viện' : 'Thư viện'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.imageHelperText}>Tối đa 6 ảnh/phiếu. Ảnh sẽ giữ nguyên khung, không crop nội dung.</Text>
                     </View>
                   </View>
                   )}
@@ -1254,6 +1301,12 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   previewText: { color: COLORS.text, marginTop: 2 },
   mediaBtn: { flex: 1, backgroundColor: isDarkMode ? '#1e1b4b' : '#e0e7ff', padding: 12, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: isDarkMode ? '#3730a3' : '#c7d2fe' },
   mediaBtnText: { color: isDarkMode ? '#c7d2fe' : '#4f46e5', fontWeight: 'bold' },
+  selectedImagesGrid: { gap: 12, marginTop: 10, marginBottom: 10 },
+  selectedImageWrap: { position: 'relative', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border, backgroundColor: isDarkMode ? '#111827' : '#f8fafc' },
+  selectedReportImage: { width: '100%', height: 220, resizeMode: 'contain', backgroundColor: isDarkMode ? '#111827' : '#f8fafc' },
+  selectedImageLabel: { position: 'absolute', left: 8, bottom: 8, backgroundColor: 'rgba(0,0,0,0.55)', color: '#fff', fontWeight: '900', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, overflow: 'hidden' },
+  removeImageBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', padding: 8, borderRadius: 20 },
+  imageHelperText: { color: COLORS.textMuted, fontSize: 12, marginTop: 8, fontStyle: 'italic' },
   attendanceText: { marginBottom: 5, color: COLORS.text },
   emptyText: { color: COLORS.textMuted },
   tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingBottom: 5, marginBottom: 5 },
@@ -1265,6 +1318,10 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   reportImageLoadingText: { marginTop: 10, color: '#334155', fontWeight: '700' },
   reportImageError: { minHeight: 140, borderRadius: 8, marginBottom: 15, alignItems: 'center', justifyContent: 'center', padding: 14, backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fecaca' },
   reportImageErrorText: { marginTop: 8, color: '#991b1b', fontWeight: '700', textAlign: 'center' },
+  detailImageWrap: { marginBottom: 14 },
+  detailReportImage: { width: '100%', height: 320, borderRadius: 8, marginBottom: 8, resizeMode: 'contain', backgroundColor: '#e5e7eb' },
+  detailImageFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 },
+  detailImageIndex: { color: '#334155', fontWeight: '900' },
   openImageBtn: { marginTop: 12, backgroundColor: '#991b1b', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8 },
   openImageBtnText: { color: '#fff', fontWeight: '900' },
   openImageInlineBtn: { marginBottom: 15, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: isDarkMode ? '#e0e7ff' : '#eef2ff' },
