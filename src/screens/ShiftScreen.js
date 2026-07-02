@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Alert, Modal, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Alert, Modal, Image, ActivityIndicator, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { AppContext } from '../context/AppContext';
@@ -101,6 +101,8 @@ export default function ShiftScreen({ navigation }) {
   const [isLoadingOcha, setIsLoadingOcha] = useState(false);
   const [detailReportImageUrl, setDetailReportImageUrl] = useState(null);
   const [isResolvingReportImage, setIsResolvingReportImage] = useState(false);
+  const [reportImageLoaded, setReportImageLoaded] = useState(false);
+  const [reportImageLoadFailed, setReportImageLoadFailed] = useState(false);
 
   const CACHE_KEY = `SHIFT_DRAFT_${storeIdToView}`;
   const ochaDateKey = getLocalDateKey();
@@ -126,12 +128,14 @@ export default function ShiftScreen({ navigation }) {
     if (!value) return null;
     const text = String(value);
     const fallbackUrl = /^https?:\/\//i.test(text) ? text : null;
+    if (fallbackUrl && fallbackUrl.includes('/object/public/shift_reports/')) return fallbackUrl;
     const path = getReportImagePath(value);
     if (!path) return fallbackUrl;
     const { data: publicData } = supabase.storage
       .from('shift_reports')
       .getPublicUrl(path);
     const publicUrl = publicData?.publicUrl || fallbackUrl;
+    if (publicUrl) return publicUrl;
 
     const { data, error } = await supabase.storage
       .from('shift_reports')
@@ -143,6 +147,18 @@ export default function ShiftScreen({ navigation }) {
     }
 
     return data?.signedUrl || publicUrl;
+  };
+
+  const openReportImageExternally = async () => {
+    if (!detailReportImageUrl) {
+      Alert.alert('Chưa có ảnh', 'App chưa lấy được link ảnh báo cáo để mở.');
+      return;
+    }
+    try {
+      await Linking.openURL(detailReportImageUrl);
+    } catch (error) {
+      Alert.alert('Không mở được ảnh', error?.message || 'Vui lòng thử lại sau.');
+    }
   };
 
   // Load cache on mount or store change
@@ -235,6 +251,8 @@ export default function ShiftScreen({ navigation }) {
     let isMounted = true;
     const loadReportImage = async () => {
       const imageValue = selectedShiftForDetail?.report_image;
+      setReportImageLoaded(false);
+      setReportImageLoadFailed(false);
       if (!imageValue) {
         setDetailReportImageUrl(null);
         return;
@@ -721,6 +739,7 @@ export default function ShiftScreen({ navigation }) {
     if (!selectedShiftForDetail) return null;
     const item = selectedShiftForDetail;
     const invCheck = item.inventory_check || [];
+    const canApproveWithImage = Boolean(item.report_image && detailReportImageUrl && reportImageLoaded && !reportImageLoadFailed);
 
     return (
       <Modal visible={true} transparent={true} animationType="slide">
@@ -791,7 +810,35 @@ export default function ShiftScreen({ navigation }) {
                       <Text style={styles.reportImageLoadingText}>Đang tải ảnh báo cáo...</Text>
                     </View>
                   ) : detailReportImageUrl ? (
-                    <Image source={{uri: detailReportImageUrl}} style={{width: '100%', height: 250, borderRadius: 8, marginBottom: 15, resizeMode: 'cover'}} />
+                    <>
+                      <Image
+                        key={detailReportImageUrl}
+                        source={{uri: detailReportImageUrl}}
+                        style={{width: '100%', height: 250, borderRadius: 8, marginBottom: 10, resizeMode: 'cover', backgroundColor: '#e5e7eb'}}
+                        onLoad={() => {
+                          setReportImageLoaded(true);
+                          setReportImageLoadFailed(false);
+                        }}
+                        onError={() => {
+                          setReportImageLoaded(false);
+                          setReportImageLoadFailed(true);
+                        }}
+                      />
+                      {reportImageLoadFailed ? (
+                        <View style={styles.reportImageError}>
+                          <Ionicons name="alert-circle-outline" size={28} color="#991b1b" />
+                          <Text style={styles.reportImageErrorText}>Ảnh có link nhưng app chưa tải được. Người duyệt không nên duyệt khi chưa xem ảnh.</Text>
+                          <TouchableOpacity style={styles.openImageBtn} onPress={openReportImageExternally}>
+                            <Text style={styles.openImageBtnText}>Mở ảnh ngoài app</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity style={styles.openImageInlineBtn} onPress={openReportImageExternally}>
+                          <Ionicons name="open-outline" size={16} color={COLORS.primary} style={{marginRight: 6}} />
+                          <Text style={styles.openImageInlineText}>Mở ảnh lớn</Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
                   ) : (
                     <View style={styles.reportImageError}>
                       <Ionicons name="image-outline" size={28} color="#991b1b" />
@@ -799,16 +846,25 @@ export default function ShiftScreen({ navigation }) {
                     </View>
                   )}
                 </>
-              ) : null}
+              ) : (
+                <View style={styles.reportImageError}>
+                  <Ionicons name="image-outline" size={28} color="#991b1b" />
+                  <Text style={styles.reportImageErrorText}>Phiếu này chưa có hình ảnh báo cáo. Người duyệt không nên duyệt khi thiếu ảnh.</Text>
+                </View>
+              )}
 
             </ScrollView>
 
             {item.status === 'PENDING_APPROVAL' && (isOwner || currentUser?.permissions?.is_primary_manager) && (
               <>
-                <TouchableOpacity style={{backgroundColor: '#4caf50', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
+                <TouchableOpacity style={{backgroundColor: canApproveWithImage ? '#4caf50' : '#9ca3af', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
+                  if (!canApproveWithImage) {
+                    Alert.alert('Chưa thể duyệt', 'Cần mở và thấy hình ảnh báo cáo trước khi duyệt phiếu chốt ca.');
+                    return;
+                  }
                   handleApproveShiftReport(item);
                 }}>
-                  <Text style={{color: '#fff', fontWeight: 'bold'}}>Duyệt Chốt Ca</Text>
+                  <Text style={{color: '#fff', fontWeight: 'bold'}}>{canApproveWithImage ? 'Duyệt Chốt Ca' : 'Chưa thấy ảnh - chưa thể duyệt'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={{backgroundColor: '#f59e0b', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
                   handleRejectShiftReport(item);
@@ -1167,5 +1223,9 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   reportImageLoadingText: { marginTop: 10, color: '#334155', fontWeight: '700' },
   reportImageError: { minHeight: 140, borderRadius: 8, marginBottom: 15, alignItems: 'center', justifyContent: 'center', padding: 14, backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fecaca' },
   reportImageErrorText: { marginTop: 8, color: '#991b1b', fontWeight: '700', textAlign: 'center' },
+  openImageBtn: { marginTop: 12, backgroundColor: '#991b1b', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8 },
+  openImageBtnText: { color: '#fff', fontWeight: '900' },
+  openImageInlineBtn: { marginBottom: 15, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: isDarkMode ? '#e0e7ff' : '#eef2ff' },
+  openImageInlineText: { color: COLORS.primary, fontWeight: '900' },
   modalContainer: { width: '100%', maxHeight: '80%', backgroundColor: isDarkMode ? '#f8fafc' : COLORS.card, borderRadius: 12, padding: 20, elevation: 5, borderWidth: 1, borderColor: COLORS.border }
 });
