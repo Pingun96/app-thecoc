@@ -124,9 +124,14 @@ export default function ShiftScreen({ navigation }) {
 
   const resolveReportImageUrl = async (value) => {
     if (!value) return null;
-    const fallbackUrl = /^https?:\/\//i.test(String(value)) ? String(value) : null;
+    const text = String(value);
+    const fallbackUrl = /^https?:\/\//i.test(text) ? text : null;
     const path = getReportImagePath(value);
     if (!path) return fallbackUrl;
+    const { data: publicData } = supabase.storage
+      .from('shift_reports')
+      .getPublicUrl(path);
+    const publicUrl = publicData?.publicUrl || fallbackUrl;
 
     const { data, error } = await supabase.storage
       .from('shift_reports')
@@ -134,10 +139,10 @@ export default function ShiftScreen({ navigation }) {
 
     if (error) {
       console.log('Cannot create signed report image URL:', error.message);
-      return fallbackUrl;
+      return publicUrl;
     }
 
-    return data?.signedUrl || fallbackUrl;
+    return data?.signedUrl || publicUrl;
   };
 
   // Load cache on mount or store change
@@ -356,7 +361,8 @@ export default function ShiftScreen({ navigation }) {
       });
       if (error) throw error;
 
-      return filePath;
+      const { data } = supabase.storage.from('shift_reports').getPublicUrl(filePath);
+      return data?.publicUrl || filePath;
     } catch (error) {
       console.log('Error uploading image:', error);
       throw error;
