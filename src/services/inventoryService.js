@@ -1,5 +1,4 @@
 import { supabase } from './supabaseClient';
-import { getLocalDateKey } from '../utils/dateTime';
 export const getInventoryItems = async (storeId) => {
   let query = supabase.from('inventory_items').select('*');
   if (storeId && storeId !== 'ALL') {

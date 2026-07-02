@@ -12,7 +12,6 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import StaffHistoryScreen from './src/screens/StaffHistoryScreen';
 import StaffManagementScreen from './src/screens/StaffManagementScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
-import InventoryTransferScreen from './src/screens/InventoryTransferScreen';
 import StaffCheckinScreen from './src/screens/StaffCheckinScreen';
 import ShiftScheduleScreen from './src/screens/ShiftScheduleScreen';
 import PayrollScreen from './src/screens/PayrollScreen';
@@ -378,7 +377,6 @@ export default function App() {
               <Stack.Screen name="StaffHistory" component={StaffHistoryScreen} />
               <Stack.Screen name="StaffManagement" component={StaffManagementScreen} />
               <Stack.Screen name="Inventory" component={InventoryScreen} />
-              <Stack.Screen name="InventoryTransfer" component={InventoryTransferScreen} />
               <Stack.Screen name="StaffCheckin" component={StaffCheckinScreen} />
               <Stack.Screen name="ShiftSchedule" component={ShiftScheduleScreen} />
               <Stack.Screen name="Payroll" component={PayrollScreen} />

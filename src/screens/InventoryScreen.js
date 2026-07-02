@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import {
   createInventoryItem,
-  createInventoryLog,
   createInventoryTicket,
   approveInventoryTicket,
   rejectInventoryTicket,
@@ -25,14 +24,7 @@ import {
 } from '../services/inventoryService';
 import {
   normalizeInventoryItem,
-  normalizeInventoryLog,
-  normalizeInventoryRequest,
 } from '../services/dataMappers';
-import { getLocalDateKey } from '../utils/dateTime';
-import {
-  sendNotificationToUser,
-  sendNotificationToUsers,
-} from '../services/NotificationService';
 
 const ACTIONS = {
   IMPORT: { label: 'Nhập kho', shortLabel: 'NHẬP', color: '#16a34a', sign: '+' },
@@ -75,7 +67,6 @@ export default function InventoryScreen({ navigation }) {
     inventoryItems,
     setInventoryItems,
     inventoryLogs,
-    setInventoryLogs,
     inventoryTickets,
     setInventoryTickets,
     selectedStoreId,
@@ -87,7 +78,6 @@ export default function InventoryScreen({ navigation }) {
   const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
 
   const isOwner = currentUser?.role === 'OWNER';
-  const isManager = currentUser?.role === 'MANAGER';
   const isStaff = currentUser?.role === 'STAFF';
   const viewableStores = currentUser?.permissions?.viewable_stores || [];
 
@@ -133,10 +123,39 @@ export default function InventoryScreen({ navigation }) {
     () => Object.fromEntries(inventoryItems.map((item) => [item.id, item])),
     [inventoryItems],
   );
+  const [historySearchText, setHistorySearchText] = useState('');
+  const [historyTypeFilter, setHistoryTypeFilter] = useState('ALL');
+  const [historyItemFilter, setHistoryItemFilter] = useState('ALL');
+  const getLogTime = useCallback((log) => {
+    const rawValue = log.created_at || log.date || log.updated_at || '';
+    const parsed = new Date(rawValue);
+    return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+  }, []);
+  const getLogItem = useCallback((log) => itemById[log.itemId] || itemById[log.itemid] || itemById[log.item_id], [itemById]);
+  const filteredHistoryLogs = useMemo(() => {
+    const search = historySearchText.trim().toLowerCase();
+    return inventoryLogs
+      .filter((log) => storeIdToView === 'ALL' || String(log.store_id) === String(storeIdToView))
+      .filter((log) => historyTypeFilter === 'ALL' || log.type === historyTypeFilter)
+      .filter((log) => historyItemFilter === 'ALL' || String(log.itemId ?? log.itemid ?? log.item_id) === String(historyItemFilter))
+      .filter((log) => {
+        if (!search) return true;
+        const item = getLogItem(log);
+        const creatorName = staffList.find(s => s.id === log.created_by)?.name || '';
+        const approverName = staffList.find(s => s.id === log.approved_by)?.name || '';
+        return [
+          item?.name,
+          log.note,
+          log.type,
+          creatorName,
+          approverName,
+        ].some((value) => String(value || '').toLowerCase().includes(search));
+      })
+      .sort((a, b) => getLogTime(b) - getLogTime(a) || String(b.date || '').localeCompare(String(a.date || '')));
+  }, [inventoryLogs, storeIdToView, historyTypeFilter, historyItemFilter, historySearchText, getLogItem, getLogTime, staffList]);
 
   const [activeTab, setActiveTab] = useState(isStaff ? 'ACTION' : 'OVERVIEW');
   const [actionType, setActionType] = useState('EXPORT');
-  const [destStoreId, setDestStoreId] = useState('');
   const [cartItems, setCartItems] = useState([]);
   const [amount, setAmount] = useState('');
   const [selectedItemId, setSelectedItemId] = useState('');
@@ -171,88 +190,6 @@ export default function InventoryScreen({ navigation }) {
     
     return false;
   });
-
-  const matchesStore = (value, storeId) => value === storeId || String(value) === String(storeId);
-
-  const getOwnerRecipientIds = () => {
-    const ownerIds = staffList
-      .filter((staff) => staff.role === 'OWNER')
-      .map((staff) => staff.id);
-
-    return [...new Set(['owner_1', ...ownerIds])]
-      .filter((id) => id && id !== currentUser?.id);
-  };
-
-  const getManagerRecipientIds = (storeId) => staffList
-    .filter((staff) => {
-      const viewableStores = staff.permissions?.viewable_stores || [];
-      return staff.role === 'MANAGER'
-        && staff.id !== currentUser?.id
-        && (
-          matchesStore(staff.store_id, storeId)
-          || viewableStores.some((viewableStore) => (
-            matchesStore(viewableStore, storeId) || viewableStore === 'ALL'
-          ))
-        );
-    })
-    .map((staff) => staff.id);
-
-  const getRequestCreator = (request) => staffList.find((staff) => (
-    staff.id === request.requested_by
-    || staff.id === request.requested_by_id
-    || staff.name === request.requested_by_name
-  ));
-
-  const notifyInventoryApprovers = async (request, finalType) => {
-    const managerIds = request.status === 'PENDING_MANAGER'
-      ? getManagerRecipientIds(request.store_id)
-      : [];
-    const ownerIds = getOwnerRecipientIds();
-    const recipientIds = [...new Set([...managerIds, ...ownerIds])];
-
-    if (!recipientIds.length) return;
-
-    await sendNotificationToUsers(
-      recipientIds,
-      'Phiếu kho mới',
-      `${request.requested_by_name} vừa tạo phiếu ${ACTIONS[finalType]?.label || finalType}.`,
-      {
-        route: 'Inventory',
-        type: 'inventory_request',
-        request_id: request.id,
-        store_id: request.store_id,
-      },
-      {
-        type: 'inventory_request',
-        route: 'Inventory',
-        storeId: request.store_id,
-        actorUserId: currentUser?.id,
-      },
-    );
-  };
-
-  const notifyRequestCreator = async (request, title, body) => {
-    const creator = getRequestCreator(request);
-    if (!creator?.id || creator.id === currentUser?.id) return;
-
-    await sendNotificationToUser(
-      creator.id,
-      title,
-      body,
-      {
-        route: 'Inventory',
-        type: 'inventory_request_status',
-        request_id: request.id,
-        store_id: request.store_id,
-      },
-      {
-        type: 'inventory_request_status',
-        route: 'Inventory',
-        storeId: request.store_id,
-        actorUserId: currentUser?.id,
-      },
-    );
-  };
 
   const runOperation = async (key, operation) => {
     setBusyKey(key);
@@ -295,10 +232,8 @@ export default function InventoryScreen({ navigation }) {
   const handleSubmitAction = () => runOperation('submit-action', async () => {
     if (cartItems.length === 0) throw new Error('Giỏ hàng trống. Vui lòng thêm ít nhất 1 mặt hàng.');
     if (storeIdToView === 'ALL') throw new Error('Vui lòng chọn một chi nhánh cụ thể.');
-    if (actionType === 'TRANSFER' && !destStoreId) throw new Error('Vui lòng chọn chi nhánh nhận.');
-    if (actionType === 'TRANSFER' && destStoreId === storeIdToView) throw new Error('Chi nhánh nhận phải khác chi nhánh xuất.');
 
-    if (actionType === 'EXPORT' || actionType === 'TRANSFER') {
+    if (actionType === 'EXPORT') {
       for (const item of cartItems) {
         if (item.amount > item.currentStock) {
           throw new Error(`Không thể xuất ${item.name}. Tồn kho hiện tại chỉ còn ${formatQuantity(item.currentStock)} ${item.unit}.`);
@@ -312,8 +247,8 @@ export default function InventoryScreen({ navigation }) {
     const ticket = {
       id: makeId('ticket'),
       type: actionType,
-      source_store_id: (actionType === 'EXPORT' || actionType === 'TRANSFER') ? storeIdToView : null,
-      destination_store_id: (actionType === 'IMPORT' || actionType === 'TRANSFER') ? (actionType === 'TRANSFER' ? destStoreId : storeIdToView) : null,
+      source_store_id: actionType === 'EXPORT' ? storeIdToView : null,
+      destination_store_id: actionType === 'IMPORT' ? storeIdToView : null,
       items: cartItems,
       status: initialStatus,
       requested_by: currentUser?.id,
@@ -593,7 +528,7 @@ export default function InventoryScreen({ navigation }) {
               
               <Text style={styles.fieldLabel}>Loại phiếu</Text>
               <View style={styles.actionGrid}>
-                {['IMPORT', 'EXPORT', 'TRANSFER'].map((type) => (
+                {['IMPORT', 'EXPORT'].map((type) => (
                   <TouchableOpacity
                     key={type}
                     style={[
@@ -603,31 +538,11 @@ export default function InventoryScreen({ navigation }) {
                     onPress={() => { setActionType(type); setCartItems([]); }}
                   >
                     <Text style={[styles.actionButtonText, actionType === type && { color: '#fff' }]}>
-                      {type === 'IMPORT' ? 'Nhập Hàng' : type === 'EXPORT' ? 'Xuất Hủy' : 'Chuyển Kho'}
+                      {type === 'IMPORT' ? 'Nhập Hàng' : 'Xuất Hủy'}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
-
-              {actionType === 'TRANSFER' && (
-                <View style={{ marginTop: 15 }}>
-                  <Text style={styles.fieldLabel}>Chuyển đến Chi nhánh</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.itemScroller}>
-                    {storeList.filter(s => s.id !== storeIdToView && s.id !== 'ALL').map((store) => (
-                      <TouchableOpacity
-                        key={store.id}
-                        style={[styles.itemChip, destStoreId === store.id && styles.itemChipActive]}
-                        onPress={() => setDestStoreId(store.id)}
-                      >
-                        <Text style={[styles.itemChipText, destStoreId === store.id && styles.itemChipTextActive]}>
-                          {store.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-
               <View style={{ height: 1, backgroundColor: '#e2e8f0', marginVertical: 15 }} />
 
               <Text style={styles.fieldLabel}>Chọn nguyên liệu</Text>
@@ -738,45 +653,115 @@ export default function InventoryScreen({ navigation }) {
 
           {activeTab === 'HISTORY' && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Lịch sử Nhập/Xuất kho</Text>
-              {inventoryLogs
-                .filter((log) => storeIdToView === 'ALL' || log.store_id === storeIdToView)
-                .sort((a, b) => String(b.date).localeCompare(String(a.date)))
-                .map((log) => {
-                  const item = itemById[log.itemId];
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Lịch sử Nhập/Xuất kho</Text>
+                  <Text style={styles.historyCount}>{filteredHistoryLogs.length} giao dịch mới nhất lên đầu</Text>
+                </View>
+                <Ionicons name="time-outline" size={22} color={COLORS.textMuted} />
+              </View>
+
+              <View style={styles.searchBox}>
+                <Ionicons name="search" size={19} color="#94a3b8" />
+                <TextInput
+                  value={historySearchText}
+                  onChangeText={setHistorySearchText}
+                  placeholder="Tìm theo món, người tạo, ghi chú..."
+                  placeholderTextColor="#94a3b8"
+                  style={styles.searchInput}
+                />
+              </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
+                {[
+                  { key: 'ALL', label: 'Tất cả' },
+                  { key: 'IMPORT', label: 'Nhập' },
+                  { key: 'EXPORT', label: 'Xuất' },
+                  { key: 'ADJUST_UP', label: 'Điều chỉnh +' },
+                  { key: 'ADJUST_DOWN', label: 'Điều chỉnh -' },
+                ].map((filter) => (
+                  <TouchableOpacity
+                    key={filter.key}
+                    style={[styles.filterChip, historyTypeFilter === filter.key && styles.filterChipActive]}
+                    onPress={() => setHistoryTypeFilter(filter.key)}
+                  >
+                    <Text style={[styles.filterChipText, historyTypeFilter === filter.key && styles.filterChipTextActive]}>
+                      {filter.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
+                <TouchableOpacity
+                  style={[styles.filterChip, historyItemFilter === 'ALL' && styles.filterChipActive]}
+                  onPress={() => setHistoryItemFilter('ALL')}
+                >
+                  <Text style={[styles.filterChipText, historyItemFilter === 'ALL' && styles.filterChipTextActive]}>
+                    Tất cả nguyên liệu
+                  </Text>
+                </TouchableOpacity>
+                {myItems.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[styles.filterChip, historyItemFilter === item.id && styles.filterChipActive]}
+                    onPress={() => setHistoryItemFilter(item.id)}
+                  >
+                    <Text style={[styles.filterChipText, historyItemFilter === item.id && styles.filterChipTextActive]}>
+                      {item.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {filteredHistoryLogs.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="file-tray-outline" size={40} color={COLORS.textMuted} />
+                  <Text style={styles.emptyTitle}>Không có lịch sử phù hợp</Text>
+                  <Text style={styles.emptyText}>Thử đổi bộ lọc hoặc từ khoá tìm kiếm.</Text>
+                </View>
+              ) : filteredHistoryLogs.map((log) => {
+                  const item = getLogItem(log);
                   const action = ACTIONS[log.type] || ACTIONS.IMPORT;
                   const creatorName = staffList.find(s => s.id === log.created_by)?.name || 'Hệ thống';
                   const approverName = staffList.find(s => s.id === log.approved_by)?.name || '';
+                  const store = storeList.find((storeItem) => String(storeItem.id) === String(log.store_id));
 
                   return (
-                    <View key={log.id} style={styles.logRow}>
-                      <View style={[styles.logIcon, { backgroundColor: `${action.color}18` }]}>
-                        <Ionicons
-                          name={action.sign === '+' ? 'add' : 'remove'}
-                          size={20}
-                          color={action.color}
-                        />
+                    <View key={log.id} style={styles.logCard}>
+                      <View style={styles.logCardHeader}>
+                        <View style={[styles.logIcon, { backgroundColor: `${action.color}18` }]}>
+                          <Ionicons
+                            name={action.sign === '+' ? 'add' : 'remove'}
+                            size={22}
+                            color={action.color}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.logTitle}>{item?.name || 'Không rõ nguyên liệu'}</Text>
+                          <Text style={styles.logMeta}>
+                            {action.label} • {formatTimestamp(log.created_at || log.date)}
+                          </Text>
+                          {store?.name ? <Text style={styles.logMeta}>{store.name}</Text> : null}
+                        </View>
+                        <Text style={[styles.logAmount, { color: action.color }]}>
+                          {action.sign}{formatQuantity(log.amount)} {item?.unit || ''}
+                        </Text>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.logTitle}>{action.label} • {item?.name || 'Không rõ'}</Text>
-                        <Text style={styles.logMeta}>{formatTimestamp(log.date)}</Text>
-                        <Text style={[styles.logMeta, { color: '#64748b', marginTop: 4 }]}>
-                          👤 Tạo bởi: <Text style={{fontWeight: 'bold', color: '#1e293b'}}>{creatorName}</Text>
+
+                      <View style={styles.logDetailBox}>
+                        <Text style={styles.logDetailText}>
+                          👤 Tạo bởi: <Text style={styles.logDetailStrong}>{creatorName}</Text>
                         </Text>
                         {approverName ? (
-                          <Text style={[styles.logMeta, { color: '#64748b', marginTop: 2 }]}>
-                            ✅ Duyệt bởi: <Text style={{fontWeight: 'bold', color: '#16a34a'}}>{approverName}</Text>
+                          <Text style={styles.logDetailText}>
+                            ✅ Duyệt bởi: <Text style={[styles.logDetailStrong, { color: '#16a34a' }]}>{approverName}</Text>
                           </Text>
                         ) : null}
                         {log.note ? (
-                          <Text style={[styles.logMeta, { color: '#64748b', marginTop: 2, fontStyle: 'italic' }]}>
-                            {"📝 \""}{log.note}{"\""}
-                          </Text>
+                          <Text style={styles.logNote}>📝 {log.note}</Text>
                         ) : null}
                       </View>
-                      <Text style={[styles.logAmount, { color: action.color, alignSelf: 'flex-start', marginTop: 5 }]}>
-                        {action.sign}{formatQuantity(log.amount)} {item?.unit || ''}
-                      </Text>
                     </View>
                   );
                 })}
@@ -950,11 +935,22 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   catalogName: { color: COLORS.text, fontWeight: '800' },
   catalogMeta: { color: COLORS.textMuted, fontSize: 11, marginTop: 4 },
   catalogStock: { color: '#1565c0', fontWeight: '900' },
-  logRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  logIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  logTitle: { color: COLORS.text, fontWeight: '700', fontSize: 13 },
-  logMeta: { color: COLORS.textMuted, fontSize: 11, marginTop: 3 },
-  logAmount: { fontWeight: '900', fontSize: 14 },
+  historyCount: { color: COLORS.textMuted, fontSize: 12, marginTop: -8, marginBottom: 12 },
+  filterScroller: { marginTop: 8, marginBottom: 8 },
+  filterChip: { backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9, marginRight: 8 },
+  filterChipActive: { backgroundColor: '#1565c0', borderColor: '#1565c0' },
+  filterChipText: { color: COLORS.textMuted, fontWeight: '800', fontSize: 12 },
+  filterChipTextActive: { color: '#fff' },
+  logCard: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.inputBg, borderRadius: 15, padding: 13, marginTop: 10 },
+  logCardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
+  logIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 11 },
+  logTitle: { color: COLORS.text, fontWeight: '900', fontSize: 16 },
+  logMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 4, lineHeight: 17 },
+  logAmount: { fontWeight: '900', fontSize: 16, marginLeft: 8, textAlign: 'right', maxWidth: 115 },
+  logDetailBox: { backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 10, marginTop: 12 },
+  logDetailText: { color: COLORS.textMuted, fontSize: 13, lineHeight: 20 },
+  logDetailStrong: { color: COLORS.text, fontWeight: '900' },
+  logNote: { color: COLORS.text, fontSize: 13, lineHeight: 20, marginTop: 4, fontStyle: 'italic' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: COLORS.card, borderRadius: 18, padding: 20, borderWidth: 1, borderColor: COLORS.border },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

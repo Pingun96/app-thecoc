@@ -6,7 +6,7 @@ import { supabase } from '../services/supabaseClient';
 
 const MODULE_PERMISSIONS = [
   { key: 'cashier', icon: '💵', title: 'Giao ca / Thu ngân', desc: 'Mở ca, kiểm két, nhập doanh thu và chốt ca.' },
-  { key: 'inventory', icon: '📦', title: 'Kho hàng', desc: 'Xem tồn kho, nhập/xuất, kiểm kê và luân chuyển kho.' },
+  { key: 'inventory', icon: '📦', title: 'Kho hàng', desc: 'Xem tồn kho, nhập/xuất, kiểm kê và lịch sử kho.' },
   { key: 'hr', icon: '👥', title: 'Nhân sự / Chấm công', desc: 'Xem nhân sự, chấm công và lịch sử làm việc.' },
   { key: 'payroll', icon: '💰', title: 'Bảng lương', desc: 'Xem lương, điều chỉnh và duyệt/chốt lương theo quyền.' },
   { key: 'finance', icon: '📊', title: 'Tài chính / Báo cáo', desc: 'Xem doanh thu, báo cáo tài chính và lợi nhuận.' },
