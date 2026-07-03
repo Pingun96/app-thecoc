@@ -1,4 +1,4 @@
-const CACHE_NAME = 'thecoc-pwa-v2.1.0';
+const CACHE_NAME = 'thecoc-pwa-v2.1.1';
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const withBase = (path) => `${BASE_PATH}${path}`;
 const APP_SHELL = [
