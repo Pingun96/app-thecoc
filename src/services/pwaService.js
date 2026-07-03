@@ -93,4 +93,30 @@ export const setupPwaExperience = () => {
         .catch((error) => console.log('Cannot register PWA service worker:', error?.message || error));
     });
   }
+
+  // --- TÍCH HỢP ONESIGNAL WEB PUSH ---
+  const ONESIGNAL_APP_ID = "YOUR_ONESIGNAL_APP_ID"; // Điền App ID của anh vào đây!
+
+  const initOneSignal = () => {
+    window.OneSignal = window.OneSignal || [];
+    window.OneSignal.push(() => {
+      window.OneSignal.init({
+        appId: ONESIGNAL_APP_ID,
+        allowLocalhostAsSecureOrigin: true,
+      });
+    });
+  };
+
+  if (ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== "YOUR_ONESIGNAL_APP_ID") {
+    if (!document.getElementById('onesignal-sdk')) {
+      const script = document.createElement('script');
+      script.id = 'onesignal-sdk';
+      script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+      script.defer = true;
+      script.onload = initOneSignal;
+      document.head.appendChild(script);
+    } else {
+      initOneSignal();
+    }
+  }
 };

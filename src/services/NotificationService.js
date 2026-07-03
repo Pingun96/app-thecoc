@@ -9,6 +9,11 @@ export const NOTIFICATION_CHANNEL_ID = 'thecoc-default';
 
 const EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
 
+// --- CẤU HÌNH ONESIGNAL WEB PUSH ---
+const ONESIGNAL_APP_ID = "YOUR_ONESIGNAL_APP_ID"; // Điền App ID của anh vào đây!
+const ONESIGNAL_REST_API_KEY = "YOUR_ONESIGNAL_REST_API_KEY"; // Điền REST API Key của anh vào đây!
+const ONESIGNAL_PUSH_ENDPOINT = 'https://onesignal.com/api/v1/notifications';
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -109,7 +114,30 @@ export const requestNotificationPermissionAsync = async () => {
 };
 
 export const registerForPushNotificationsAsync = async () => {
-  if (Platform.OS === 'web') return null;
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.OneSignal) {
+      return new Promise((resolve) => {
+        window.OneSignal.push(async () => {
+          try {
+            const permissionGranted = window.OneSignal.Notifications.permission;
+            if (!permissionGranted) {
+              await window.OneSignal.Notifications.requestPermission();
+            }
+            const subscriptionId = window.OneSignal.User.PushSubscription.id;
+            if (subscriptionId) {
+              resolve(`web_push_${subscriptionId}`);
+            } else {
+              resolve(null);
+            }
+          } catch (err) {
+            console.log('Lỗi lấy OneSignal Subscription ID:', err);
+            resolve(null);
+          }
+        });
+      });
+    }
+    return null;
+  }
 
   const { granted } = await requestNotificationPermissionAsync();
   if (!granted) {
@@ -133,15 +161,15 @@ export const registerForPushNotificationsAsync = async () => {
 };
 
 export const savePushTokenToDB = async (userId, token, metadata = {}) => {
-  if (!userId || !token || Platform.OS === 'web') return null;
+  if (!userId || !token) return null;
 
   const tokenPayload = {
     user_id: userId,
     expo_push_token: token,
     platform: Platform.OS,
-    device_name: Device.deviceName || Device.modelName || null,
-    project_id: getProjectId() || null,
-    app_version: Constants?.expoConfig?.version || null,
+    device_name: Platform.OS === 'web' ? 'Web Browser' : (Device.deviceName || Device.modelName || null),
+    project_id: Platform.OS === 'web' ? null : (getProjectId() || null),
+    app_version: Platform.OS === 'web' ? '1.0.0' : (Constants?.expoConfig?.version || null),
     store_id: metadata.storeId ?? metadata.store_id ?? null,
     is_active: true,
     last_seen_at: new Date().toISOString(),
@@ -303,33 +331,74 @@ const buildExpoPushMessage = (token, title, body, data = {}) => ({
 export const sendPushNotifications = async (expoPushTokens, title, body, data = {}) => {
   const uniqueTokens = [...new Set((expoPushTokens || []).filter(Boolean))];
   const nativeTokens = uniqueTokens.filter((token) => !String(token).startsWith('web_push_'));
+  const webTokens = uniqueTokens.filter((token) => String(token).startsWith('web_push_'));
 
-  if (!nativeTokens.length) return { sent: 0, tickets: [] };
+  let sentCount = 0;
+  const tickets = [];
 
-  const messages = nativeTokens.map((token) => buildExpoPushMessage(token, title, body, data));
+  // 1. Gửi thông báo Web Push qua OneSignal
+  if (webTokens.length > 0 && ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== "YOUR_ONESIGNAL_APP_ID") {
+    try {
+      const subscriptionIds = webTokens.map((token) => token.replace('web_push_', ''));
+      const payload = {
+        app_id: ONESIGNAL_APP_ID,
+        include_subscription_ids: subscriptionIds,
+        contents: { en: body, vi: body },
+        headings: { en: title, vi: title },
+        data: data,
+      };
 
-  try {
-    const response = await fetch(EXPO_PUSH_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(messages.length === 1 ? messages[0] : messages),
-    });
+      const response = await fetch(ONESIGNAL_PUSH_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      console.log('Expo push request failed:', payload || response.status);
-      return { sent: 0, tickets: payload?.data || [], error: payload };
+      const resJson = await response.json().catch(() => null);
+      if (response.ok) {
+        console.log('OneSignal Web Push sent successfully:', resJson);
+        sentCount += webTokens.length;
+      } else {
+        console.log('OneSignal Web Push failed:', resJson || response.status);
+      }
+    } catch (err) {
+      console.log('Lỗi gửi Web Push qua OneSignal:', err.message);
     }
-
-    return { sent: nativeTokens.length, tickets: payload?.data || [] };
-  } catch (error) {
-    console.log('Cannot send Expo push:', error?.message || error);
-    return { sent: 0, tickets: [], error };
   }
+
+  // 2. Gửi thông báo Native qua Expo
+  if (nativeTokens.length > 0) {
+    const messages = nativeTokens.map((token) => buildExpoPushMessage(token, title, body, data));
+
+    try {
+      const response = await fetch(EXPO_PUSH_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-Encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(messages.length === 1 ? messages[0] : messages),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        console.log('Expo push request failed:', payload || response.status);
+      } else {
+        sentCount += nativeTokens.length;
+        if (payload?.data) {
+          tickets.push(...payload.data);
+        }
+      }
+    } catch (error) {
+      console.log('Cannot send Expo push:', error?.message || error);
+    }
+  }
+
+  return { sent: sentCount, tickets };
 };
 
 export const sendPushNotification = async (
