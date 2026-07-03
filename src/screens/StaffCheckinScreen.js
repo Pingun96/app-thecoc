@@ -1,7 +1,7 @@
 import React, { useContext, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Alert } from '../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { supabase } from '../services/supabaseClient';
@@ -112,7 +113,42 @@ export default function StaffCheckinScreen({ navigation }) {
     }),
   ]);
 
+  const getWebLocation = () => {
+    return new Promise((resolve, reject) => {
+      if (typeof navigator === 'undefined' || !navigator.geolocation) {
+        reject(new Error('Trình duyệt không hỗ trợ định vị GPS.'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            coords: {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+            }
+          });
+        },
+        (error) => {
+          let msg = 'Không thể lấy vị trí. ';
+          if (error.code === error.PERMISSION_DENIED) {
+            msg += 'Hãy cho phép truy cập GPS trong cài đặt trình duyệt/thiết bị.';
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            msg += 'Không có tín hiệu GPS.';
+          } else if (error.code === error.TIMEOUT) {
+            msg += 'Quá thời gian lấy GPS.';
+          }
+          reject(new Error(msg));
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+  };
+
   const requestLocationPermissionSafely = async () => {
+    if (Platform.OS === 'web') {
+      return { status: 'granted' };
+    }
     try {
       return await withTimeout(
         Location.requestForegroundPermissionsAsync(),
@@ -125,6 +161,9 @@ export default function StaffCheckinScreen({ navigation }) {
   };
 
   const getCurrentLocationSafely = async () => {
+    if (Platform.OS === 'web') {
+      return await getWebLocation();
+    }
     try {
       return await withTimeout(
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
