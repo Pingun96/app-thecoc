@@ -408,8 +408,7 @@ export const sendNotificationToUsers = async (
 
 export const showLocalNotification = async (title, body, data = {}) => {
   if (Platform.OS === 'web') {
-    const { granted } = await requestNotificationPermissionAsync();
-    if (!granted) return null;
+    if (getWebNotificationPermissionState() !== 'granted') return null;
 
     const options = {
       body: body || '',
