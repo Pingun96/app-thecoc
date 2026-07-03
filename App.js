@@ -18,6 +18,7 @@ import PayrollScreen from './src/screens/PayrollScreen';
 import NotificationScreen from './src/screens/NotificationScreen';
 import AttendanceReviewScreen from './src/screens/AttendanceReviewScreen';
 import PwaInstallBanner from './src/components/PwaInstallBanner';
+import WebNotificationBanner from './src/components/WebNotificationBanner';
 import { supabase } from './src/services/supabaseClient';
 import {
   getLastNotificationData,
@@ -243,48 +244,52 @@ export default function App() {
     setDataError('');
 
     try {
-      const results = await Promise.all([
-        supabase.from('stores').select('*'),
-        supabase.from('users').select('*'),
-        supabase.from('inventory_items').select('*'),
-        supabase.from('inventory_logs').select('*'),
-        supabase.from('inventory_tickets').select('*'),
-        supabase.from('shifts').select('*'),
-        supabase.from('attendance_logs').select('*'),
-        supabase.from('shift_registrations').select('*'),
-        supabase.from('payroll_adjustments').select('*'),
-        supabase.from('payroll_approvals').select('*'),
-        supabase.from('shift_swaps').select('*'),
-      ]);
+      const tables = [
+        { key: 'stores', query: supabase.from('stores').select('*'), critical: true },
+        { key: 'users', query: supabase.from('users').select('*'), critical: true },
+        { key: 'inventory_items', query: supabase.from('inventory_items').select('*') },
+        { key: 'inventory_logs', query: supabase.from('inventory_logs').select('*') },
+        { key: 'inventory_tickets', query: supabase.from('inventory_tickets').select('*') },
+        { key: 'shifts', query: supabase.from('shifts').select('*') },
+        { key: 'attendance_logs', query: supabase.from('attendance_logs').select('*') },
+        { key: 'shift_registrations', query: supabase.from('shift_registrations').select('*') },
+        { key: 'payroll_adjustments', query: supabase.from('payroll_adjustments').select('*') },
+        { key: 'payroll_approvals', query: supabase.from('payroll_approvals').select('*') },
+        { key: 'shift_swaps', query: supabase.from('shift_swaps').select('*') },
+      ];
 
-      const failedResult = results.find((result) => result.error);
-      if (failedResult?.error) throw failedResult.error;
+      const tableResults = await Promise.all(tables.map(async (table) => {
+        const result = await table.query;
+        return { ...table, ...result, data: result.data || [] };
+      }));
 
-      const [
-        storesRes,
-        usersRes,
-        itemsRes,
-        logsRes,
-        reqsRes,
-        shiftsRes,
-        attendanceRes,
-        regRes,
-        adjustmentsRes,
-        approvalsRes,
-        swapsRes,
-      ] = results;
+      const failedCriticalResult = tableResults.find((result) => result.critical && result.error);
+      if (failedCriticalResult?.error) throw failedCriticalResult.error;
 
-      setStoreList(storesRes.data || []);
-      setStaffList((usersRes.data || []).map(normalizeUser));
-      setInventoryItems((itemsRes.data || []).map(normalizeInventoryItem));
-      setInventoryLogs((logsRes.data || []).map(normalizeInventoryLog));
-      setInventoryTickets(reqsRes.data || []);
-      setShifts(shiftsRes.data || []);
-      setAttendanceHistory((attendanceRes.data || []).map(normalizeAttendance));
-      setShiftRegistrations(regRes.data || []);
-      setPayrollAdjustments(adjustmentsRes.data || []);
-      setPayrollApprovals(approvalsRes.data || []);
-      setShiftSwaps((swapsRes.data || []).map(normalizeShiftSwap));
+      const optionalErrors = tableResults.filter((result) => !result.critical && result.error);
+      if (optionalErrors.length) {
+        console.log(
+          'Một số bảng phụ chưa tải được, app vẫn tiếp tục:',
+          optionalErrors.map((result) => `${result.key}: ${result.error?.message}`).join(' | ')
+        );
+      }
+
+      const tableData = tableResults.reduce((acc, result) => {
+        acc[result.key] = result.error ? [] : result.data;
+        return acc;
+      }, {});
+
+      setStoreList(tableData.stores || []);
+      setStaffList((tableData.users || []).map(normalizeUser));
+      setInventoryItems((tableData.inventory_items || []).map(normalizeInventoryItem));
+      setInventoryLogs((tableData.inventory_logs || []).map(normalizeInventoryLog));
+      setInventoryTickets(tableData.inventory_tickets || []);
+      setShifts(tableData.shifts || []);
+      setAttendanceHistory((tableData.attendance_logs || []).map(normalizeAttendance));
+      setShiftRegistrations(tableData.shift_registrations || []);
+      setPayrollAdjustments(tableData.payroll_adjustments || []);
+      setPayrollApprovals(tableData.payroll_approvals || []);
+      setShiftSwaps((tableData.shift_swaps || []).map(normalizeShiftSwap));
     } catch (error) {
       console.error('Lỗi khi tải dữ liệu từ Supabase:', error);
       setDataError(error?.message || 'Không thể tải dữ liệu. Vui lòng kiểm tra kết nối.');
@@ -393,6 +398,7 @@ export default function App() {
           </NavigationContainer>
         </View>
         <PwaInstallBanner COLORS={COLORS} isDarkMode={isDarkMode} />
+        <WebNotificationBanner currentUser={currentUser} COLORS={COLORS} isDarkMode={isDarkMode} />
       </View>
     </AppContext.Provider>
   );

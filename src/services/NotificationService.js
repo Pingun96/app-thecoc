@@ -36,6 +36,25 @@ const isPermissionGranted = (permission) => {
   ].includes(iosStatus);
 };
 
+const getPwaBasePath = () => {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return '';
+  const segments = window.location.pathname.split('/').filter(Boolean);
+  return segments.length ? `/${segments[0]}` : '';
+};
+
+const getWebNotificationIcon = () => `${getPwaBasePath()}/icons/thecoc-icon-512.png`;
+
+const isWebNotificationSupported = () => (
+  Platform.OS === 'web'
+  && typeof window !== 'undefined'
+  && 'Notification' in window
+);
+
+export const getWebNotificationPermissionState = () => {
+  if (!isWebNotificationSupported()) return 'unsupported';
+  return window.Notification.permission || 'default';
+};
+
 export const ensureNotificationChannelAsync = async () => {
   if (Platform.OS !== 'android') return null;
 
@@ -51,6 +70,23 @@ export const ensureNotificationChannelAsync = async () => {
 };
 
 export const requestNotificationPermissionAsync = async () => {
+  if (Platform.OS === 'web') {
+    if (!isWebNotificationSupported()) {
+      return { granted: false, permission: { status: 'unsupported' } };
+    }
+
+    if (window.Notification.permission === 'granted') {
+      return { granted: true, permission: { status: 'granted' } };
+    }
+
+    if (window.Notification.permission === 'denied') {
+      return { granted: false, permission: { status: 'denied' } };
+    }
+
+    const status = await window.Notification.requestPermission();
+    return { granted: status === 'granted', permission: { status } };
+  }
+
   await ensureNotificationChannelAsync();
 
   const existingPermission = await Notifications.getPermissionsAsync();
@@ -371,7 +407,31 @@ export const sendNotificationToUsers = async (
 };
 
 export const showLocalNotification = async (title, body, data = {}) => {
-  if (Platform.OS === 'web') return null;
+  if (Platform.OS === 'web') {
+    const { granted } = await requestNotificationPermissionAsync();
+    if (!granted) return null;
+
+    const options = {
+      body: body || '',
+      data,
+      icon: getWebNotificationIcon(),
+      badge: getWebNotificationIcon(),
+      tag: data?.id || data?.route || `thecoc-${Date.now()}`,
+    };
+
+    try {
+      const registration = await navigator?.serviceWorker?.ready?.catch(() => null);
+      if (registration?.showNotification) {
+        await registration.showNotification(title || 'The Cốc', options);
+        return true;
+      }
+
+      return new window.Notification(title || 'The Cốc', options);
+    } catch (error) {
+      console.log('Cannot show web notification:', error?.message || error);
+      return null;
+    }
+  }
 
   const { granted } = await requestNotificationPermissionAsync();
   if (!granted) return null;
@@ -476,6 +536,8 @@ export const getManagersPushTokens = async (storeId) => {
 };
 
 export const getLastNotificationData = async () => {
+  if (Platform.OS === 'web') return null;
+
   try {
     const getter = Notifications.getLastNotificationResponseAsync
       || Notifications.getLastNotificationResponse;
@@ -487,6 +549,8 @@ export const getLastNotificationData = async () => {
 };
 
 export const observeNotificationResponses = (handler) => {
+  if (Platform.OS === 'web') return () => {};
+
   const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response?.notification?.request?.content?.data || {};
     handler?.(data, response);
