@@ -9,6 +9,9 @@ import { getLocalDateKey, isDateInCurrentMonth } from '../utils/dateTime';
 import { supabase } from '../services/supabaseClient';
 
 const { width } = Dimensions.get('window');
+const APP_GRID_COLUMNS = 4;
+const APP_GRID_MAX_WIDTH = 520;
+const APP_GRID_GAP = 10;
 
 export default function DashboardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -207,28 +210,50 @@ export default function DashboardScreen({ navigation }) {
     }
   };
 
-  const renderGridItem = (title, subTitle, iconName, iconLib, bgColor, featureKey, routeName, staffRouteName, fallbackAction) => {
+  const renderGridItem = (title, subTitle, iconName, iconLib, bgColor, featureKey, routeName, staffRouteName, fallbackAction, iconColor) => {
     const allowed = hasPermission(featureKey);
+    const compactTitleMap = {
+      cashier: 'Giao ca',
+      inventory: 'Kho hàng',
+      payroll: 'Bảng lương',
+      finance: 'Tài chính',
+    };
+    const compactTitle = routeName === 'AttendanceReview'
+      ? 'Đối chiếu'
+      : featureKey === 'hr'
+        ? (currentUser?.role === 'STAFF' ? 'Chấm công' : 'Nhân sự')
+        : compactTitleMap[featureKey] || title;
+    const iconColorMap = {
+      cashier: '#16a34a',
+      inventory: '#f97316',
+      payroll: '#d97706',
+      finance: '#7c3aed',
+      hr: routeName === 'AttendanceReview' ? '#0d9488' : '#2563eb',
+    };
+    const safeIconColor = allowed ? (iconColor || iconColorMap[featureKey] || COLORS.primary) : '#9ca3af';
 
     return (
       <TouchableOpacity
         style={[styles.gridItem, !allowed && styles.gridItemDisabled]}
         activeOpacity={allowed ? 0.7 : 1}
         onPress={() => handleNav(featureKey, routeName, staffRouteName, fallbackAction)}
+        accessibilityRole="button"
+        accessibilityLabel={`${compactTitle}. ${subTitle}`}
       >
         <View style={[styles.gridIconBox, { backgroundColor: allowed ? bgColor : '#e5e7eb' }]}>
           {iconLib === 'Ionicons' ? (
-            <Ionicons name={iconName} size={32} color={allowed ? (bgColor === '#e8f5e9' ? '#4CAF50' : '#00bcd4') : '#9ca3af'} />
+            <Ionicons name={iconName} size={28} color={safeIconColor} />
           ) : (
-            <MaterialCommunityIcons name={iconName} size={32} color={allowed ? (bgColor === '#fce4ec' ? '#e91e63' : '#ffc107') : '#9ca3af'} />
+            <MaterialCommunityIcons name={iconName} size={28} color={safeIconColor} />
           )}
         </View>
-        <Text style={[styles.gridItemTitle, !allowed && {color: '#9ca3af'}]}>{title}</Text>
-        <Text style={[styles.gridItemSub, !allowed && {color: '#d1d5db'}]}>{subTitle}</Text>
+        <Text style={[styles.gridItemTitle, !allowed && {color: '#9ca3af'}]} numberOfLines={2}>
+          {compactTitle}
+        </Text>
 
         {!allowed && (
           <View style={styles.lockIcon}>
-            <Ionicons name="lock-closed" size={16} color="#ef4444" />
+            <Ionicons name="lock-closed" size={12} color="#ef4444" />
           </View>
         )}
       </TouchableOpacity>
@@ -458,13 +483,57 @@ const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  gridItem: { backgroundColor: COLORS.card, width: (width - 55) / 2, padding: 20, borderRadius: 16, marginBottom: 15, alignItems: 'center', justifyContent: 'center', minHeight: 155, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
-  gridItemDisabled: { backgroundColor: isDarkMode ? '#0f172a' : '#f9fafb', opacity: 0.8 },
-  gridIconBox: { width: 60, height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
-  gridItemTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 5, textAlign: 'center' },
-  gridItemSub: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', lineHeight: 17 },
-  lockIcon: { position: 'absolute', top: 10, right: 10 },
+  gridContainer: {
+    width: Math.min(width - 40, APP_GRID_MAX_WIDTH),
+    alignSelf: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: APP_GRID_GAP,
+    rowGap: 16,
+  },
+  gridItem: {
+    width: (Math.min(width - 40, APP_GRID_MAX_WIDTH) - (APP_GRID_GAP * (APP_GRID_COLUMNS - 1))) / APP_GRID_COLUMNS,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingVertical: 4,
+    position: 'relative',
+  },
+  gridItemDisabled: { opacity: 0.62 },
+  gridIconBox: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)',
+    shadowColor: '#000',
+    shadowOpacity: isDarkMode ? 0.22 : 0.09,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  gridItemTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.text,
+    textAlign: 'center',
+    lineHeight: 14,
+    minHeight: 28,
+  },
+  gridItemSub: { display: 'none' },
+  lockIcon: {
+    position: 'absolute',
+    top: 0,
+    right: 7,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: isDarkMode ? '#450a0a' : '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: COLORS.card, borderRadius: 16, padding: 20, elevation: 5 },
