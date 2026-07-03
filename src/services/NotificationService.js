@@ -10,8 +10,8 @@ export const NOTIFICATION_CHANNEL_ID = 'thecoc-default';
 const EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
 
 // --- CẤU HÌNH ONESIGNAL WEB PUSH ---
-const ONESIGNAL_APP_ID = "YOUR_ONESIGNAL_APP_ID"; // Điền App ID của anh vào đây!
-const ONESIGNAL_REST_API_KEY = "YOUR_ONESIGNAL_REST_API_KEY"; // Điền REST API Key của anh vào đây!
+const ONESIGNAL_APP_ID = "1d7708c0-a945-4977-b447-ec3ce5b171bf"; // Điền App ID của anh vào đây!
+const ONESIGNAL_REST_API_KEY = "os_v2_app_dv3qrqfjivexpnch5q6olmlrx4v3xn7epquerrvwbgxpdkq7td6og3zakgrx32oiqsqproqjepkdhatctw6q5xaf7behr7tvthi6soi"; // Điền REST API Key của anh vào đây!
 const ONESIGNAL_PUSH_ENDPOINT = 'https://onesignal.com/api/v1/notifications';
 
 Notifications.setNotificationHandler({

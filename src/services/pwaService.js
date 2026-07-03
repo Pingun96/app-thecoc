@@ -95,7 +95,7 @@ export const setupPwaExperience = () => {
   }
 
   // --- TÍCH HỢP ONESIGNAL WEB PUSH ---
-  const ONESIGNAL_APP_ID = "YOUR_ONESIGNAL_APP_ID"; // Điền App ID của anh vào đây!
+  const ONESIGNAL_APP_ID = "1d7708c0-a945-4977-b447-ec3ce5b171bf"; // Điền App ID của anh vào đây!
 
   const initOneSignal = () => {
     window.OneSignal = window.OneSignal || [];
