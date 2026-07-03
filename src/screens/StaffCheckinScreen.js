@@ -105,11 +105,52 @@ export default function StaffCheckinScreen({ navigation }) {
   );
 
 
+  const withTimeout = (promise, timeoutMs, timeoutMessage) => Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    }),
+  ]);
+
+  const requestLocationPermissionSafely = async () => {
+    try {
+      return await withTimeout(
+        Location.requestForegroundPermissionsAsync(),
+        15000,
+        'iPhone không phản hồi quyền vị trí. Hãy mở Cài đặt > Quyền riêng tư > Dịch vụ định vị và thử lại.'
+      );
+    } catch (error) {
+      throw new Error(error?.message || 'Không thể xin quyền vị trí.');
+    }
+  };
+
+  const getCurrentLocationSafely = async () => {
+    try {
+      return await withTimeout(
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        12000,
+        'Không lấy được GPS trong 12 giây.'
+      );
+    } catch (_error) {
+      const lastLocation = await withTimeout(
+        Location.getLastKnownPositionAsync(),
+        5000,
+        'Không có vị trí gần nhất.'
+      ).catch(() => null);
+
+      if (!lastLocation) {
+        throw new Error('Không thể lấy vị trí. Hãy bật GPS/quyền vị trí cho The Cốc rồi thử lại.');
+      }
+
+      return lastLocation;
+    }
+  };
+
   const isOwner = currentUser?.role === 'OWNER';
 
   const handleUpdateStoreLocation = async () => {
     try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      let { status } = await requestLocationPermissionSafely();
       if (status !== 'granted') {
         Alert.alert('Từ chối quyền', 'Cần quyền truy cập vị trí để cập nhật tọa độ.');
         return;
@@ -117,9 +158,9 @@ export default function StaffCheckinScreen({ navigation }) {
       setIsSubmitting(true);
       let location;
       try {
-        location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, timeout: 10000 });
-      } catch (locErr) {
-        location = await Location.getLastKnownPositionAsync();
+        location = await getCurrentLocationSafely();
+      } catch (_locErr) {
+        location = await withTimeout(Location.getLastKnownPositionAsync(), 5000, 'Không có vị trí gần nhất.');
         if (!location) throw new Error('Không thể lấy được vị trí. Hãy bật GPS và thử lại ngoài trời.');
       }
       const { latitude, longitude } = location.coords;
@@ -149,16 +190,16 @@ export default function StaffCheckinScreen({ navigation }) {
       throw new Error('Chủ cửa hàng chưa thiết lập Tọa độ Quán. Vui lòng báo quản lý.');
     }
 
-    let { status } = await Location.requestForegroundPermissionsAsync();
+    let { status } = await requestLocationPermissionSafely();
     if (status !== 'granted') {
       throw new Error('Bạn cần cấp quyền truy cập Vị trí (GPS) để chấm công.');
     }
 
     let location;
     try {
-      location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, timeout: 10000 });
-    } catch (locErr) {
-      location = await Location.getLastKnownPositionAsync();
+      location = await getCurrentLocationSafely();
+    } catch (_locErr) {
+      location = await withTimeout(Location.getLastKnownPositionAsync(), 5000, 'Không có vị trí gần nhất.');
       if (!location) throw new Error('Không thể lấy được vị trí của bạn lúc này. Vui lòng kiểm tra GPS.');
     }
     const dist = getDistance(location.coords.latitude, location.coords.longitude, myStore.latitude, myStore.longitude);

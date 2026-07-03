@@ -19,6 +19,21 @@ const STATUS_LABEL = {
 
 const isWeb = () => Platform.OS === 'web' && typeof window !== 'undefined';
 
+const isIosWeb = () => {
+  if (!isWeb()) return false;
+  const userAgent = window.navigator?.userAgent || '';
+  const platform = window.navigator?.platform || '';
+  return /iPad|iPhone|iPod/.test(userAgent)
+    || (platform === 'MacIntel' && window.navigator?.maxTouchPoints > 1);
+};
+
+const withTimeout = (promise, timeoutMs, fallback) => Promise.race([
+  promise,
+  new Promise((resolve) => {
+    setTimeout(() => resolve(fallback), timeoutMs);
+  }),
+]);
+
 const queryPermission = async (name) => {
   if (!isWeb() || !navigator.permissions?.query) return 'default';
 
@@ -68,7 +83,7 @@ const getInitialStatuses = async () => ({
 });
 
 const isActionNeeded = (statuses) => (
-  ['notifications', 'location', 'camera'].some((key) => (
+  (isIosWeb() ? ['notifications'] : ['notifications', 'location', 'camera']).some((key) => (
     !['granted', 'denied', 'unsupported'].includes(statuses[key])
   ))
 );
@@ -144,23 +159,36 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
   const requestAllPermissions = async () => {
     setIsRequesting(true);
 
-    const notificationResult = await requestNotificationPermissionAsync();
-    const locationState = await requestLocationPermission();
-    const cameraState = await requestCameraPermission();
+    try {
+      const notificationResult = await withTimeout(
+        requestNotificationPermissionAsync(),
+        12000,
+        { permission: { status: getWebNotificationPermissionState() } }
+      );
 
-    const nextStatuses = {
-      notifications: notificationResult?.permission?.status || getWebNotificationPermissionState(),
-      location: locationState,
-      camera: cameraState,
-      photos: 'default',
-    };
+      const shouldSkipChainedPrompts = isIosWeb();
+      const locationState = shouldSkipChainedPrompts
+        ? await queryPermission('geolocation')
+        : await withTimeout(requestLocationPermission(), 12000, 'default');
+      const cameraState = shouldSkipChainedPrompts
+        ? await queryPermission('camera')
+        : await withTimeout(requestCameraPermission(), 12000, 'default');
 
-    setStatuses(nextStatuses);
-    setIsRequesting(false);
+      const nextStatuses = {
+        notifications: notificationResult?.permission?.status || getWebNotificationPermissionState(),
+        location: locationState,
+        camera: cameraState,
+        photos: 'default',
+      };
 
-    if (!isActionNeeded(nextStatuses)) {
-      window.localStorage?.setItem(DISMISS_KEY, '1');
-      setVisible(false);
+      setStatuses(nextStatuses);
+
+      if (!isActionNeeded(nextStatuses)) {
+        window.localStorage?.setItem(DISMISS_KEY, '1');
+        setVisible(false);
+      }
+    } finally {
+      setIsRequesting(false);
     }
   };
 
