@@ -41,15 +41,27 @@ import { setupPwaExperience } from './src/services/pwaService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Floating Check-in Button Component
-const CustomTabBarButton = ({ children, onPress, style, buttonColor = '#e91e63', shadowColor = '#e91e63' }) => (
+const CustomTabBarButton = ({
+  children,
+  onPress,
+  style,
+  buttonColor = '#e91e63',
+  shadowColor = '#e91e63',
+  tabBarColor = '#fff',
+}) => (
   <View style={style}>
+    <View style={[styles.floatingButtonNotch, { backgroundColor: tabBarColor }]} />
     <Pressable
       onPress={onPress}
       style={[styles.floatingButtonContainer, { shadowColor }]}
       android_ripple={{ color: 'rgba(255,255,255,0.3)', borderless: true, radius: 35 }}
     >
+      <View style={[styles.floatingButtonDropTail, { backgroundColor: buttonColor }]} />
       <View style={[styles.floatingButton, { backgroundColor: buttonColor }]}>
-        {children}
+        <View style={styles.floatingButtonIcon}>
+          {children}
+        </View>
+        <View style={styles.floatingButtonShine} />
       </View>
     </Pressable>
   </View>
@@ -150,6 +162,7 @@ function MainTabs() {
               {...props}
               buttonColor={checkActionColor}
               shadowColor={checkActionColor}
+              tabBarColor={COLORS.card}
             />
           )
         }}
@@ -431,24 +444,64 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   floatingButtonContainer: {
-    top: -25,
+    top: -33,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 82,
+    height: 86,
+    borderRadius: 41,
     elevation: 8,
     shadowColor: '#e91e63',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 5 },
-    shadowRadius: 5,
+    shadowOpacity: 0.34,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 10,
+    overflow: 'visible',
+  },
+  floatingButtonNotch: {
+    position: 'absolute',
+    top: -34,
+    alignSelf: 'center',
+    width: 94,
+    height: 56,
+    borderRadius: 47,
+    opacity: 0.96,
+    zIndex: -1,
   },
   floatingButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    position: 'absolute',
+    top: 0,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     backgroundColor: '#e91e63',
     justifyContent: 'center',
     alignItems: 'center',
-  }
+    zIndex: 2,
+  },
+  floatingButtonDropTail: {
+    position: 'absolute',
+    top: 44,
+    width: 34,
+    height: 34,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    transform: [{ scaleX: 0.92 }],
+    zIndex: 1,
+  },
+  floatingButtonIcon: {
+    zIndex: 3,
+    marginTop: -3,
+  },
+  floatingButtonShine: {
+    position: 'absolute',
+    top: 9,
+    left: 16,
+    width: 18,
+    height: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    transform: [{ rotate: '-18deg' }],
+  },
 });
