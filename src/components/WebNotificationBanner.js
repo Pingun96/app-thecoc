@@ -122,6 +122,14 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
     };
   }, [currentUser]);
 
+  useEffect(() => {
+    if (!visible || isRequesting) return undefined;
+    const timer = setTimeout(() => {
+      setVisible(false);
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, [visible, isRequesting]);
+
   const permissionRows = useMemo(() => ([
     {
       key: 'notifications',
@@ -256,7 +264,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 14,
     right: 14,
-    bottom: 92,
+    top: 82,
     zIndex: 9998,
     borderRadius: 18,
     borderWidth: 1,
