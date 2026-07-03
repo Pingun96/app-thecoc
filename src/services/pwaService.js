@@ -103,6 +103,8 @@ export const setupPwaExperience = () => {
       window.OneSignal.init({
         appId: ONESIGNAL_APP_ID,
         allowLocalhostAsSecureOrigin: true,
+        serviceWorkerParam: { scope: (basePath || '') + "/" },
+        serviceWorkerPath: "pwa-service-worker.js",
       });
     });
   };

@@ -113,19 +113,62 @@ export const requestNotificationPermissionAsync = async () => {
   };
 };
 
+const waitForOneSignal = (timeout = 15000) => {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && window.OneSignal && typeof window.OneSignal.push === 'function') {
+      resolve(window.OneSignal);
+      return;
+    }
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      if (typeof window !== 'undefined' && window.OneSignal && typeof window.OneSignal.push === 'function') {
+        clearInterval(interval);
+        resolve(window.OneSignal);
+      } else if (Date.now() - startTime > timeout) {
+        clearInterval(interval);
+        resolve(null);
+      }
+    }, 500);
+  });
+};
+
 export const registerForPushNotificationsAsync = async () => {
   if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.OneSignal) {
+    const OneSignal = await waitForOneSignal(15000);
+    if (OneSignal) {
       return new Promise((resolve) => {
-        window.OneSignal.push(async () => {
+        OneSignal.push(async () => {
           try {
-            const permissionGranted = window.OneSignal.Notifications.permission;
+            let permissionGranted = OneSignal.Notifications.permission;
             if (!permissionGranted) {
-              await window.OneSignal.Notifications.requestPermission();
+              await OneSignal.Notifications.requestPermission();
+              permissionGranted = OneSignal.Notifications.permission;
             }
-            const subscriptionId = window.OneSignal.User.PushSubscription.id;
-            if (subscriptionId) {
-              resolve(`web_push_${subscriptionId}`);
+            if (permissionGranted) {
+              const subscriptionId = OneSignal.User.PushSubscription.id;
+              if (subscriptionId) {
+                resolve(`web_push_${subscriptionId}`);
+              } else {
+                const checkSub = () => {
+                  const subId = OneSignal.User.PushSubscription.id;
+                  if (subId) {
+                    resolve(`web_push_${subId}`);
+                    return true;
+                  }
+                  return false;
+                };
+
+                if (!checkSub()) {
+                  let retries = 0;
+                  const subInterval = setInterval(() => {
+                    retries++;
+                    if (checkSub() || retries > 10) {
+                      clearInterval(subInterval);
+                      if (retries > 10) resolve(null);
+                    }
+                  }, 1000);
+                }
+              }
             } else {
               resolve(null);
             }
