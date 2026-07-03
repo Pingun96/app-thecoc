@@ -1,3 +1,5 @@
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+
 const CACHE_NAME = 'thecoc-pwa-v2.1.2';
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const withBase = (path) => `${BASE_PATH}${path}`;
