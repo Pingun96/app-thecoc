@@ -50,6 +50,19 @@ const formatTimestamp = (value) => {
   });
 };
 
+const getShiftTime = (shift) => {
+  const rawValue = shift?.closed_at || shift?.updated_at || shift?.opened_at || shift?.created_at || '';
+  const nativeDate = new Date(rawValue);
+  if (!Number.isNaN(nativeDate.getTime())) return nativeDate.getTime();
+
+  const match = String(rawValue).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:.*?(\d{1,2}):(\d{2}))?/);
+  if (!match) return 0;
+  const [, day, month, year, hour = '0', minute = '0'] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)).getTime();
+};
+
+const getShiftInventoryItemId = (item) => item?.item_id ?? item?.itemId ?? item?.itemid ?? item?.id;
+
 const makeId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
 const getRequestStatus = (status) => {
@@ -69,6 +82,7 @@ export default function InventoryScreen({ navigation }) {
     inventoryLogs,
     inventoryTickets,
     setInventoryTickets,
+    shifts,
     selectedStoreId,
     storeList,
     refreshData,
@@ -126,6 +140,7 @@ export default function InventoryScreen({ navigation }) {
   const [historySearchText, setHistorySearchText] = useState('');
   const [historyTypeFilter, setHistoryTypeFilter] = useState('ALL');
   const [historyItemFilter, setHistoryItemFilter] = useState('ALL');
+  const [varianceFilter, setVarianceFilter] = useState('ALL');
   const getLogTime = useCallback((log) => {
     const rawValue = log.created_at || log.date || log.updated_at || '';
     const parsed = new Date(rawValue);
@@ -175,6 +190,69 @@ export default function InventoryScreen({ navigation }) {
   ));
   const lowStockCount = stockData.filter((item) => item.isLowStock).length;
   const selectedStock = stockByItemId[effectiveSelectedItemId];
+  const inventoryComparisonRows = useMemo(() => {
+    const scopedShifts = (shifts || [])
+      .filter((shift) => storeIdToView === 'ALL' || String(shift.store_id) === String(storeIdToView))
+      .filter((shift) => Array.isArray(shift.inventory_check) && shift.inventory_check.length > 0)
+      .sort((a, b) => getShiftTime(b) - getShiftTime(a));
+
+    return stockData.map((item) => {
+      const latestShift = scopedShifts.find((shift) => (
+        (shift.inventory_check || []).some((check) => String(getShiftInventoryItemId(check)) === String(item.id))
+      ));
+      const latestCheck = latestShift?.inventory_check?.find(
+        (check) => String(getShiftInventoryItemId(check)) === String(item.id),
+      );
+      const expectedStock = Number(latestCheck?.start ?? 0);
+      const countedStock = Number(latestCheck?.end ?? 0);
+      const hasCheck = Boolean(latestCheck);
+      const variance = hasCheck ? Number((countedStock - expectedStock).toFixed(2)) : 0;
+      const absVariance = Math.abs(variance);
+      const severity = !hasCheck || absVariance < 0.005
+        ? 'OK'
+        : variance < 0
+          ? 'SHORT'
+          : 'SURPLUS';
+      const shiftTime = getShiftTime(latestShift);
+
+      return {
+        ...item,
+        hasCheck,
+        expectedStock,
+        countedStock,
+        variance,
+        absVariance,
+        severity,
+        shiftTime,
+        shiftLabel: latestShift?.closed_at || latestShift?.opened_at || '',
+        reporterName: latestShift?.closed_by_name || latestShift?.opened_by_name || 'Không rõ',
+        shiftStatus: latestShift?.status || '',
+      };
+    }).sort((a, b) => {
+      if (b.absVariance !== a.absVariance) return b.absVariance - a.absVariance;
+      return (b.shiftTime || 0) - (a.shiftTime || 0);
+    });
+  }, [shifts, stockData, storeIdToView]);
+
+  const filteredComparisonRows = useMemo(() => inventoryComparisonRows.filter((row) => {
+    if (varianceFilter === 'DIFF') return row.hasCheck && row.absVariance >= 0.005;
+    if (varianceFilter === 'SHORT') return row.severity === 'SHORT';
+    if (varianceFilter === 'SURPLUS') return row.severity === 'SURPLUS';
+    return true;
+  }), [inventoryComparisonRows, varianceFilter]);
+
+  const comparisonSummary = useMemo(() => {
+    const checkedRows = inventoryComparisonRows.filter((row) => row.hasCheck);
+    const diffRows = checkedRows.filter((row) => row.absVariance >= 0.005);
+    return {
+      checked: checkedRows.length,
+      diff: diffRows.length,
+      shortage: diffRows.filter((row) => row.severity === 'SHORT').length,
+      surplus: diffRows.filter((row) => row.severity === 'SURPLUS').length,
+      totalAbs: diffRows.reduce((sum, row) => sum + row.absVariance, 0),
+    };
+  }, [inventoryComparisonRows]);
+
   const pendingRequests = inventoryTickets.filter((ticket) => {
     if (storeIdToView !== 'ALL' && ticket.source_store_id !== storeIdToView && ticket.destination_store_id !== storeIdToView) return false;
     
@@ -477,6 +555,125 @@ export default function InventoryScreen({ navigation }) {
                   <Text style={styles.summaryValue}>{pendingRequests.length}</Text>
                   <Text style={styles.summaryLabel}>Chờ duyệt</Text>
                 </View>
+              </View>
+
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sectionTitle}>Đối chiếu nguyên liệu</Text>
+                    <Text style={styles.compareSubtitle}>
+                      So sánh tồn hệ thống trước kiểm với số thực kiểm gần nhất từ báo cáo ca.
+                    </Text>
+                  </View>
+                  <Ionicons name="analytics-outline" size={22} color="#7c3aed" />
+                </View>
+
+                <View style={styles.compareSummaryGrid}>
+                  <View style={styles.compareSummaryCard}>
+                    <Text style={styles.compareSummaryValue}>{comparisonSummary.checked}</Text>
+                    <Text style={styles.compareSummaryLabel}>Đã kiểm</Text>
+                  </View>
+                  <View style={[styles.compareSummaryCard, comparisonSummary.diff > 0 && styles.compareSummaryWarn]}>
+                    <Text style={[styles.compareSummaryValue, comparisonSummary.diff > 0 && { color: '#b91c1c' }]}>
+                      {comparisonSummary.diff}
+                    </Text>
+                    <Text style={styles.compareSummaryLabel}>Có lệch</Text>
+                  </View>
+                  <View style={styles.compareSummaryCard}>
+                    <Text style={[styles.compareSummaryValue, { color: '#dc2626' }]}>{comparisonSummary.shortage}</Text>
+                    <Text style={styles.compareSummaryLabel}>Thiếu</Text>
+                  </View>
+                  <View style={styles.compareSummaryCard}>
+                    <Text style={[styles.compareSummaryValue, { color: '#16a34a' }]}>{comparisonSummary.surplus}</Text>
+                    <Text style={styles.compareSummaryLabel}>Thừa</Text>
+                  </View>
+                </View>
+
+                <View style={styles.compareTotalBox}>
+                  <Ionicons name="scale-outline" size={18} color="#7c3aed" />
+                  <Text style={styles.compareTotalText}>
+                    Tổng lượng lệch tuyệt đối: <Text style={styles.compareTotalStrong}>{formatQuantity(comparisonSummary.totalAbs)}</Text>
+                  </Text>
+                </View>
+
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
+                  {[
+                    { key: 'ALL', label: 'Tất cả' },
+                    { key: 'DIFF', label: 'Chỉ món lệch' },
+                    { key: 'SHORT', label: 'Thiếu' },
+                    { key: 'SURPLUS', label: 'Thừa' },
+                  ].map((filter) => (
+                    <TouchableOpacity
+                      key={filter.key}
+                      style={[styles.filterChip, varianceFilter === filter.key && styles.filterChipActive]}
+                      onPress={() => setVarianceFilter(filter.key)}
+                    >
+                      <Text style={[styles.filterChipText, varianceFilter === filter.key && styles.filterChipTextActive]}>
+                        {filter.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {filteredComparisonRows.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="checkmark-done-circle-outline" size={40} color="#16a34a" />
+                    <Text style={styles.emptyTitle}>Không có chênh lệch phù hợp</Text>
+                    <Text style={styles.emptyText}>Các nguyên liệu lệch sẽ tự nổi lên sau khi nhân viên nộp kiểm kho.</Text>
+                  </View>
+                ) : filteredComparisonRows.map((item) => {
+                  const isShort = item.severity === 'SHORT';
+                  const isSurplus = item.severity === 'SURPLUS';
+                  const badgeColor = isShort ? '#dc2626' : isSurplus ? '#16a34a' : COLORS.textMuted;
+                  const badgeBg = isShort ? '#fee2e2' : isSurplus ? '#dcfce7' : COLORS.inputBg;
+                  const statusLabel = !item.hasCheck
+                    ? 'Chưa kiểm'
+                    : isShort
+                      ? 'Thiếu'
+                      : isSurplus
+                        ? 'Thừa'
+                        : 'Khớp';
+
+                  return (
+                    <View key={`compare-${item.id}`} style={styles.compareRow}>
+                      <View style={styles.compareRowHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.stockName}>{item.name}</Text>
+                          <Text style={styles.compareMeta}>
+                            {item.hasCheck
+                              ? `Kiểm gần nhất: ${formatTimestamp(item.shiftLabel)} • ${item.reporterName}`
+                              : 'Chưa có kiểm kho từ báo cáo ca'}
+                          </Text>
+                        </View>
+                        <View style={[styles.compareBadge, { backgroundColor: badgeBg }]}>
+                          <Text style={[styles.compareBadgeText, { color: badgeColor }]}>{statusLabel}</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.compareMetricGrid}>
+                        <View style={styles.compareMetric}>
+                          <Text style={styles.compareMetricLabel}>Hệ thống</Text>
+                          <Text style={styles.compareMetricValue}>{item.hasCheck ? formatQuantity(item.expectedStock) : '--'}</Text>
+                        </View>
+                        <View style={styles.compareMetric}>
+                          <Text style={styles.compareMetricLabel}>Thực kiểm</Text>
+                          <Text style={styles.compareMetricValue}>{item.hasCheck ? formatQuantity(item.countedStock) : '--'}</Text>
+                        </View>
+                        <View style={styles.compareMetric}>
+                          <Text style={styles.compareMetricLabel}>Lệch</Text>
+                          <Text style={[styles.compareMetricValue, { color: badgeColor }]}>
+                            {item.hasCheck ? `${item.variance > 0 ? '+' : ''}${formatQuantity(item.variance)}` : '--'}
+                          </Text>
+                        </View>
+                        <View style={styles.compareMetric}>
+                          <Text style={styles.compareMetricLabel}>Tồn nay</Text>
+                          <Text style={styles.compareMetricValue}>{formatQuantity(item.currentStock)}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.compareUnitNote}>Đơn vị: {item.unit}</Text>
+                    </View>
+                  );
+                })}
               </View>
 
               <View style={styles.section}>
@@ -951,6 +1148,25 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   logDetailText: { color: COLORS.textMuted, fontSize: 13, lineHeight: 20 },
   logDetailStrong: { color: COLORS.text, fontWeight: '900' },
   logNote: { color: COLORS.text, fontSize: 13, lineHeight: 20, marginTop: 4, fontStyle: 'italic' },
+  compareSubtitle: { color: COLORS.textMuted, fontSize: 12, lineHeight: 18, marginTop: -8, marginBottom: 12 },
+  compareSummaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 12 },
+  compareSummaryCard: { flexBasis: '48%', flexGrow: 1, backgroundColor: COLORS.inputBg, borderRadius: 13, borderWidth: 1, borderColor: COLORS.border, padding: 12 },
+  compareSummaryWarn: { backgroundColor: isDarkMode ? '#431407' : '#fff7ed', borderColor: '#fed7aa' },
+  compareSummaryValue: { color: COLORS.text, fontSize: 20, fontWeight: '900' },
+  compareSummaryLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '800', marginTop: 3 },
+  compareTotalBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: isDarkMode ? '#2e1065' : '#f5f3ff', borderWidth: 1, borderColor: isDarkMode ? '#6d28d9' : '#ddd6fe', borderRadius: 13, padding: 11, marginBottom: 8 },
+  compareTotalText: { color: isDarkMode ? '#ddd6fe' : '#5b21b6', fontSize: 12, fontWeight: '700', flex: 1 },
+  compareTotalStrong: { fontWeight: '900' },
+  compareRow: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.inputBg, borderRadius: 15, padding: 13, marginTop: 10 },
+  compareRowHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  compareMeta: { color: COLORS.textMuted, fontSize: 11, lineHeight: 16, marginTop: 4 },
+  compareBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  compareBadgeText: { fontSize: 10, fontWeight: '900' },
+  compareMetricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  compareMetric: { flexBasis: '48%', flexGrow: 1, backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 10 },
+  compareMetricLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  compareMetricValue: { color: COLORS.text, fontSize: 15, fontWeight: '900', marginTop: 4 },
+  compareUnitNote: { color: COLORS.textMuted, fontSize: 11, marginTop: 9, fontStyle: 'italic' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: COLORS.card, borderRadius: 18, padding: 20, borderWidth: 1, borderColor: COLORS.border },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
