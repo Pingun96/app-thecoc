@@ -3,10 +3,11 @@ import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import {
   getWebNotificationPermissionState,
-  requestNotificationPermissionAsync,
+  registerForPushNotificationsAsync,
+  savePushTokenToDB,
 } from '../services/NotificationService';
 
-const DISMISS_KEY = 'thecocPwaPermissionBannerDismissed';
+const DISMISS_KEY = 'thecocPwaPermissionBannerDismissed:v2';
 
 const STATUS_LABEL = {
   granted: 'Đã cấp',
@@ -25,6 +26,12 @@ const isIosWeb = () => {
   const platform = window.navigator?.platform || '';
   return /iPad|iPhone|iPod/.test(userAgent)
     || (platform === 'MacIntel' && window.navigator?.maxTouchPoints > 1);
+};
+
+const isStandalonePwa = () => {
+  if (!isWeb()) return false;
+  return window.navigator?.standalone === true
+    || window.matchMedia?.('(display-mode: standalone)')?.matches === true;
 };
 
 const withTimeout = (promise, timeoutMs, fallback) => Promise.race([
@@ -98,6 +105,8 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
   });
   const [isRequesting, setIsRequesting] = useState(false);
 
+  const iosNeedsHomeScreen = isIosWeb() && !isStandalonePwa();
+
   useEffect(() => {
     let mounted = true;
 
@@ -112,7 +121,7 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
 
       setStatuses(nextStatuses);
       const dismissed = window.localStorage?.getItem(DISMISS_KEY) === '1';
-      setVisible(!dismissed && isActionNeeded(nextStatuses));
+      setVisible(!dismissed && (iosNeedsHomeScreen || isActionNeeded(nextStatuses)));
     };
 
     refreshStatuses();
@@ -120,22 +129,24 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
     return () => {
       mounted = false;
     };
-  }, [currentUser]);
+  }, [currentUser, iosNeedsHomeScreen]);
 
   useEffect(() => {
     if (!visible || isRequesting) return undefined;
     const timer = setTimeout(() => {
-      setVisible(false);
+      if (!iosNeedsHomeScreen) setVisible(false);
     }, 12000);
     return () => clearTimeout(timer);
-  }, [visible, isRequesting]);
+  }, [visible, isRequesting, iosNeedsHomeScreen]);
 
   const permissionRows = useMemo(() => ([
     {
       key: 'notifications',
       icon: 'notifications-outline',
       label: 'Thông báo',
-      hint: 'Duyệt ca, kho, chấm công',
+      hint: iosNeedsHomeScreen
+        ? 'iPhone cần mở từ icon ngoài màn hình chính'
+        : 'Duyệt ca, kho, chấm công',
     },
     {
       key: 'location',
@@ -155,7 +166,7 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
       label: 'Thư viện ảnh',
       hint: 'PWA sẽ hỏi khi chọn ảnh',
     },
-  ]), []);
+  ]), [iosNeedsHomeScreen]);
 
   if (!visible) return null;
 
@@ -165,14 +176,24 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
   };
 
   const requestAllPermissions = async () => {
+    if (iosNeedsHomeScreen) return;
+
     setIsRequesting(true);
 
     try {
-      const notificationResult = await withTimeout(
-        requestNotificationPermissionAsync(),
-        12000,
-        { permission: { status: getWebNotificationPermissionState() } }
+      const token = await withTimeout(
+        registerForPushNotificationsAsync({
+          prompt: true,
+          externalUserId: currentUser?.id,
+          storeId: currentUser?.store_id,
+        }),
+        20000,
+        null
       );
+
+      if (token && currentUser?.id) {
+        await savePushTokenToDB(currentUser.id, token, { storeId: currentUser.store_id });
+      }
 
       const shouldSkipChainedPrompts = isIosWeb();
       const locationState = shouldSkipChainedPrompts
@@ -183,7 +204,7 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
         : await withTimeout(requestCameraPermission(), 12000, 'default');
 
       const nextStatuses = {
-        notifications: notificationResult?.permission?.status || getWebNotificationPermissionState(),
+        notifications: getWebNotificationPermissionState(),
         location: locationState,
         camera: cameraState,
         photos: 'default',
@@ -208,14 +229,18 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
         borderColor: isDarkMode ? '#2f425c' : '#bfdbfe',
       },
     ]}>
-      <View style={[styles.headerRow]}>
+      <View style={styles.headerRow}>
         <View style={[styles.iconBox, { backgroundColor: isDarkMode ? '#172554' : '#dbeafe' }]}>
-          <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.primary} />
+          <Ionicons name={iosNeedsHomeScreen ? 'phone-portrait-outline' : 'shield-checkmark-outline'} size={20} color={COLORS.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: COLORS.text }]}>Cấp quyền PWA</Text>
+          <Text style={[styles.title, { color: COLORS.text }]}>
+            {iosNeedsHomeScreen ? 'Cài PWA để nhận thông báo' : 'Cấp quyền PWA'}
+          </Text>
           <Text style={[styles.body, { color: COLORS.textMuted }]}>
-            Bấm một lần để bật các quyền trình duyệt hỗ trợ cho The Cốc.
+            {iosNeedsHomeScreen
+              ? 'Trên iPhone, hãy bấm Chia sẻ → Thêm vào Màn hình chính, rồi mở The Cốc từ icon mới để bật thông báo.'
+              : 'Bấm một lần để bật thông báo đẩy và các quyền trình duyệt hỗ trợ The Cốc.'}
           </Text>
         </View>
         <TouchableOpacity onPress={dismiss} style={styles.closeBtn}>
@@ -245,15 +270,19 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
         })}
       </View>
 
-      <TouchableOpacity
-        onPress={requestAllPermissions}
-        disabled={isRequesting}
-        style={[styles.primaryBtn, { backgroundColor: COLORS.primary, opacity: isRequesting ? 0.65 : 1 }]}
-      >
-        <Text style={styles.primaryText}>{isRequesting ? 'Đang cấp quyền...' : 'Cấp hết quyền PWA'}</Text>
-      </TouchableOpacity>
+      {!iosNeedsHomeScreen && (
+        <TouchableOpacity
+          onPress={requestAllPermissions}
+          disabled={isRequesting}
+          style={[styles.primaryBtn, { backgroundColor: COLORS.primary, opacity: isRequesting ? 0.65 : 1 }]}
+        >
+          <Text style={styles.primaryText}>{isRequesting ? 'Đang cấp quyền...' : 'Cấp hết quyền PWA'}</Text>
+        </TouchableOpacity>
+      )}
       <Text style={[styles.note, { color: COLORS.textMuted }]}>
-        Nếu iPhone báo chặn, vào Cài đặt Safari/trang web để bật lại quyền đã từ chối.
+        {iosNeedsHomeScreen
+          ? 'Thông báo iPhone chỉ hoạt động với PWA đã thêm vào màn hình chính và iOS 16.4 trở lên.'
+          : 'Nếu iPhone/Android báo chặn, vào cài đặt trình duyệt hoặc thông báo của app để bật lại quyền.'}
       </Text>
     </View>
   );

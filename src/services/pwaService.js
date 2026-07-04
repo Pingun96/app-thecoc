@@ -94,22 +94,28 @@ export const setupPwaExperience = () => {
     });
   }
 
-  // --- TÍCH HỢP ONESIGNAL WEB PUSH ---
-  const ONESIGNAL_APP_ID = "1d7708c0-a945-4977-b447-ec3ce5b171bf"; // Điền App ID của anh vào đây!
+  const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '1d7708c0-a945-4977-b447-ec3ce5b171bf';
+  const oneSignalWorkerPath = `${basePath.replace(/^\//, '').replace(/\/$/, '')}/pwa-service-worker.js`.replace(/^\//, '');
+  const oneSignalWorkerScope = `${basePath || ''}/`;
 
   const initOneSignal = () => {
-    window.OneSignal = window.OneSignal || [];
-    window.OneSignal.push(() => {
-      window.OneSignal.init({
+    if (window.__THECOC_ONESIGNAL_INIT_STARTED__) return;
+    window.__THECOC_ONESIGNAL_INIT_STARTED__ = true;
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async (OneSignal) => {
+      await OneSignal.init({
         appId: ONESIGNAL_APP_ID,
         allowLocalhostAsSecureOrigin: true,
-        serviceWorkerParam: { scope: (basePath || '') + "/" },
-        serviceWorkerPath: "pwa-service-worker.js",
+        serviceWorkerParam: { scope: oneSignalWorkerScope },
+        serviceWorkerPath: oneSignalWorkerPath,
+        notifyButton: { enable: false },
+        welcomeNotification: { disable: true },
       });
+      window.__THECOC_ONESIGNAL_READY__ = true;
     });
   };
 
-  if (ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== "YOUR_ONESIGNAL_APP_ID") {
+  if (ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== 'YOUR_ONESIGNAL_APP_ID') {
     if (!document.getElementById('onesignal-sdk')) {
       const script = document.createElement('script');
       script.id = 'onesignal-sdk';

@@ -10,9 +10,8 @@ export const NOTIFICATION_CHANNEL_ID = 'thecoc-default';
 const EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
 
 // --- CẤU HÌNH ONESIGNAL WEB PUSH ---
-const ONESIGNAL_APP_ID = "1d7708c0-a945-4977-b447-ec3ce5b171bf"; // Điền App ID của anh vào đây!
-const ONESIGNAL_REST_API_KEY = "os_v2_app_dv3qrqfjivexpnch5q6olmlrx4v3xn7epquerrvwbgxpdkq7td6og3zakgrx32oiqsqproqjepkdhatctw6q5xaf7behr7tvthi6soi"; // Điền REST API Key của anh vào đây!
-const ONESIGNAL_PUSH_ENDPOINT = 'https://onesignal.com/api/v1/notifications';
+const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '1d7708c0-a945-4977-b447-ec3ce5b171bf';
+const ONESIGNAL_EDGE_FUNCTION = 'send-onesignal-push';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -113,73 +112,102 @@ export const requestNotificationPermissionAsync = async () => {
   };
 };
 
-const waitForOneSignal = (timeout = 15000) => {
-  return new Promise((resolve) => {
-    if (typeof window !== 'undefined' && window.OneSignal && typeof window.OneSignal.push === 'function') {
-      resolve(window.OneSignal);
-      return;
-    }
-    const startTime = Date.now();
-    const interval = setInterval(() => {
-      if (typeof window !== 'undefined' && window.OneSignal && typeof window.OneSignal.push === 'function') {
-        clearInterval(interval);
-        resolve(window.OneSignal);
-      } else if (Date.now() - startTime > timeout) {
-        clearInterval(interval);
+const runWithOneSignal = (handler, timeout = 15000) => new Promise((resolve) => {
+  if (typeof window === 'undefined') {
+    resolve(null);
+    return;
+  }
+
+  const execute = () => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async (OneSignal) => {
+      try {
+        resolve(await handler(OneSignal));
+      } catch (error) {
+        console.log('OneSignal handler failed:', error?.message || error);
         resolve(null);
       }
-    }, 500);
-  });
+    });
+  };
+
+  if (window.__THECOC_ONESIGNAL_READY__ || window.OneSignalDeferred) {
+    execute();
+    return;
+  }
+
+  const startTime = Date.now();
+  const interval = setInterval(() => {
+    if (window.__THECOC_ONESIGNAL_READY__ || window.OneSignalDeferred) {
+      clearInterval(interval);
+      execute();
+    } else if (Date.now() - startTime > timeout) {
+      clearInterval(interval);
+      resolve(null);
+    }
+  }, 300);
+});
+
+const waitForWebSubscriptionId = async (OneSignal, retries = 12) => {
+  for (let index = 0; index < retries; index += 1) {
+    const subscriptionId = OneSignal?.User?.PushSubscription?.id;
+    if (subscriptionId) return subscriptionId;
+    await new Promise((resolve) => setTimeout(resolve, 750));
+  }
+  return OneSignal?.User?.PushSubscription?.id || null;
 };
 
-export const registerForPushNotificationsAsync = async () => {
-  if (Platform.OS === 'web') {
-    const OneSignal = await waitForOneSignal(15000);
-    if (OneSignal) {
-      return new Promise((resolve) => {
-        OneSignal.push(async () => {
-          try {
-            let permissionGranted = OneSignal.Notifications.permission;
-            if (!permissionGranted) {
-              await OneSignal.Notifications.requestPermission();
-              permissionGranted = OneSignal.Notifications.permission;
-            }
-            if (permissionGranted) {
-              const subscriptionId = OneSignal.User.PushSubscription.id;
-              if (subscriptionId) {
-                resolve(`web_push_${subscriptionId}`);
-              } else {
-                const checkSub = () => {
-                  const subId = OneSignal.User.PushSubscription.id;
-                  if (subId) {
-                    resolve(`web_push_${subId}`);
-                    return true;
-                  }
-                  return false;
-                };
+const isIosStandalonePwa = () => {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
+  const userAgent = window.navigator?.userAgent || '';
+  const platform = window.navigator?.platform || '';
+  const isIos = /iPad|iPhone|iPod/.test(userAgent)
+    || (platform === 'MacIntel' && window.navigator?.maxTouchPoints > 1);
+  if (!isIos) return true;
+  return window.navigator?.standalone === true
+    || window.matchMedia?.('(display-mode: standalone)')?.matches === true;
+};
 
-                if (!checkSub()) {
-                  let retries = 0;
-                  const subInterval = setInterval(() => {
-                    retries++;
-                    if (checkSub() || retries > 10) {
-                      clearInterval(subInterval);
-                      if (retries > 10) resolve(null);
-                    }
-                  }, 1000);
-                }
-              }
-            } else {
-              resolve(null);
-            }
-          } catch (err) {
-            console.log('Lỗi lấy OneSignal Subscription ID:', err);
-            resolve(null);
-          }
-        });
-      });
-    }
-    return null;
+export const registerForPushNotificationsAsync = async ({
+  prompt = true,
+  externalUserId = null,
+  storeId = null,
+} = {}) => {
+  if (Platform.OS === 'web') {
+    if (!isWebNotificationSupported()) return null;
+    if (getWebNotificationPermissionState() === 'denied') return null;
+    if (!prompt && getWebNotificationPermissionState() !== 'granted') return null;
+    if (prompt && !isIosStandalonePwa()) return null;
+
+    return runWithOneSignal(async (OneSignal) => {
+      if (!OneSignal) return null;
+
+      if (externalUserId) {
+        await OneSignal.login(String(externalUserId));
+      }
+
+      if (storeId != null) {
+        await OneSignal.User?.addTag?.('store_id', String(storeId));
+      }
+
+      let permissionGranted = OneSignal.Notifications?.permission === true
+        || getWebNotificationPermissionState() === 'granted';
+
+      if (!permissionGranted && prompt) {
+        if (OneSignal.Slidedown?.promptPush) {
+          await OneSignal.Slidedown.promptPush({ force: true });
+        } else if (OneSignal.Notifications?.requestPermission) {
+          await OneSignal.Notifications.requestPermission();
+        }
+        permissionGranted = OneSignal.Notifications?.permission === true
+          || getWebNotificationPermissionState() === 'granted';
+      }
+
+      if (!permissionGranted) return null;
+
+      await OneSignal.User?.PushSubscription?.optIn?.();
+      const subscriptionId = await waitForWebSubscriptionId(OneSignal);
+      return subscriptionId ? `web_push_${subscriptionId}` : null;
+    });
   }
 
   const { granted } = await requestNotificationPermissionAsync();
@@ -379,33 +407,27 @@ export const sendPushNotifications = async (expoPushTokens, title, body, data = 
   let sentCount = 0;
   const tickets = [];
 
-  // 1. Gửi thông báo Web Push qua OneSignal
+  // 1. Gửi thông báo Web Push qua Supabase Edge Function để không lộ OneSignal REST API key trên app.
   if (webTokens.length > 0 && ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== "YOUR_ONESIGNAL_APP_ID") {
     try {
-      const subscriptionIds = webTokens.map((token) => token.replace('web_push_', ''));
-      const payload = {
-        app_id: ONESIGNAL_APP_ID,
-        include_subscription_ids: subscriptionIds,
-        contents: { en: body, vi: body },
-        headings: { en: title, vi: title },
-        data: data,
-      };
+      const subscriptionIds = webTokens
+        .map((token) => String(token).replace('web_push_', '').trim())
+        .filter(Boolean);
 
-      const response = await fetch(ONESIGNAL_PUSH_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`,
+      const { data: webPushResult, error } = await supabase.functions.invoke(ONESIGNAL_EDGE_FUNCTION, {
+        body: {
+          subscriptionIds,
+          title,
+          body,
+          data,
         },
-        body: JSON.stringify(payload),
       });
 
-      const resJson = await response.json().catch(() => null);
-      if (response.ok) {
-        console.log('OneSignal Web Push sent successfully:', resJson);
-        sentCount += webTokens.length;
+      if (error) {
+        console.log('OneSignal Edge Function failed:', error.message || error);
       } else {
-        console.log('OneSignal Web Push failed:', resJson || response.status);
+        sentCount += Number(webPushResult?.sent || subscriptionIds.length || 0);
+        if (webPushResult) tickets.push({ provider: 'onesignal', ...webPushResult });
       }
     } catch (err) {
       console.log('Lỗi gửi Web Push qua OneSignal:', err.message);

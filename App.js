@@ -339,13 +339,15 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return undefined;
 
-    if (Platform.OS !== 'web') {
-      registerForPushNotificationsAsync().then((token) => {
-        if (token) {
-          savePushTokenToDB(currentUser.id, token, { storeId: currentUser.store_id });
-        }
-      });
-    }
+    registerForPushNotificationsAsync({
+      prompt: Platform.OS !== 'web',
+      externalUserId: currentUser.id,
+      storeId: currentUser.store_id,
+    }).then((token) => {
+      if (token) {
+        savePushTokenToDB(currentUser.id, token, { storeId: currentUser.store_id });
+      }
+    });
 
     // Bật tính năng In-App Realtime Notification (Supabase)
     const channel = supabase
