@@ -34,13 +34,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Export web app
-        run: npx expo export --platform web
+      - name: Export web app and Inject iOS Meta
+        run: npm run build:pwa
 
       - name: Prepare static PWA files
         run: |
-          sed -i 's|src="/_expo/|src="./_expo/|g' dist/index.html
-          sed -i 's|href="/favicon.ico"|href="./favicon.ico"|g' dist/index.html
           node <<'NODE'
           const fs = require('fs');
           const path = require('path');
