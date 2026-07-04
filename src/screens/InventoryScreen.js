@@ -63,6 +63,58 @@ const getShiftTime = (shift) => {
 
 const getShiftInventoryItemId = (item) => item?.item_id ?? item?.itemId ?? item?.itemid ?? item?.id;
 
+const getMonthKey = (date = new Date()) => {
+  const parsed = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(parsed.getTime())) return getMonthKey(new Date());
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const addMonthsToKey = (monthKey, delta) => {
+  const [year, month] = String(monthKey || getMonthKey()).split('-').map(Number);
+  const date = new Date(year || new Date().getFullYear(), (month || 1) - 1 + delta, 1);
+  return getMonthKey(date);
+};
+
+const getMonthLabel = (monthKey) => {
+  const [year, month] = String(monthKey || getMonthKey()).split('-').map(Number);
+  return new Date(year || new Date().getFullYear(), (month || 1) - 1, 1).toLocaleDateString('vi-VN', {
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+const getMonthRange = (monthKey) => {
+  const [year, month] = String(monthKey || getMonthKey()).split('-').map(Number);
+  const start = new Date(year || new Date().getFullYear(), (month || 1) - 1, 1, 0, 0, 0, 0);
+  const end = new Date(start.getFullYear(), start.getMonth() + 1, 1, 0, 0, 0, 0);
+  return { start, end };
+};
+
+const getLogDate = (log) => {
+  const rawValue = log?.created_at || log?.date || log?.updated_at || '';
+  const parsed = new Date(rawValue);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const isLogInMonth = (log, monthKey) => {
+  const parsed = getLogDate(log);
+  if (!parsed) return false;
+  const { start, end } = getMonthRange(monthKey);
+  return parsed >= start && parsed < end;
+};
+
+const getSignedInventoryAmount = (log) => {
+  const amount = Number(log?.amount || 0);
+  if (log?.type === 'IMPORT' || log?.type === 'ADJUST_UP') return amount;
+  if (log?.type === 'EXPORT' || log?.type === 'ADJUST_DOWN') return -amount;
+  return 0;
+};
+
+const formatPercent = (value) => {
+  if (!Number.isFinite(value)) return '--';
+  return `${value > 0 ? '+' : ''}${value.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%`;
+};
+
 const makeId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
 const getRequestStatus = (status) => {
@@ -141,6 +193,8 @@ export default function InventoryScreen({ navigation }) {
   const [historyTypeFilter, setHistoryTypeFilter] = useState('ALL');
   const [historyItemFilter, setHistoryItemFilter] = useState('ALL');
   const [varianceFilter, setVarianceFilter] = useState('ALL');
+  const [usageMonth, setUsageMonth] = useState(getMonthKey());
+  const [usageFilter, setUsageFilter] = useState('ALL');
   const getLogTime = useCallback((log) => {
     const rawValue = log.created_at || log.date || log.updated_at || '';
     const parsed = new Date(rawValue);
@@ -252,6 +306,121 @@ export default function InventoryScreen({ navigation }) {
       totalAbs: diffRows.reduce((sum, row) => sum + row.absVariance, 0),
     };
   }, [inventoryComparisonRows]);
+
+  const monthlyUsageRows = useMemo(() => {
+    const previousMonth = addMonthsToKey(usageMonth, -1);
+    const monthRange = getMonthRange(usageMonth);
+
+    return stockData.map((item) => {
+      const itemLogs = inventoryLogs.filter(
+        (log) => String(log.itemId ?? log.itemid ?? log.item_id) === String(item.id)
+          && String(log.store_id) === String(item.store_id),
+      );
+      const openingStock = itemLogs
+        .filter((log) => {
+          const date = getLogDate(log);
+          return date && date < monthRange.start;
+        })
+        .reduce((sum, log) => sum + getSignedInventoryAmount(log), 0);
+      const monthLogs = itemLogs.filter((log) => isLogInMonth(log, usageMonth));
+      const previousLogs = itemLogs.filter((log) => isLogInMonth(log, previousMonth));
+      const imported = monthLogs
+        .filter((log) => log.type === 'IMPORT')
+        .reduce((sum, log) => sum + Number(log.amount || 0), 0);
+      const adjustedUp = monthLogs
+        .filter((log) => log.type === 'ADJUST_UP')
+        .reduce((sum, log) => sum + Number(log.amount || 0), 0);
+      const exported = monthLogs
+        .filter((log) => log.type === 'EXPORT')
+        .reduce((sum, log) => sum + Number(log.amount || 0), 0);
+      const shrinkage = monthLogs
+        .filter((log) => log.type === 'ADJUST_DOWN')
+        .reduce((sum, log) => sum + Number(log.amount || 0), 0);
+      const used = exported + shrinkage;
+      const previousUsed = previousLogs
+        .filter((log) => log.type === 'EXPORT' || log.type === 'ADJUST_DOWN')
+        .reduce((sum, log) => sum + Number(log.amount || 0), 0);
+      const delta = used - previousUsed;
+      const deltaPercent = previousUsed > 0 ? (delta / previousUsed) * 100 : (used > 0 ? 100 : 0);
+      const expectedEndStock = openingStock + imported + adjustedUp - used;
+
+      const monthShifts = (shifts || [])
+        .filter((shift) => String(shift.store_id) === String(item.store_id))
+        .filter((shift) => {
+          const time = getShiftTime(shift);
+          return time >= monthRange.start.getTime() && time < monthRange.end.getTime();
+        })
+        .filter((shift) => Array.isArray(shift.inventory_check));
+      const shiftChecks = monthShifts.flatMap((shift) => (
+        (shift.inventory_check || [])
+          .filter((check) => String(getShiftInventoryItemId(check)) === String(item.id))
+          .map((check) => ({ shift, check }))
+      )).sort((a, b) => getShiftTime(b.shift) - getShiftTime(a.shift));
+      const latestCount = shiftChecks[0]?.check;
+      const countVariance = shiftChecks.reduce((sum, row) => (
+        sum + (Number(row.check?.end || 0) - Number(row.check?.start || 0))
+      ), 0);
+      const hasCount = Boolean(latestCount);
+      const warningLevel = !hasCount && used > 0
+        ? 'NO_COUNT'
+        : countVariance < -0.005
+          ? 'SHORTAGE'
+          : deltaPercent >= 30 && used > 0
+            ? 'SPIKE'
+            : deltaPercent <= -30 && previousUsed > 0
+              ? 'DROP'
+              : 'NORMAL';
+
+      return {
+        ...item,
+        openingStock: Number(openingStock.toFixed(2)),
+        imported: Number(imported.toFixed(2)),
+        adjustedUp: Number(adjustedUp.toFixed(2)),
+        exported: Number(exported.toFixed(2)),
+        shrinkage: Number(shrinkage.toFixed(2)),
+        used: Number(used.toFixed(2)),
+        previousUsed: Number(previousUsed.toFixed(2)),
+        delta: Number(delta.toFixed(2)),
+        deltaPercent,
+        expectedEndStock: Number(expectedEndStock.toFixed(2)),
+        countedEndStock: hasCount ? Number(latestCount.end || 0) : null,
+        countVariance: Number(countVariance.toFixed(2)),
+        hasCount,
+        warningLevel,
+        latestCountTime: shiftChecks[0]?.shift?.closed_at || shiftChecks[0]?.shift?.opened_at || '',
+      };
+    }).sort((a, b) => {
+      const score = (row) => {
+        if (row.warningLevel === 'SHORTAGE') return 4;
+        if (row.warningLevel === 'SPIKE') return 3;
+        if (row.warningLevel === 'NO_COUNT') return 2;
+        if (row.warningLevel === 'DROP') return 1;
+        return 0;
+      };
+      if (score(b) !== score(a)) return score(b) - score(a);
+      return b.used - a.used;
+    });
+  }, [inventoryLogs, shifts, stockData, usageMonth]);
+
+  const filteredMonthlyUsageRows = useMemo(() => monthlyUsageRows.filter((row) => {
+    if (usageFilter === 'SPIKE') return row.warningLevel === 'SPIKE';
+    if (usageFilter === 'SHORTAGE') return row.warningLevel === 'SHORTAGE';
+    if (usageFilter === 'NO_COUNT') return row.warningLevel === 'NO_COUNT';
+    if (usageFilter === 'USED') return row.used > 0;
+    return true;
+  }), [monthlyUsageRows, usageFilter]);
+
+  const usageSummary = useMemo(() => {
+    const usedRows = monthlyUsageRows.filter((row) => row.used > 0);
+    return {
+      totalUsed: usedRows.reduce((sum, row) => sum + row.used, 0),
+      usedItems: usedRows.length,
+      spikeItems: monthlyUsageRows.filter((row) => row.warningLevel === 'SPIKE').length,
+      shortageItems: monthlyUsageRows.filter((row) => row.warningLevel === 'SHORTAGE').length,
+      noCountItems: monthlyUsageRows.filter((row) => row.warningLevel === 'NO_COUNT').length,
+      totalVariance: monthlyUsageRows.reduce((sum, row) => sum + Math.abs(row.countVariance || 0), 0),
+    };
+  }, [monthlyUsageRows]);
 
   const pendingRequests = inventoryTickets.filter((ticket) => {
     if (storeIdToView !== 'ALL' && ticket.source_store_id !== storeIdToView && ticket.destination_store_id !== storeIdToView) return false;
@@ -488,6 +657,7 @@ export default function InventoryScreen({ navigation }) {
     ? [{ key: 'ACTION', label: 'Thao tác' }, { key: 'HISTORY', label: 'Lịch sử' }]
     : [
         { key: 'OVERVIEW', label: 'Tổng quan' },
+        { key: 'STATS', label: 'Thống kê' },
         { key: 'ACTION', label: 'Thao tác' },
         { key: 'APPROVALS', label: `Duyệt${pendingRequests.length ? ` (${pendingRequests.length})` : ''}` },
         { key: 'HISTORY', label: 'Lịch sử' },
@@ -717,6 +887,194 @@ export default function InventoryScreen({ navigation }) {
                 ))}
               </View>
             </>
+          )}
+
+          {activeTab === 'STATS' && !isStaff && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Thống kê sử dụng nguyên liệu</Text>
+                  <Text style={styles.compareSubtitle}>
+                    Tổng hợp theo tháng và so sánh mức sử dụng với tháng trước.
+                  </Text>
+                </View>
+                <Ionicons name="bar-chart-outline" size={22} color="#1565c0" />
+              </View>
+
+              <View style={styles.monthPicker}>
+                <TouchableOpacity
+                  style={styles.monthArrow}
+                  onPress={() => setUsageMonth(addMonthsToKey(usageMonth, -1))}
+                >
+                  <Ionicons name="chevron-back" size={20} color={COLORS.text} />
+                </TouchableOpacity>
+                <View style={styles.monthCenter}>
+                  <Text style={styles.monthLabel}>{getMonthLabel(usageMonth)}</Text>
+                  <Text style={styles.monthSubLabel}>So với {getMonthLabel(addMonthsToKey(usageMonth, -1))}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.monthArrow}
+                  onPress={() => setUsageMonth(addMonthsToKey(usageMonth, 1))}
+                >
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.text} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.quickMonthRow}>
+                {[
+                  { key: getMonthKey(), label: 'Tháng này' },
+                  { key: addMonthsToKey(getMonthKey(), -1), label: 'Tháng trước' },
+                  { key: addMonthsToKey(getMonthKey(), -2), label: '2 tháng trước' },
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.key}
+                    style={[styles.quickMonthChip, usageMonth === option.key && styles.quickMonthChipActive]}
+                    onPress={() => setUsageMonth(option.key)}
+                  >
+                    <Text style={[styles.quickMonthText, usageMonth === option.key && styles.quickMonthTextActive]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.compareSummaryGrid}>
+                <View style={styles.compareSummaryCard}>
+                  <Text style={styles.compareSummaryValue}>{usageSummary.usedItems}</Text>
+                  <Text style={styles.compareSummaryLabel}>Món có dùng</Text>
+                </View>
+                <View style={styles.compareSummaryCard}>
+                  <Text style={styles.compareSummaryValue}>{formatQuantity(usageSummary.totalUsed)}</Text>
+                  <Text style={styles.compareSummaryLabel}>Tổng đã dùng</Text>
+                </View>
+                <View style={[styles.compareSummaryCard, usageSummary.spikeItems > 0 && styles.compareSummaryWarn]}>
+                  <Text style={[styles.compareSummaryValue, usageSummary.spikeItems > 0 && { color: '#b91c1c' }]}>
+                    {usageSummary.spikeItems}
+                  </Text>
+                  <Text style={styles.compareSummaryLabel}>Tăng mạnh</Text>
+                </View>
+                <View style={[styles.compareSummaryCard, usageSummary.shortageItems > 0 && styles.compareSummaryWarn]}>
+                  <Text style={[styles.compareSummaryValue, usageSummary.shortageItems > 0 && { color: '#dc2626' }]}>
+                    {usageSummary.shortageItems}
+                  </Text>
+                  <Text style={styles.compareSummaryLabel}>Hao hụt/thiếu</Text>
+                </View>
+              </View>
+
+              <View style={styles.compareTotalBox}>
+                <Ionicons name="warning-outline" size={18} color="#7c3aed" />
+                <Text style={styles.compareTotalText}>
+                  Chưa kiểm kê: <Text style={styles.compareTotalStrong}>{usageSummary.noCountItems}</Text>
+                  {'  '}• Tổng lệch kiểm kho: <Text style={styles.compareTotalStrong}>{formatQuantity(usageSummary.totalVariance)}</Text>
+                </Text>
+              </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
+                {[
+                  { key: 'ALL', label: 'Tất cả' },
+                  { key: 'USED', label: 'Có sử dụng' },
+                  { key: 'SPIKE', label: 'Tăng mạnh' },
+                  { key: 'SHORTAGE', label: 'Hao hụt' },
+                  { key: 'NO_COUNT', label: 'Chưa kiểm kê' },
+                ].map((filter) => (
+                  <TouchableOpacity
+                    key={filter.key}
+                    style={[styles.filterChip, usageFilter === filter.key && styles.filterChipActive]}
+                    onPress={() => setUsageFilter(filter.key)}
+                  >
+                    <Text style={[styles.filterChipText, usageFilter === filter.key && styles.filterChipTextActive]}>
+                      {filter.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {filteredMonthlyUsageRows.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="file-tray-outline" size={40} color={COLORS.textMuted} />
+                  <Text style={styles.emptyTitle}>Chưa có dữ liệu phù hợp</Text>
+                  <Text style={styles.emptyText}>Thử đổi tháng hoặc bộ lọc thống kê.</Text>
+                </View>
+              ) : filteredMonthlyUsageRows.map((item) => {
+                const isSpike = item.warningLevel === 'SPIKE';
+                const isShortage = item.warningLevel === 'SHORTAGE';
+                const isNoCount = item.warningLevel === 'NO_COUNT';
+                const isDrop = item.warningLevel === 'DROP';
+                const badgeColor = isShortage ? '#dc2626' : isSpike ? '#b91c1c' : isNoCount ? '#b45309' : isDrop ? '#2563eb' : '#15803d';
+                const badgeBg = isShortage || isSpike ? '#fee2e2' : isNoCount ? '#fef3c7' : isDrop ? '#dbeafe' : '#dcfce7';
+                const badgeLabel = isShortage
+                  ? 'Hao hụt'
+                  : isSpike
+                    ? 'Tăng mạnh'
+                    : isNoCount
+                      ? 'Chưa kiểm'
+                      : isDrop
+                        ? 'Giảm mạnh'
+                        : 'Bình thường';
+
+                return (
+                  <View key={`usage-${item.id}`} style={styles.usageCard}>
+                    <View style={styles.compareRowHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.stockName}>{item.name}</Text>
+                        <Text style={styles.compareMeta}>
+                          {storeIdToView === 'ALL'
+                            ? `${storeList.find((store) => String(store.id) === String(item.store_id))?.name || `CN ${item.store_id}`} • `
+                            : ''}
+                          Đơn vị: {item.unit}
+                        </Text>
+                      </View>
+                      <View style={[styles.compareBadge, { backgroundColor: badgeBg }]}>
+                        <Text style={[styles.compareBadgeText, { color: badgeColor }]}>{badgeLabel}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.usageMainRow}>
+                      <View>
+                        <Text style={styles.usageBigLabel}>Đã sử dụng tháng này</Text>
+                        <Text style={styles.usageBigValue}>{formatQuantity(item.used)} {item.unit}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.usageBigLabel}>So tháng trước</Text>
+                        <Text style={[styles.usageDelta, { color: item.delta >= 0 ? '#dc2626' : '#16a34a' }]}>
+                          {item.delta > 0 ? '+' : ''}{formatQuantity(item.delta)} ({formatPercent(item.deltaPercent)})
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.compareMetricGrid}>
+                      <View style={styles.compareMetric}>
+                        <Text style={styles.compareMetricLabel}>Tồn đầu</Text>
+                        <Text style={styles.compareMetricValue}>{formatQuantity(item.openingStock)}</Text>
+                      </View>
+                      <View style={styles.compareMetric}>
+                        <Text style={styles.compareMetricLabel}>Nhập</Text>
+                        <Text style={styles.compareMetricValue}>{formatQuantity(item.imported)}</Text>
+                      </View>
+                      <View style={styles.compareMetric}>
+                        <Text style={styles.compareMetricLabel}>Xuất/Hao</Text>
+                        <Text style={styles.compareMetricValue}>{formatQuantity(item.used)}</Text>
+                      </View>
+                      <View style={styles.compareMetric}>
+                        <Text style={styles.compareMetricLabel}>Kiểm cuối</Text>
+                        <Text style={styles.compareMetricValue}>
+                          {item.hasCount ? formatQuantity(item.countedEndStock) : '--'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.usageFooter}>
+                      <Text style={styles.compareMeta}>
+                        Tồn dự kiến cuối tháng: <Text style={styles.logDetailStrong}>{formatQuantity(item.expectedEndStock)} {item.unit}</Text>
+                      </Text>
+                      <Text style={[styles.compareMeta, item.countVariance < 0 && { color: '#dc2626', fontWeight: '800' }]}>
+                        Lệch kiểm kê: {item.countVariance > 0 ? '+' : ''}{formatQuantity(item.countVariance)} {item.unit}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
           )}
 
           {activeTab === 'ACTION' && (
@@ -1167,6 +1525,22 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   compareMetricLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
   compareMetricValue: { color: COLORS.text, fontSize: 15, fontWeight: '900', marginTop: 4 },
   compareUnitNote: { color: COLORS.textMuted, fontSize: 11, marginTop: 9, fontStyle: 'italic' },
+  monthPicker: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 8, marginBottom: 10 },
+  monthArrow: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border },
+  monthCenter: { flex: 1, alignItems: 'center', paddingHorizontal: 10 },
+  monthLabel: { color: COLORS.text, fontSize: 16, fontWeight: '900', textTransform: 'capitalize' },
+  monthSubLabel: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+  quickMonthRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  quickMonthChip: { backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  quickMonthChipActive: { backgroundColor: '#1565c0', borderColor: '#1565c0' },
+  quickMonthText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '800' },
+  quickMonthTextActive: { color: '#fff' },
+  usageCard: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.inputBg, borderRadius: 16, padding: 13, marginTop: 10 },
+  usageMainRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
+  usageBigLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '800' },
+  usageBigValue: { color: COLORS.text, fontSize: 20, fontWeight: '900', marginTop: 4 },
+  usageDelta: { fontSize: 15, fontWeight: '900', marginTop: 4, textAlign: 'right' },
+  usageFooter: { backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 10, marginTop: 10, gap: 4 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: COLORS.card, borderRadius: 18, padding: 20, borderWidth: 1, borderColor: COLORS.border },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
