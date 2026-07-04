@@ -176,8 +176,6 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
   };
 
   const requestAllPermissions = async () => {
-    if (iosNeedsHomeScreen) return;
-
     setIsRequesting(true);
 
     try {
@@ -270,15 +268,19 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
         })}
       </View>
 
-      {!iosNeedsHomeScreen && (
-        <TouchableOpacity
-          onPress={requestAllPermissions}
-          disabled={isRequesting}
-          style={[styles.primaryBtn, { backgroundColor: COLORS.primary, opacity: isRequesting ? 0.65 : 1 }]}
-        >
-          <Text style={styles.primaryText}>{isRequesting ? 'Đang cấp quyền...' : 'Cấp hết quyền PWA'}</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        onPress={requestAllPermissions}
+        disabled={isRequesting}
+        style={[styles.primaryBtn, { backgroundColor: COLORS.primary, opacity: isRequesting ? 0.65 : 1 }]}
+      >
+        <Text style={styles.primaryText}>
+          {isRequesting
+            ? 'Đang cấp quyền...'
+            : iosNeedsHomeScreen
+              ? 'Tôi đã mở từ icon, bật thông báo'
+              : 'Cấp hết quyền PWA'}
+        </Text>
+      </TouchableOpacity>
       <Text style={[styles.note, { color: COLORS.textMuted }]}>
         {iosNeedsHomeScreen
           ? 'Thông báo iPhone chỉ hoạt động với PWA đã thêm vào màn hình chính và iOS 16.4 trở lên.'

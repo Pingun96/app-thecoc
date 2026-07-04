@@ -176,7 +176,7 @@ export const registerForPushNotificationsAsync = async ({
     if (!isWebNotificationSupported()) return null;
     if (getWebNotificationPermissionState() === 'denied') return null;
     if (!prompt && getWebNotificationPermissionState() !== 'granted') return null;
-    if (prompt && !isIosStandalonePwa()) return null;
+    const isIosButNotStandalone = prompt && !isIosStandalonePwa();
 
     return runWithOneSignal(async (OneSignal) => {
       if (!OneSignal) return null;
@@ -193,13 +193,23 @@ export const registerForPushNotificationsAsync = async ({
         || getWebNotificationPermissionState() === 'granted';
 
       if (!permissionGranted && prompt) {
-        if (OneSignal.Slidedown?.promptPush) {
-          await OneSignal.Slidedown.promptPush({ force: true });
-        } else if (OneSignal.Notifications?.requestPermission) {
+        if (OneSignal.Notifications?.requestPermission) {
           await OneSignal.Notifications.requestPermission();
         }
+
         permissionGranted = OneSignal.Notifications?.permission === true
           || getWebNotificationPermissionState() === 'granted';
+
+        if (!permissionGranted && !isIosButNotStandalone && window.Notification?.requestPermission) {
+          const browserStatus = await window.Notification.requestPermission();
+          permissionGranted = browserStatus === 'granted';
+        }
+
+        if (!permissionGranted && OneSignal.Slidedown?.promptPush) {
+          await OneSignal.Slidedown.promptPush({ force: true });
+          permissionGranted = OneSignal.Notifications?.permission === true
+            || getWebNotificationPermissionState() === 'granted';
+        }
       }
 
       if (!permissionGranted) return null;
