@@ -5,6 +5,10 @@ const path = require('path');
 const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
 
+// Fix đường dẫn assets cho GitHub Pages subdirectory /app-thecoc/
+html = html.replace(/src="\/_expo\//g, 'src="/app-thecoc/_expo/');
+html = html.replace(/href="\/favicon\.ico"/g, 'href="/app-thecoc/favicon.ico"');
+
 const iosMetaTags = `
     <!-- ===== iOS PWA META TAGS ===== -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
