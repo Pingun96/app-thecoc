@@ -1,0 +1,65 @@
+// Script chạy sau khi expo export để inject iOS meta tags vào dist/index.html
+const fs = require('fs');
+const path = require('path');
+
+const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
+let html = fs.readFileSync(indexPath, 'utf8');
+
+const iosMetaTags = `
+    <!-- ===== iOS PWA META TAGS ===== -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="The Cốc" />
+    <meta name="application-name" content="The Cốc" />
+    <meta name="theme-color" content="#208AEF" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="/app-thecoc/manifest.webmanifest" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/app-thecoc/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <!-- iPhone 15 Pro Max -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <!-- iPhone 14 Pro -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <!-- iPhone 13/14 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <!-- iPhone SE -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/app-thecoc/icons/thecoc-icon-512.png" />`;
+
+const iosCss = `
+      /* ===== iOS NATIVE FEEL ===== */
+      * { -webkit-tap-highlight-color: transparent; }
+      * { -webkit-overflow-scrolling: touch; }
+      * { touch-action: manipulation; }
+      body { -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+      input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
+      a, img { -webkit-touch-callout: none; }
+      ::-webkit-scrollbar { display: none; }
+      * { scrollbar-width: none; -ms-overflow-style: none; }`;
+
+// 1. Fix viewport - thêm viewport-fit=cover
+html = html.replace(
+  'width=device-width, initial-scale=1, shrink-to-fit=no',
+  'width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover'
+);
+
+// 2. Fix title
+html = html.replace('<title>thecoc-mobile</title>', '<title>The Cốc</title>');
+
+// 3. Fix lang
+html = html.replace('<html lang="en">', '<html lang="vi">');
+
+// 4. Inject iOS meta tags sau viewport
+html = html.replace(
+  'shrink-to-fit=no, viewport-fit=cover" />',
+  `shrink-to-fit=no, viewport-fit=cover" />${iosMetaTags}`
+);
+
+// 5. Inject iOS CSS vào style#expo-reset
+html = html.replace(
+  '/* These styles make the root element full-height */',
+  `/* These styles make the root element full-height */${iosCss}\n      /* === */`
+);
+
+fs.writeFileSync(indexPath, html, 'utf8');
+console.log('✅ iOS meta tags injected into dist/index.html');

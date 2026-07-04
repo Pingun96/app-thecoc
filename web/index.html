@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- ===== VIEWPORT - Phải có viewport-fit=cover cho iPhone notch/Dynamic Island ===== -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+
+    <!-- ===== iOS PWA CRITICAL META TAGS ===== -->
+    <!-- Bắt buộc để Safari nhận diện đây là PWA khi "Add to Home Screen" -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- black-translucent = content extend đến tận cạnh màn hình, status bar trong suốt -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="The Cốc" />
+
+    <!-- ===== PWA GENERAL ===== -->
+    <meta name="application-name" content="The Cốc" />
+    <meta name="theme-color" content="#208AEF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- ===== SEO ===== -->
+    <title>The Cốc</title>
+    <meta name="description" content="Hệ thống quản lý nội bộ The Cốc — nhân viên, kho, ca làm, chấm công." />
+
+    <!-- ===== MANIFEST ===== -->
+    <link rel="manifest" href="/app-thecoc/manifest.webmanifest" />
+
+    <!-- ===== ICONS ===== -->
+    <link rel="icon" href="/app-thecoc/favicon.ico" />
+    <!-- apple-touch-icon: icon xuất hiện trên màn hình chính iPhone -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/app-thecoc/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/app-thecoc/icons/thecoc-icon-512.png" />
+
+    <!-- ===== iOS SPLASH SCREENS (Startup Image) ===== -->
+    <!-- iPhone 15 Pro Max / 14 Pro Max -->
+    <link rel="apple-touch-startup-image"
+      media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)"
+      href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <!-- iPhone 15 / 14 Pro -->
+    <link rel="apple-touch-startup-image"
+      media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)"
+      href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <!-- iPhone 14 / 13 / 12 -->
+    <link rel="apple-touch-startup-image"
+      media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)"
+      href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <!-- iPhone SE / 8 -->
+    <link rel="apple-touch-startup-image"
+      media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)"
+      href="/app-thecoc/icons/thecoc-icon-512.png" />
+
+    <!-- ===== CSS CRITICAL - iOS native feel ===== -->
+    <style id="expo-reset">
+      /* Full height */
+      html, body { height: 100%; margin: 0; padding: 0; }
+
+      /* Prevent body scroll (React Native ScrollView handles scroll) */
+      body { overflow: hidden; }
+
+      /* Full height root */
+      #root { display: flex; height: 100%; flex: 1; }
+
+      /* ===== iOS NATIVE FEEL ===== */
+
+      /* Xóa tap highlight màu xanh khi chạm (khác biệt lớn nhất so với app native) */
+      * { -webkit-tap-highlight-color: transparent; }
+
+      /* Momentum scroll - cảm giác scroll mượt như native */
+      * { -webkit-overflow-scrolling: touch; }
+
+      /* Chống zoom khi double-tap hoặc focus input */
+      * { touch-action: manipulation; }
+
+      /* Chống chọn text khi long-press (chỉ áp dụng cho element không phải input) */
+      body { -webkit-user-select: none; user-select: none; }
+      input, textarea { -webkit-user-select: auto; user-select: auto; }
+
+      /* Chống overscroll bounce (rubber band effect) trên toàn body */
+      body { overscroll-behavior: none; }
+
+      /* Safe area insets cho iPhone notch / Dynamic Island / Home Indicator */
+      #root {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+
+      /* Font rendering mượt hơn trên iOS */
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+      }
+
+      /* Chống callout khi long-press link/image */
+      a, img { -webkit-touch-callout: none; }
+
+      /* Input font size >= 16px để tránh iOS auto-zoom khi focus */
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+
+      /* Ẩn scrollbar trên web (giống native) */
+      ::-webkit-scrollbar { display: none; }
+      * { scrollbar-width: none; -ms-overflow-style: none; }
+    </style>
+  </head>
+
+  <body>
+    <noscript>Bạn cần bật JavaScript để sử dụng app này.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

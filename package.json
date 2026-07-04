@@ -63,7 +63,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:pwa": "expo export --platform web && node scripts/inject-ios-meta.js",
+    "deploy": "expo export --platform web && node scripts/inject-ios-meta.js && npx gh-pages -d dist"
   },
   "private": true
 }

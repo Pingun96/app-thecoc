@@ -10,7 +10,7 @@ export const NOTIFICATION_CHANNEL_ID = 'thecoc-default';
 const EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
 
 // --- CẤU HÌNH ONESIGNAL WEB PUSH ---
-const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '1d7708c0-a945-4977-b447-ec3ce5b171bf';
+const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '';
 const ONESIGNAL_EDGE_FUNCTION = 'send-onesignal-push';
 
 Notifications.setNotificationHandler({
@@ -527,7 +527,7 @@ export const sendNotificationToUser = async (
 
   // Fallback: Send directly via OneSignal using external_id to guarantee delivery
   // even if the web_push_ token is missing from our database.
-  const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '1d7708c0-a945-4977-b447-ec3ce5b171bf';
+  const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '';
   try {
     await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',

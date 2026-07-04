@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
 import React, { useState, useEffect, useCallback, useContext } from 'react';
-import { Platform, View, StyleSheet, TouchableOpacity, Pressable, useColorScheme } from 'react-native';
+import { Platform, View, StyleSheet, TouchableOpacity, Pressable, useColorScheme, AppState } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -210,6 +210,50 @@ export default function App() {
   useEffect(() => {
     setupPwaExperience();
   }, []);
+
+  // ===== APPSTATE: Tự refresh data khi mở lại app từ background =====
+  useEffect(() => {
+    let lastActiveTime = Date.now();
+    const REFRESH_THRESHOLD_MS = 30 * 1000; // 30 giây
+
+    const handleAppStateChange = (nextState) => {
+      if (nextState === 'active') {
+        const elapsed = Date.now() - lastActiveTime;
+        if (elapsed > REFRESH_THRESHOLD_MS) {
+          refreshData();
+        }
+        lastActiveTime = Date.now();
+      } else {
+        lastActiveTime = Date.now();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // iOS PWA: dùng visibilitychange vì AppState không fire trên web
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        const elapsed = Date.now() - lastActiveTime;
+        if (elapsed > REFRESH_THRESHOLD_MS) {
+          refreshData();
+        }
+        lastActiveTime = Date.now();
+      } else {
+        lastActiveTime = Date.now();
+      }
+    };
+
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
+    return () => {
+      subscription?.remove?.();
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+  }, [refreshData]);
   const [themeMode, setThemeMode] = useState('system');
   const isDarkMode = themeMode === 'system' ? colorScheme === 'dark' : themeMode === 'dark';
   const COLORS = isDarkMode ? THEMES.dark : THEMES.light;
@@ -359,7 +403,22 @@ export default function App() {
       }
     });
 
-    return unsubscribe;
+    // Nhận message từ Service Worker khi bấm notification → navigate
+    const handleSwMessage = (event) => {
+      if (event.data?.type === 'THECOC_NAVIGATE' && event.data?.route) {
+        setTimeout(() => navigateFromNotificationData({ route: event.data.route }), 300);
+      }
+    };
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    }
+
+    return () => {
+      unsubscribe();
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.serviceWorker) {
+        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+      }
+    };
   }, []);
 
   // Đăng ký Push Notification và Realtime Notification khi có currentUser
@@ -458,9 +517,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabBar: {
-    height: Platform.OS === 'ios' ? 88 : 72,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+    // iOS native: 88px. iOS PWA (Platform.OS=web): cần safe-area bottom.
+    // Android/web: 64px chuẩn
+    height: Platform.OS === 'ios' ? 88 : Platform.OS === 'web' ? 76 : 64,
+    paddingTop: 6,
+    paddingBottom: Platform.OS === 'ios' ? 24 : Platform.OS === 'web' ? 16 : 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 14,
     shadowColor: '#000',
