@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   getWebNotificationPermissionState,
   registerForPushNotificationsAsync,
+  requestNotificationPermissionAsync,
   savePushTokenToDB,
 } from '../services/NotificationService';
 
@@ -179,9 +180,19 @@ export default function WebNotificationBanner({ currentUser, COLORS, isDarkMode 
     setIsRequesting(true);
 
     try {
+      let notificationState = getWebNotificationPermissionState();
+      if (notificationState === 'default' || notificationState === 'prompt') {
+        const notificationResult = await withTimeout(
+          requestNotificationPermissionAsync(),
+          12000,
+          { permission: { status: getWebNotificationPermissionState() } }
+        );
+        notificationState = notificationResult?.permission?.status || getWebNotificationPermissionState();
+      }
+
       const token = await withTimeout(
         registerForPushNotificationsAsync({
-          prompt: true,
+          prompt: notificationState !== 'granted',
           externalUserId: currentUser?.id,
           storeId: currentUser?.store_id,
         }),
