@@ -1,10 +1,29 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
   <head>
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <title>thecoc-mobile</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+    <!-- ===== iOS PWA META TAGS ===== -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="The Cốc" />
+    <meta name="application-name" content="The Cốc" />
+    <meta name="theme-color" content="#208AEF" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="/app-thecoc/manifest.webmanifest" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/app-thecoc/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <!-- iPhone 15 Pro Max -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <!-- iPhone 14 Pro -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <!-- iPhone 13/14 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <!-- iPhone SE -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <title>The Cốc</title>
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
       /* These styles make the body full-height */
@@ -17,13 +36,23 @@
         overflow: hidden;
       }
       /* These styles make the root element full-height */
+      /* ===== iOS NATIVE FEEL ===== */
+      * { -webkit-tap-highlight-color: transparent; }
+      * { -webkit-overflow-scrolling: touch; }
+      * { touch-action: manipulation; }
+      body { -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+      input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
+      a, img { -webkit-touch-callout: none; }
+      ::-webkit-scrollbar { display: none; }
+      * { scrollbar-width: none; -ms-overflow-style: none; }
+      /* === */
       #root {
         display: flex;
         height: 100%;
         flex: 1;
       }
     </style>
-  <link rel="icon" href="./favicon.ico" /></head>
+  <link rel="icon" href="/app-thecoc/favicon.ico" /></head>
 
   <body>
     <!-- Use static rendering with Expo Router to support running without JavaScript. -->
@@ -32,6 +61,6 @@
     </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
-  <script src="./_expo/static/js/web/AppEntry-7047d4d9fe8acda6c7eab5bfdd2cc741.js" defer></script>
+  <script src="/app-thecoc/_expo/static/js/web/AppEntry-7d9dc9f0541ef3107b97bb0e5dab8ca6.js" defer></script>
 </body>
 </html>
