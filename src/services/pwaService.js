@@ -95,7 +95,7 @@ export const setupPwaExperience = () => {
   }
 
   const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '1d7708c0-a945-4977-b447-ec3ce5b171bf';
-  const oneSignalWorkerPath = `${basePath.replace(/^\//, '').replace(/\/$/, '')}/pwa-service-worker.js`.replace(/^\//, '');
+  const oneSignalWorkerPath = `${basePath || ''}/pwa-service-worker.js`;
   const oneSignalWorkerScope = `${basePath || ''}/`;
 
   const initOneSignal = () => {
@@ -116,15 +116,14 @@ export const setupPwaExperience = () => {
   };
 
   if (ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== 'YOUR_ONESIGNAL_APP_ID') {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    initOneSignal();
     if (!document.getElementById('onesignal-sdk')) {
       const script = document.createElement('script');
       script.id = 'onesignal-sdk';
       script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
       script.defer = true;
-      script.onload = initOneSignal;
       document.head.appendChild(script);
-    } else {
-      initOneSignal();
     }
   }
 };
