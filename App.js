@@ -313,6 +313,17 @@ export default function App() {
 
   useEffect(() => {
     refreshData();
+
+    // Subscribe to ALL real-time changes on the database
+    const channel = supabase.channel('global-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        refreshData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [refreshData]);
 
   useEffect(() => {
@@ -322,6 +333,22 @@ export default function App() {
       setSelectedStoreId(storeList[0].id);
     }
   }, [storeList, selectedStoreId]);
+
+  useEffect(() => {
+    const handleForegroundPush = (e) => {
+      if (e.detail) {
+        Alert.alert(e.detail.title || 'Thông báo mới', e.detail.body || '');
+      }
+    };
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.addEventListener('onForegroundPush', handleForegroundPush);
+    }
+    return () => {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.removeEventListener('onForegroundPush', handleForegroundPush);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = observeNotificationResponses(navigateFromNotificationData);

@@ -1,8 +1,9 @@
 import React, { useState, useContext, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl, Dimensions, Alert, Modal, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl, Dimensions, Modal, Image } from 'react-native';
 import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
+import { Alert } from '../utils/alert';
 import { scheduleShiftReminder, getManagersToNotify, sendPushNotification } from '../services/NotificationService';
 
 export default function ShiftScheduleScreen({ navigation }) {
@@ -36,6 +37,7 @@ export default function ShiftScheduleScreen({ navigation }) {
   const [draftShifts, setDraftShifts] = useState([]); // [{date, shiftType, storeId}]
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -333,27 +335,32 @@ export default function ShiftScheduleScreen({ navigation }) {
   // QUẢN LÝ CA LÀM VIỆC
   // =====================
   const handleManagerDeleteShift = (regId, staffName) => {
-    if (!canScheduleShift) return;
-    Alert.alert(
-      'Xóa Ca Làm Việc',
-      `Bạn có chắc muốn xóa ca của ${staffName} không?`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await supabase.from('shift_registrations').delete().eq('id', regId);
-              setShiftRegistrations(shiftRegistrations.filter(r => r.id !== regId));
-              Alert.alert('Thành công', 'Đã xóa ca!');
-            } catch (e) {
-              Alert.alert('Lỗi xóa ca', e.message);
-            }
-          }
-        }
-      ]
-    );
+    if (!canScheduleShift) {
+      Alert.alert('Không có quyền', 'Bạn không có quyền xóa ca làm việc.');
+      return;
+    }
+    setDeleteConfirmTarget({ regId, staffName });
+  };
+
+  const confirmDeleteShift = async () => {
+    if (!deleteConfirmTarget) return;
+    const { regId, staffName } = deleteConfirmTarget;
+    try {
+      const { error } = await supabase
+        .from('shift_registrations')
+        .delete()
+        .eq('id', regId);
+      if (error) {
+        Alert.alert('Lỗi xóa ca', error.message || 'Không xóa được, thử lại!');
+        return;
+      }
+      setShiftRegistrations(prev => prev.filter(r => r.id !== regId));
+      Alert.alert('Thành công', `Đã xóa ca của ${staffName}!`);
+    } catch (e) {
+      Alert.alert('Lỗi', e.message);
+    } finally {
+      setDeleteConfirmTarget(null);
+    }
   };
 
   const handleApproveShift = async (regId, staffId) => {
@@ -477,6 +484,7 @@ export default function ShiftScheduleScreen({ navigation }) {
   const renderPersonalSchedule = () => (
     <View style={{flex: 1}}>
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{paddingBottom: 100}}
@@ -494,7 +502,8 @@ export default function ShiftScheduleScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView
+        keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.timetableContainer}>
             {/* Header Row: Ngày */}
             <View style={styles.timeTableRow}>
@@ -593,6 +602,7 @@ export default function ShiftScheduleScreen({ navigation }) {
   const renderStaffRegister = () => (
     <View style={{flex: 1}}>
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{paddingBottom: 100}}
@@ -776,7 +786,8 @@ export default function ShiftScheduleScreen({ navigation }) {
               <Text style={[styles.storeHeaderText, { color: storeColor }]}>{sName}</Text>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+            <ScrollView
+        keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
               {weekDates.map(date => {
                 const isPastDate = new Date(date).setHours(0,0,0,0) < new Date().setHours(0,0,0,0);
                 const morningRegs = shiftRegistrations.filter(r => r.date === date && r.shift_type === 'MORNING' && r.store_id === storeId);
@@ -822,13 +833,13 @@ export default function ShiftScheduleScreen({ navigation }) {
                         {approved.map(r => {
                           const s = getStaffDetails(r.user_id);
                           return (
-                            <View key={r.id} style={[styles.staffBadgeRow, {backgroundColor: s.bgColor, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6}]}>
+                            <View key={r.id} style={[styles.staffBadgeRow, {backgroundColor: s.bgColor, paddingHorizontal: 5, paddingVertical: 5, borderRadius: 6, marginBottom: 4}]}>
                               <View style={{flexDirection: 'row', alignItems: 'center', flex: 1}}>
                                 {s.avatar_url ? (
-                                  <Image source={{uri: s.avatar_url}} style={{width: 20, height: 20, borderRadius: 10, marginRight: 6}} />
+                                  <Image source={{uri: s.avatar_url}} style={{width: 18, height: 18, borderRadius: 9, marginRight: 5}} />
                                 ) : (
-                                  <View style={{width: 20, height: 20, borderRadius: 10, marginRight: 6, backgroundColor: s.textColor, justifyContent: 'center', alignItems: 'center'}}>
-                                    <Text style={{color: s.bgColor, fontSize: 9, fontWeight: 'bold'}}>{s.label}</Text>
+                                  <View style={{width: 18, height: 18, borderRadius: 9, marginRight: 5, backgroundColor: s.textColor, justifyContent: 'center', alignItems: 'center'}}>
+                                    <Text style={{color: s.bgColor, fontSize: 8, fontWeight: 'bold'}}>{s.label}</Text>
                                   </View>
                                 )}
                                 <Text style={[styles.staffBadgeText, {color: s.textColor}]} numberOfLines={1}>
@@ -836,8 +847,12 @@ export default function ShiftScheduleScreen({ navigation }) {
                                 </Text>
                               </View>
                               {canScheduleShift && !isPastDate && (
-                                <TouchableOpacity style={styles.iconActionBtn} onPress={() => handleManagerDeleteShift(r.id, s.name)}>
-                                  <Ionicons name="close" size={16} color={s.textColor} />
+                                <TouchableOpacity
+                                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                                  style={styles.iconActionBtn}
+                                  onPress={() => handleManagerDeleteShift(r.id, s.name)}
+                                >
+                                  <Ionicons name="close-circle" size={18} color={s.textColor} />
                                 </TouchableOpacity>
                               )}
                             </View>
@@ -847,13 +862,13 @@ export default function ShiftScheduleScreen({ navigation }) {
                         {pending.map(r => {
                           const s = getStaffDetails(r.user_id);
                           return (
-                            <View key={r.id} style={[styles.staffBadgeRow, {backgroundColor: '#fffbeb', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#fde047'}]}>
+                            <View key={r.id} style={[styles.staffBadgeRow, {backgroundColor: '#fffbeb', paddingHorizontal: 5, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: '#fde047', marginBottom: 4}]}>
                               <View style={{flexDirection: 'row', alignItems: 'center', flex: 1}}>
                                 {s.avatar_url ? (
-                                  <Image source={{uri: s.avatar_url}} style={{width: 20, height: 20, borderRadius: 10, marginRight: 6, opacity: 0.7}} />
+                                  <Image source={{uri: s.avatar_url}} style={{width: 18, height: 18, borderRadius: 9, marginRight: 5, opacity: 0.7}} />
                                 ) : (
-                                  <View style={{width: 20, height: 20, borderRadius: 10, marginRight: 6, backgroundColor: '#fcd34d', justifyContent: 'center', alignItems: 'center'}}>
-                                    <Text style={{color: '#b45309', fontSize: 9, fontWeight: 'bold'}}>{s.label}</Text>
+                                  <View style={{width: 18, height: 18, borderRadius: 9, marginRight: 5, backgroundColor: '#fcd34d', justifyContent: 'center', alignItems: 'center'}}>
+                                    <Text style={{color: '#b45309', fontSize: 8, fontWeight: 'bold'}}>{s.label}</Text>
                                   </View>
                                 )}
                                 <Text style={[styles.staffBadgeText, {color: '#b45309'}]} numberOfLines={1}>
@@ -862,10 +877,10 @@ export default function ShiftScheduleScreen({ navigation }) {
                               </View>
                               {canScheduleShift && !isPastDate && (
                                 <View style={{flexDirection: 'row', gap: 6}}>
-                                  <TouchableOpacity onPress={() => handleApproveShift(r.id, r.user_id)}>
+                                  <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} onPress={() => handleApproveShift(r.id, r.user_id)}>
                                     <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
                                   </TouchableOpacity>
-                                  <TouchableOpacity onPress={() => handleRejectShift(r.id, r.user_id)}>
+                                  <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} onPress={() => handleRejectShift(r.id, r.user_id)}>
                                     <Ionicons name="close-circle" size={20} color="#ef4444" />
                                   </TouchableOpacity>
                                 </View>
@@ -956,7 +971,7 @@ export default function ShiftScheduleScreen({ navigation }) {
             <Text style={styles.modalSubtitle}>
               {assignTarget ? `${assignTarget.shiftType === 'MORNING' ? 'Ca Sáng' : 'Ca Chiều'} - ${getDayName(assignTarget.date)}` : ''}
             </Text>
-            <ScrollView style={{maxHeight: 300, marginTop: 10}}>
+            <ScrollView keyboardShouldPersistTaps="handled" style={{maxHeight: 300, marginTop: 10}}>
               {staffList.filter(staff => {
                 if (!assignTarget) return false;
                 if (staff.is_active === false) return false; // Không xếp nhân viên đã nghỉ
@@ -994,6 +1009,31 @@ export default function ShiftScheduleScreen({ navigation }) {
         </View>
       </Modal>
 
+      {/* Modal Xác Nhận Xóa Ca */}
+      <Modal visible={!!deleteConfirmTarget} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Xóa Ca Làm Việc</Text>
+              <TouchableOpacity onPress={() => setDeleteConfirmTarget(null)}>
+                <Ionicons name="close" size={24} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.modalSubtitle, { marginBottom: 20 }]}>
+              Bạn có chắc muốn xóa ca của {deleteConfirmTarget?.staffName} không?
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+              <TouchableOpacity style={[styles.btn, { backgroundColor: '#f3f4f6', paddingHorizontal: 20 }]} onPress={() => setDeleteConfirmTarget(null)}>
+                <Text style={{ color: '#4b5563', fontWeight: 'bold' }}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.btn, { backgroundColor: '#ef4444', paddingHorizontal: 20 }]} onPress={confirmDeleteShift}>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Xóa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modal Chọn Nhân Viên Để Đổi Ca */}
       <Modal visible={showSwapModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -1007,7 +1047,7 @@ export default function ShiftScheduleScreen({ navigation }) {
             <Text style={styles.modalSubtitle}>
               Chọn đồng nghiệp bạn muốn nhờ làm thay:
             </Text>
-            <ScrollView style={{maxHeight: 300, marginTop: 10}}>
+            <ScrollView keyboardShouldPersistTaps="handled" style={{maxHeight: 300, marginTop: 10}}>
               {staffList.filter(staff => {
                 if (staff.id === currentUser.id) return false;
                 if (!swapShiftReg) return false;
@@ -1102,19 +1142,19 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   storeHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, padding: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   storeHeaderText: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
   horizontalScroll: { padding: 10, paddingRight: 20 },
-  dayColumn: { width: 160, marginRight: 15, backgroundColor: COLORS.card, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
-  dayColHeader: { backgroundColor: '#1976d2', color: '#fff', textAlign: 'center', paddingVertical: 8, fontWeight: 'bold', fontSize: 13 },
+  dayColumn: { width: 160, marginRight: 10, backgroundColor: COLORS.card, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
+  dayColHeader: { backgroundColor: '#1976d2', color: '#fff', textAlign: 'center', paddingVertical: 6, fontWeight: 'bold', fontSize: 12 },
   dayColBody: { padding: 5 },
-  shiftBox: { marginBottom: 10, borderRadius: 6, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
+  shiftBox: { marginBottom: 8, borderRadius: 6, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
   shiftBoxHeader: { paddingVertical: 4, paddingHorizontal: 6, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  shiftBoxTitle: { fontWeight: 'bold', fontSize: 11, textAlign: 'center' },
-  shiftBoxContent: { padding: 5, backgroundColor: COLORS.inputBg, minHeight: 60 },
-  emptyStaff: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', textAlign: 'center', marginVertical: 10 },
-  staffBadgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  shiftBoxTitle: { fontWeight: 'bold', fontSize: 10, textAlign: 'center' },
+  shiftBoxContent: { padding: 5, backgroundColor: COLORS.inputBg, minHeight: 50 },
+  emptyStaff: { fontSize: 11, color: COLORS.textMuted, fontStyle: 'italic', textAlign: 'center', marginVertical: 8 },
+  staffBadgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 0 },
   staffBadgeText: { fontSize: 11, color: COLORS.text, flex: 1, fontWeight: '600' },
-  addBtnSmall: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', paddingVertical: 4, borderRadius: 4, marginTop: 5, borderWidth: 1, borderColor: isDarkMode ? '#1d4ed8' : '#bbdefb' },
+  addBtnSmall: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', paddingVertical: 5, borderRadius: 4, marginTop: 4, borderWidth: 1, borderColor: isDarkMode ? '#1d4ed8' : '#bbdefb' },
   addBtnTextSmall: { color: isDarkMode ? '#93c5fd' : '#1976d2', fontWeight: 'bold', fontSize: 11, marginLeft: 2 },
-  iconActionBtn: { padding: 2 },
+  iconActionBtn: { padding: 5, marginLeft: 2 },
 
   // Modal styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },

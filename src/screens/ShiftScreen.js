@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Modal, Image, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, Modal, Image, ActivityIndicator, Linking, RefreshControl } from 'react-native';
 import { Alert } from '../utils/alert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,7 +12,7 @@ import { getLocalDateKey } from '../utils/dateTime';
 import DateRangePickerModal from '../components/DateRangePickerModal';
 
 export default function ShiftScreen({ navigation }) {
-  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, inventoryLogs, setInventoryLogs, attendanceHistory, payrollAdjustments, setPayrollAdjustments, COLORS, isDarkMode } = useContext(AppContext);
+  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, inventoryLogs, setInventoryLogs, attendanceHistory, payrollAdjustments, setPayrollAdjustments, COLORS, isDarkMode, isDataLoading, refreshData } = useContext(AppContext);
   const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
 
   const formatMoneyInput = (val) => {
@@ -1198,7 +1198,12 @@ export default function ShiftScreen({ navigation }) {
           </ScrollView>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }} style={{ flex: 1, paddingHorizontal: 20 }}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={{ paddingBottom: 80 }} 
+          style={{ flex: 1, paddingHorizontal: 20 }}
+          refreshControl={<RefreshControl refreshing={isDataLoading || false} onRefresh={refreshData} />}
+        >
           {activeTab === 'PENDING' && renderHistoryTab(pendingShifts)}
           {activeTab === 'HISTORY' && renderHistoryTab(historyShifts)}
 

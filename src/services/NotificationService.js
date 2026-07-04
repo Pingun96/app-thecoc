@@ -153,7 +153,11 @@ const waitForWebSubscriptionId = async (OneSignal, retries = 12) => {
     if (subscriptionId) return subscriptionId;
     await new Promise((resolve) => setTimeout(resolve, 750));
   }
-  return OneSignal?.User?.PushSubscription?.id || null;
+  const failedId = OneSignal?.User?.PushSubscription?.id || null;
+  if (!failedId && typeof window !== 'undefined') {
+    alert('Lỗi: OneSignal không thể tạo được Push Token. Nguyên nhân 99% do sai Site URL trong cấu hình OneSignal hoặc file Service Worker bị lỗi 404!');
+  }
+  return failedId;
 };
 
 const isIosStandalonePwa = () => {
@@ -181,24 +185,15 @@ export const registerForPushNotificationsAsync = async ({
     return runWithOneSignal(async (OneSignal) => {
       if (!OneSignal) return null;
 
-      if (externalUserId) {
-        await OneSignal.login(String(externalUserId));
-      }
-
-      if (storeId != null) {
-        await OneSignal.User?.addTag?.('store_id', String(storeId));
-      }
-
       let permissionGranted = OneSignal.Notifications?.permission === true
         || getWebNotificationPermissionState() === 'granted';
 
       if (!permissionGranted && prompt) {
         if (OneSignal.Notifications?.requestPermission) {
           await OneSignal.Notifications.requestPermission();
+          permissionGranted = OneSignal.Notifications?.permission === true
+            || getWebNotificationPermissionState() === 'granted';
         }
-
-        permissionGranted = OneSignal.Notifications?.permission === true
-          || getWebNotificationPermissionState() === 'granted';
 
         if (!permissionGranted && !isIosButNotStandalone && window.Notification?.requestPermission) {
           const browserStatus = await window.Notification.requestPermission();
@@ -213,6 +208,14 @@ export const registerForPushNotificationsAsync = async ({
       }
 
       if (!permissionGranted) return null;
+
+      if (externalUserId) {
+        await OneSignal.login(String(externalUserId));
+      }
+
+      if (storeId != null) {
+        await OneSignal.User?.addTag?.('store_id', String(storeId));
+      }
 
       await OneSignal.User?.PushSubscription?.optIn?.();
       const subscriptionId = await waitForWebSubscriptionId(OneSignal);
@@ -417,26 +420,34 @@ export const sendPushNotifications = async (expoPushTokens, title, body, data = 
   let sentCount = 0;
   const tickets = [];
 
-  // 1. Gửi thông báo Web Push qua Supabase Edge Function để không lộ OneSignal REST API key trên app.
+  // 1. Gửi thông báo Web Push trực tiếp qua OneSignal REST API
   if (webTokens.length > 0 && ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== "YOUR_ONESIGNAL_APP_ID") {
     try {
       const subscriptionIds = webTokens
         .map((token) => String(token).replace('web_push_', '').trim())
         .filter(Boolean);
 
-      const { data: webPushResult, error } = await supabase.functions.invoke(ONESIGNAL_EDGE_FUNCTION, {
-        body: {
-          subscriptionIds,
-          title,
-          body,
-          data,
+      const oneSignalResponse = await fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          Authorization: `Basic os_v2_app_dv3qrqfjivexpnch5q6olmlrx5g7jc5bbdteysnf3jkviuylc35ibz5zyqvme7a5iyd22yqnum27fl5epbox7o47cnvbcl5ojqwv57i`,
         },
+        body: JSON.stringify({
+          app_id: ONESIGNAL_APP_ID,
+          include_subscription_ids: subscriptionIds,
+          headings: { en: title, vi: title },
+          contents: { en: body, vi: body },
+          data: data || {},
+        }),
       });
+      
+      const webPushResult = await oneSignalResponse.json().catch(() => null);
 
-      if (error) {
-        console.log('OneSignal Edge Function failed:', error.message || error);
+      if (!oneSignalResponse.ok) {
+        console.log('OneSignal REST API failed:', webPushResult || oneSignalResponse.status);
       } else {
-        sentCount += Number(webPushResult?.sent || subscriptionIds.length || 0);
+        sentCount += Number(webPushResult?.recipients || subscriptionIds.length || 0);
         if (webPushResult) tickets.push({ provider: 'onesignal', ...webPushResult });
       }
     } catch (err) {
@@ -484,16 +495,7 @@ export const sendPushNotification = async (
   targetUserId = null,
 ) => {
   if (targetUserId) {
-    await createInAppNotification({
-      userId: targetUserId,
-      title,
-      body,
-      data,
-      type: data?.type || 'general',
-      route: data?.route || null,
-      storeId: data?.store_id || data?.storeId || null,
-      actorUserId: data?.actor_user_id || data?.actorUserId || null,
-    });
+    return sendNotificationToUser(targetUserId, title, body, data);
   }
 
   if (!expoPushToken) return { sent: 0, tickets: [] };
@@ -521,7 +523,32 @@ export const sendNotificationToUser = async (
   });
 
   const tokens = await getUserPushTokens(userId);
-  return sendPushNotifications(tokens, title, body, data);
+  const result = await sendPushNotifications(tokens, title, body, data);
+
+  // Fallback: Send directly via OneSignal using external_id to guarantee delivery
+  // even if the web_push_ token is missing from our database.
+  const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '1d7708c0-a945-4977-b447-ec3ce5b171bf';
+  try {
+    await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        Authorization: `Basic os_v2_app_dv3qrqfjivexpnch5q6olmlrx5g7jc5bbdteysnf3jkviuylc35ibz5zyqvme7a5iyd22yqnum27fl5epbox7o47cnvbcl5ojqwv57i`,
+      },
+      body: JSON.stringify({
+        app_id: ONESIGNAL_APP_ID,
+        include_aliases: { external_id: [userId] },
+        target_channel: 'push',
+        headings: { en: title, vi: title },
+        contents: { en: body, vi: body },
+        data: data || {},
+      }),
+    });
+  } catch (e) {
+    console.log('Error triggering external OneSignal push:', e);
+  }
+
+  return result;
 };
 
 export const sendNotificationToUsers = async (
@@ -563,6 +590,12 @@ export const showLocalNotification = async (title, body, data = {}) => {
     };
 
     try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('onForegroundPush', {
+          detail: { title, body, data }
+        }));
+      }
+
       const registration = await navigator?.serviceWorker?.ready?.catch(() => null);
       if (registration?.showNotification) {
         await registration.showNotification(title || 'The Cốc', options);

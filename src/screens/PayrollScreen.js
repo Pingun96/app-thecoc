@@ -4,6 +4,7 @@ import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 import { sendPushNotification } from '../services/NotificationService';
+import { exportToExcel } from '../utils/exportExcel';
 
 export default function PayrollScreen({ navigation }) {
   const { currentUser, attendanceHistory, staffList, payrollAdjustments, setPayrollAdjustments, payrollApprovals, setPayrollApprovals, refreshData, isDataLoading, COLORS, isDarkMode } = useContext(AppContext);
@@ -293,6 +294,27 @@ export default function PayrollScreen({ navigation }) {
         )}
       </View>
     );
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const exportData = payrollData.map(item => ({
+        'Tên Nhân Viên': item.name,
+        'Số Ca Làm': item.records.length,
+        'Tổng Giờ': item.totalHours.toFixed(1),
+        'Lương Cơ Bản': item.wage,
+        'Lương Theo Giờ': item.baseSalary,
+        'Thưởng Số Ca': item.shiftBonus,
+        'Điều Chỉnh': item.otherBonus - item.penalty,
+        'Tổng Lương Nhận': item.totalSalary
+      }));
+      
+      const fileName = `Bang_Luong_Thang_${selectedMonth.month}_${selectedMonth.year}`;
+      await exportToExcel(exportData, fileName, 'Bảng Lương');
+      Alert.alert('Thành công', 'Đã xuất file Excel bảng lương!');
+    } catch (e) {
+      Alert.alert('Lỗi', 'Không thể xuất báo cáo: ' + e.message);
+    }
   };
 
   return (

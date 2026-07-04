@@ -17,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import { getDailyRevenue } from '../services/financeService';
+import { exportToExcel } from '../utils/exportExcel';
 import DateRangePickerModal from '../components/DateRangePickerModal';
 
 const screenWidth = Dimensions.get('window').width;
@@ -452,6 +453,27 @@ export default function FinanceScreen({ navigation }) {
     ? `${formatDate(customRange.start) || '...'} → ${formatDate(customRange.end) || '...'}`
     : null;
 
+  const handleExportFinance = async () => {
+    try {
+      const exportData = revenues.map(item => {
+        const store = storeList.find(s => String(s.id) === String(item.store_id));
+        return {
+          'Ngày': item.date,
+          'Chi Nhánh': store?.name || `Quán ${item.store_id}`,
+          'Doanh Thu Cửa Hàng': item.store_revenue,
+          'Doanh Thu App (Ocha/Gofood/...)': item.app_revenue,
+          'Tổng Doanh Thu': item.total_revenue
+        };
+      });
+      
+      const fileName = `Bao_Cao_Tai_Chinh_${periodLabel ? periodLabel.replace(/\s+/g, '_') : 'Hom_Nay'}`;
+      await exportToExcel(exportData, fileName, 'Tài Chính');
+      Alert.alert('Thành công', 'Đã xuất file Excel Tài chính!');
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể xuất báo cáo: ' + error.message);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
@@ -462,6 +484,9 @@ export default function FinanceScreen({ navigation }) {
           <Text style={styles.header}>Tài chính & Doanh thu</Text>
           <Text style={styles.headerCaption}>{storeName}</Text>
         </View>
+        <TouchableOpacity onPress={handleExportFinance} style={{ padding: 5 }}>
+          <Ionicons name="download-outline" size={24} color={COLORS.primary} />
+        </TouchableOpacity>
       </View>
 
       {/* Branch Selector */}

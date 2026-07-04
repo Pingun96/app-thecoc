@@ -8,6 +8,7 @@ import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocalDateKey, isDateInCurrentMonth } from '../utils/dateTime';
 import { supabase } from '../services/supabaseClient';
+import SkeletonLoader from '../components/SkeletonLoader';
 
 const { width } = Dimensions.get('window');
 const APP_GRID_COLUMNS = 4;
@@ -26,6 +27,7 @@ export default function DashboardScreen({ navigation }) {
     setSelectedStoreId,
     dataError,
     refreshData,
+    isDataLoading,
     COLORS,
     isDarkMode,
     themeMode,
@@ -364,29 +366,38 @@ export default function DashboardScreen({ navigation }) {
         {/* QUICK STATS */}
         <Text style={styles.sectionTitle}>Tổng quan {currentUser?.role === 'STAFF' ? 'cá nhân' : 'hôm nay'}</Text>
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <View style={[styles.iconBox, { backgroundColor: '#e3f2fd' }]}>
-              <Ionicons name={currentUser?.role === 'STAFF' ? "time" : "people"} size={24} color="#1976d2" />
-            </View>
-            <Text style={styles.statValue}>
-              {currentUser?.role === 'STAFF' ? totalMyHours.toFixed(1) + 'h' : activeStaffCount}
-            </Text>
-            <Text style={styles.statLabel}>
-              {currentUser?.role === 'STAFF' ? 'Tổng giờ làm' : 'Nhân sự'}
-            </Text>
-          </View>
+          {isDataLoading && staffList.length === 0 ? (
+            <>
+              <SkeletonLoader width={(width - 55) / 2} height={125} borderRadius={16} isDarkMode={isDarkMode} />
+              <SkeletonLoader width={(width - 55) / 2} height={125} borderRadius={16} isDarkMode={isDarkMode} />
+            </>
+          ) : (
+            <>
+              <View style={styles.statCard}>
+                <View style={[styles.iconBox, { backgroundColor: '#e3f2fd' }]}>
+                  <Ionicons name={currentUser?.role === 'STAFF' ? "time" : "people"} size={24} color="#1976d2" />
+                </View>
+                <Text style={styles.statValue}>
+                  {currentUser?.role === 'STAFF' ? totalMyHours.toFixed(1) + 'h' : activeStaffCount}
+                </Text>
+                <Text style={styles.statLabel}>
+                  {currentUser?.role === 'STAFF' ? 'Tổng giờ làm' : 'Nhân sự'}
+                </Text>
+              </View>
 
-          <View style={styles.statCard}>
-            <View style={[styles.iconBox, { backgroundColor: '#fff3e0' }]}>
-              <MaterialCommunityIcons name="currency-usd" size={24} color="#ff9800" />
-            </View>
-            <Text style={styles.statValue}>
-              {currentUser?.role === 'STAFF' ? totalMyWage.toLocaleString() : todaysEstimatedCost.toLocaleString()}đ
-            </Text>
-            <Text style={styles.statLabel}>
-              {currentUser?.role === 'STAFF' ? 'Lương tạm tính' : 'Chi phí lương'}
-            </Text>
-          </View>
+              <View style={styles.statCard}>
+                <View style={[styles.iconBox, { backgroundColor: '#fff3e0' }]}>
+                  <MaterialCommunityIcons name="currency-usd" size={24} color="#ff9800" />
+                </View>
+                <Text style={styles.statValue}>
+                  {currentUser?.role === 'STAFF' ? totalMyWage.toLocaleString() : todaysEstimatedCost.toLocaleString()}đ
+                </Text>
+                <Text style={styles.statLabel}>
+                  {currentUser?.role === 'STAFF' ? 'Lương tạm tính' : 'Chi phí lương'}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* 2x2 GRID MENU */}

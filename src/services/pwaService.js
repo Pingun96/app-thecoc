@@ -51,12 +51,7 @@ const upsertStyle = () => {
 export const setupPwaExperience = () => {
   if (Platform.OS !== 'web' || typeof window === 'undefined' || typeof document === 'undefined') return;
 
-  const getBasePath = () => {
-    const segments = window.location.pathname.split('/').filter(Boolean);
-    if (!segments.length) return '';
-    return `/${segments[0]}`;
-  };
-  const basePath = getBasePath();
+  const basePath = '';
   const assetPath = (path) => `${basePath}${path}`;
 
   document.documentElement.lang = 'vi';
@@ -87,11 +82,9 @@ export const setupPwaExperience = () => {
   });
 
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker
-        .register(assetPath('/pwa-service-worker.js'), { scope: `${basePath || ''}/` })
-        .catch((error) => console.log('Cannot register PWA service worker:', error?.message || error));
-    });
+    navigator.serviceWorker
+      .register(assetPath('/pwa-service-worker.js'), { scope: `${basePath || ''}/` })
+      .catch((error) => console.log('Cannot register PWA service worker:', error?.message || error));
   }
 
   const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '1d7708c0-a945-4977-b447-ec3ce5b171bf';
@@ -111,6 +104,16 @@ export const setupPwaExperience = () => {
         notifyButton: { enable: false },
         welcomeNotification: { disable: true },
       });
+      
+      OneSignal.Notifications?.addEventListener('foregroundWillDisplay', (event) => {
+        const notif = event.notification;
+        if (notif) {
+          window.dispatchEvent(new CustomEvent('onForegroundPush', {
+            detail: { title: notif.title, body: notif.body, data: notif.additionalData }
+          }));
+        }
+      });
+      
       window.__THECOC_ONESIGNAL_READY__ = true;
     });
   };

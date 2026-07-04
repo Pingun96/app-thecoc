@@ -15,6 +15,7 @@ import {
 import { Alert } from '../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createInventoryItem,
   createInventoryTicket,
@@ -223,12 +224,50 @@ export default function InventoryScreen({ navigation }) {
       .sort((a, b) => getLogTime(b) - getLogTime(a) || String(b.date || '').localeCompare(String(a.date || '')));
   }, [inventoryLogs, storeIdToView, historyTypeFilter, historyItemFilter, historySearchText, getLogItem, getLogTime, staffList]);
 
-  const [activeTab, setActiveTab] = useState(isStaff ? 'ACTION' : 'OVERVIEW');
+  const [activeTab, setActiveTab] = useState('KHO');
   const [actionType, setActionType] = useState('EXPORT');
   const [cartItems, setCartItems] = useState([]);
   const [amount, setAmount] = useState('');
   const [selectedItemId, setSelectedItemId] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [offlineTickets, setOfflineTickets] = useState([]);
+  const [showActionModal, setShowActionModal] = useState(false);
+
+  React.useEffect(() => {
+    const loadOffline = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@offline_inventory_tickets');
+        if (stored) setOfflineTickets(JSON.parse(stored));
+      } catch(e) {}
+    };
+    loadOffline();
+  }, []);
+
+  const syncOfflineTickets = async () => {
+    if (offlineTickets.length === 0) return;
+    let successCount = 0;
+    try {
+      setBusyKey('sync-offline');
+      for (const ticket of offlineTickets) {
+        await createInventoryTicket(ticket);
+        if (isOwner) {
+          await approveInventoryTicket(ticket, currentUser.id, ticket.source_store_id || ticket.destination_store_id);
+        }
+        successCount++;
+      }
+      setOfflineTickets([]);
+      await AsyncStorage.removeItem('@offline_inventory_tickets');
+      await refreshData?.();
+      Alert.alert('Đồng bộ thành công', `Đã tải lên ${successCount} phiếu kiểm kho ngoại tuyến.`);
+    } catch (err) {
+      const remaining = offlineTickets.slice(successCount);
+      setOfflineTickets(remaining);
+      await AsyncStorage.setItem('@offline_inventory_tickets', JSON.stringify(remaining));
+      Alert.alert('Đồng bộ gián đoạn', 'Một số phiếu chưa thể gửi do lỗi mạng. Vui lòng thử lại sau.');
+    } finally {
+      setBusyKey('');
+    }
+  };
   const [busyKey, setBusyKey] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isItemDropdownOpen, setIsItemDropdownOpen] = useState(false);
@@ -500,15 +539,26 @@ export default function InventoryScreen({ navigation }) {
       status: initialStatus,
       requested_by: currentUser?.id,
       requested_by_name: currentUser?.name || 'Nhân viên',
+      created_at: new Date().toISOString()
     };
 
-    await createInventoryTicket(ticket);
-    
-    if (isOwner) {
-       await approveInventoryTicket(ticket, currentUser.id, storeIdToView);
-       Alert.alert('Thành công', 'Phiếu đã được tạo và tự động duyệt vì bạn là Chủ Cửa Hàng.');
-    } else {
-       Alert.alert('Đã gửi phiếu', 'Yêu cầu đã được gửi đến quản lý để phê duyệt.');
+    try {
+      await createInventoryTicket(ticket);
+      if (isOwner) {
+         await approveInventoryTicket(ticket, currentUser.id, storeIdToView);
+         Alert.alert('Thành công', 'Phiếu đã được tạo và tự động duyệt vì bạn là Chủ Cửa Hàng.');
+      } else {
+         Alert.alert('Đã gửi phiếu', 'Yêu cầu đã được gửi đến quản lý để phê duyệt.');
+      }
+    } catch (e) {
+      if (e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('fetch')) {
+        const newOffline = [...offlineTickets, ticket];
+        setOfflineTickets(newOffline);
+        await AsyncStorage.setItem('@offline_inventory_tickets', JSON.stringify(newOffline));
+        Alert.alert('Lưu ngoại tuyến', 'Mất kết nối mạng. Phiếu đã được lưu tạm, vui lòng đồng bộ khi có mạng.');
+      } else {
+        throw e;
+      }
     }
     
     setCartItems([]);
@@ -654,14 +704,11 @@ export default function InventoryScreen({ navigation }) {
   };
 
   const tabs = isStaff
-    ? [{ key: 'ACTION', label: 'Thao tác' }, { key: 'HISTORY', label: 'Lịch sử' }]
+    ? [{ key: 'KHO', label: '📦 Kho' }, { key: 'DUYET_LS', label: '📋 Lịch sử' }]
     : [
-        { key: 'OVERVIEW', label: 'Tổng quan' },
-        { key: 'STATS', label: 'Thống kê' },
-        { key: 'ACTION', label: 'Thao tác' },
-        { key: 'APPROVALS', label: `Duyệt${pendingRequests.length ? ` (${pendingRequests.length})` : ''}` },
-        { key: 'HISTORY', label: 'Lịch sử' },
-        { key: 'ITEMS', label: 'Danh mục' },
+        { key: 'KHO', label: '📦 Kho' },
+        { key: 'DUYET_LS', label: `✅ Duyệt${pendingRequests.length ? ` (${pendingRequests.length})` : ''} & LS` },
+        { key: 'ITEMS', label: '🗂 Danh mục' },
       ];
 
   return (
@@ -708,621 +755,175 @@ export default function InventoryScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scrollContent}
         >
-          {activeTab === 'OVERVIEW' && !isStaff && (
+          {/* ===== TAB KHO: TỒN KHO + THAO TÁC ===== */}
+          {activeTab === 'KHO' && (
             <>
-              <View style={styles.summaryRow}>
-                <View style={styles.summaryCard}>
-                  <Text style={styles.summaryValue}>{stockData.length}</Text>
-                  <Text style={styles.summaryLabel}>Mặt hàng</Text>
+              {/* Tóm tắt nhanh */}
+              {!isStaff && (
+                <View style={styles.summaryRow}>
+                  <View style={[styles.summaryCard, lowStockCount > 0 && styles.summaryWarning]}>
+                    <Text style={[styles.summaryValue, lowStockCount > 0 && { color: '#b91c1c' }]}>{lowStockCount}</Text>
+                    <Text style={styles.summaryLabel}>⚠️ Sắp hết</Text>
+                  </View>
+                  <View style={styles.summaryCard}>
+                    <Text style={styles.summaryValue}>{stockData.length}</Text>
+                    <Text style={styles.summaryLabel}>Mặt hàng</Text>
+                  </View>
+                  <View style={styles.summaryCard}>
+                    <Text style={styles.summaryValue}>{pendingRequests.length}</Text>
+                    <Text style={styles.summaryLabel}>Chờ duyệt</Text>
+                  </View>
                 </View>
-                <View style={[styles.summaryCard, lowStockCount > 0 && styles.summaryWarning]}>
-                  <Text style={[styles.summaryValue, lowStockCount > 0 && { color: '#b91c1c' }]}>
-                    {lowStockCount}
-                  </Text>
-                  <Text style={styles.summaryLabel}>Sắp hết hàng</Text>
-                </View>
-                <View style={styles.summaryCard}>
-                  <Text style={styles.summaryValue}>{pendingRequests.length}</Text>
-                  <Text style={styles.summaryLabel}>Chờ duyệt</Text>
-                </View>
-              </View>
+              )}
 
+              {/* Tồn kho */}
+              {!isStaff && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Tồn kho</Text>
+                  {offlineTickets.length > 0 && (
+                    <TouchableOpacity onPress={syncOfflineTickets} style={[styles.addButton, { marginBottom: 12, backgroundColor: '#ea580c' }]}>
+                      <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
+                      <Text style={styles.addButtonText}>Đồng bộ {offlineTickets.length} phiếu offline</Text>
+                    </TouchableOpacity>
+                  )}
+                  <View style={styles.searchBox}>
+                    <Ionicons name="search" size={17} color="#94a3b8" />
+                    <TextInput
+                      value={searchText}
+                      onChangeText={setSearchText}
+                      placeholder="Tìm nguyên liệu..."
+                      placeholderTextColor="#94a3b8"
+                      style={styles.searchInput}
+                    />
+                  </View>
+                  {filteredStock.length === 0 ? (
+                    <Text style={styles.emptyText}>Chưa có nguyên liệu phù hợp.</Text>
+                  ) : filteredStock.map((item) => (
+                    <View key={item.id} style={styles.stockRow}>
+                      <View style={[styles.stockIcon, item.isLowStock && styles.stockIconLow]}>
+                        <Ionicons
+                          name={item.isLowStock ? 'warning-outline' : 'checkmark-circle-outline'}
+                          size={20}
+                          color={item.isLowStock ? '#dc2626' : '#16a34a'}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.stockName}>{item.name}</Text>
+                        <Text style={styles.stockSafe}>An toàn ≥ {formatQuantity(item.safeLevel)} {item.unit}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[styles.stockValue, item.isLowStock && { color: '#dc2626' }]}>
+                          {formatQuantity(item.currentStock)}
+                        </Text>
+                        <Text style={styles.stockUnit}>{item.unit}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* FAB - Tạo phiếu kho */}
+              <TouchableOpacity
+                style={styles.fab}
+                onPress={() => { setShowActionModal(true); setCartItems([]); setAmount(''); setSelectedItemId(''); }}
+              >
+                <Ionicons name="add" size={22} color="#fff" />
+                <Text style={styles.fabText}>Tạo phiếu</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* ===== TAB DUYỆT & LỊCH SỬ ===== */}
+          {activeTab === 'DUYET_LS' && (
+            <>
+              {/* Phiếu chờ duyệt */}
+              {!isStaff && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Phiếu chờ duyệt{pendingRequests.length > 0 ? ` (${pendingRequests.length})` : ''}</Text>
+                  {pendingRequests.length === 0
+                    ? (
+                      <View style={styles.emptyState}>
+                        <Ionicons name="checkmark-done-circle-outline" size={36} color="#16a34a" />
+                        <Text style={styles.emptyTitle}>Không có phiếu tồn đọng</Text>
+                      </View>
+                    )
+                    : pendingRequests.map((request) => renderRequestCard(request, true))}
+                </View>
+              )}
+
+              {/* Lịch sử giao dịch */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sectionTitle}>Đối chiếu nguyên liệu</Text>
-                    <Text style={styles.compareSubtitle}>
-                      So sánh tồn hệ thống trước kiểm với số thực kiểm gần nhất từ báo cáo ca.
-                    </Text>
-                  </View>
-                  <Ionicons name="analytics-outline" size={22} color="#7c3aed" />
+                  <Text style={styles.sectionTitle}>Lịch sử Nhập/Xuất</Text>
+                  <Text style={styles.historyCount}>{filteredHistoryLogs.length} giao dịch</Text>
                 </View>
 
-                <View style={styles.compareSummaryGrid}>
-                  <View style={styles.compareSummaryCard}>
-                    <Text style={styles.compareSummaryValue}>{comparisonSummary.checked}</Text>
-                    <Text style={styles.compareSummaryLabel}>Đã kiểm</Text>
-                  </View>
-                  <View style={[styles.compareSummaryCard, comparisonSummary.diff > 0 && styles.compareSummaryWarn]}>
-                    <Text style={[styles.compareSummaryValue, comparisonSummary.diff > 0 && { color: '#b91c1c' }]}>
-                      {comparisonSummary.diff}
-                    </Text>
-                    <Text style={styles.compareSummaryLabel}>Có lệch</Text>
-                  </View>
-                  <View style={styles.compareSummaryCard}>
-                    <Text style={[styles.compareSummaryValue, { color: '#dc2626' }]}>{comparisonSummary.shortage}</Text>
-                    <Text style={styles.compareSummaryLabel}>Thiếu</Text>
-                  </View>
-                  <View style={styles.compareSummaryCard}>
-                    <Text style={[styles.compareSummaryValue, { color: '#16a34a' }]}>{comparisonSummary.surplus}</Text>
-                    <Text style={styles.compareSummaryLabel}>Thừa</Text>
-                  </View>
-                </View>
-
-                <View style={styles.compareTotalBox}>
-                  <Ionicons name="scale-outline" size={18} color="#7c3aed" />
-                  <Text style={styles.compareTotalText}>
-                    Tổng lượng lệch tuyệt đối: <Text style={styles.compareTotalStrong}>{formatQuantity(comparisonSummary.totalAbs)}</Text>
-                  </Text>
+                <View style={styles.searchBox}>
+                  <Ionicons name="search" size={17} color="#94a3b8" />
+                  <TextInput
+                    value={historySearchText}
+                    onChangeText={setHistorySearchText}
+                    placeholder="Tìm theo món, người tạo..."
+                    placeholderTextColor="#94a3b8"
+                    style={styles.searchInput}
+                  />
                 </View>
 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
                   {[
                     { key: 'ALL', label: 'Tất cả' },
-                    { key: 'DIFF', label: 'Chỉ món lệch' },
-                    { key: 'SHORT', label: 'Thiếu' },
-                    { key: 'SURPLUS', label: 'Thừa' },
+                    { key: 'IMPORT', label: 'Nhập' },
+                    { key: 'EXPORT', label: 'Xuất' },
+                    { key: 'ADJUST_UP', label: '+' },
+                    { key: 'ADJUST_DOWN', label: '-' },
                   ].map((filter) => (
                     <TouchableOpacity
                       key={filter.key}
-                      style={[styles.filterChip, varianceFilter === filter.key && styles.filterChipActive]}
-                      onPress={() => setVarianceFilter(filter.key)}
+                      style={[styles.filterChip, historyTypeFilter === filter.key && styles.filterChipActive]}
+                      onPress={() => setHistoryTypeFilter(filter.key)}
                     >
-                      <Text style={[styles.filterChipText, varianceFilter === filter.key && styles.filterChipTextActive]}>
+                      <Text style={[styles.filterChipText, historyTypeFilter === filter.key && styles.filterChipTextActive]}>
                         {filter.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
 
-                {filteredComparisonRows.length === 0 ? (
+                {filteredHistoryLogs.length === 0 ? (
                   <View style={styles.emptyState}>
-                    <Ionicons name="checkmark-done-circle-outline" size={40} color="#16a34a" />
-                    <Text style={styles.emptyTitle}>Không có chênh lệch phù hợp</Text>
-                    <Text style={styles.emptyText}>Các nguyên liệu lệch sẽ tự nổi lên sau khi nhân viên nộp kiểm kho.</Text>
+                    <Ionicons name="file-tray-outline" size={36} color={COLORS.textMuted} />
+                    <Text style={styles.emptyTitle}>Chưa có lịch sử</Text>
                   </View>
-                ) : filteredComparisonRows.map((item) => {
-                  const isShort = item.severity === 'SHORT';
-                  const isSurplus = item.severity === 'SURPLUS';
-                  const badgeColor = isShort ? '#dc2626' : isSurplus ? '#16a34a' : COLORS.textMuted;
-                  const badgeBg = isShort ? '#fee2e2' : isSurplus ? '#dcfce7' : COLORS.inputBg;
-                  const statusLabel = !item.hasCheck
-                    ? 'Chưa kiểm'
-                    : isShort
-                      ? 'Thiếu'
-                      : isSurplus
-                        ? 'Thừa'
-                        : 'Khớp';
-
-                  return (
-                    <View key={`compare-${item.id}`} style={styles.compareRow}>
-                      <View style={styles.compareRowHeader}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.stockName}>{item.name}</Text>
-                          <Text style={styles.compareMeta}>
-                            {item.hasCheck
-                              ? `Kiểm gần nhất: ${formatTimestamp(item.shiftLabel)} • ${item.reporterName}`
-                              : 'Chưa có kiểm kho từ báo cáo ca'}
-                          </Text>
-                        </View>
-                        <View style={[styles.compareBadge, { backgroundColor: badgeBg }]}>
-                          <Text style={[styles.compareBadgeText, { color: badgeColor }]}>{statusLabel}</Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.compareMetricGrid}>
-                        <View style={styles.compareMetric}>
-                          <Text style={styles.compareMetricLabel}>Hệ thống</Text>
-                          <Text style={styles.compareMetricValue}>{item.hasCheck ? formatQuantity(item.expectedStock) : '--'}</Text>
-                        </View>
-                        <View style={styles.compareMetric}>
-                          <Text style={styles.compareMetricLabel}>Thực kiểm</Text>
-                          <Text style={styles.compareMetricValue}>{item.hasCheck ? formatQuantity(item.countedStock) : '--'}</Text>
-                        </View>
-                        <View style={styles.compareMetric}>
-                          <Text style={styles.compareMetricLabel}>Lệch</Text>
-                          <Text style={[styles.compareMetricValue, { color: badgeColor }]}>
-                            {item.hasCheck ? `${item.variance > 0 ? '+' : ''}${formatQuantity(item.variance)}` : '--'}
-                          </Text>
-                        </View>
-                        <View style={styles.compareMetric}>
-                          <Text style={styles.compareMetricLabel}>Tồn nay</Text>
-                          <Text style={styles.compareMetricValue}>{formatQuantity(item.currentStock)}</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.compareUnitNote}>Đơn vị: {item.unit}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Tồn kho hiện tại</Text>
-                  <Ionicons name="cube-outline" size={21} color="#64748b" />
-                </View>
-                <View style={styles.searchBox}>
-                  <Ionicons name="search" size={19} color="#94a3b8" />
-                  <TextInput
-                    value={searchText}
-                    onChangeText={setSearchText}
-                    placeholder="Tìm nguyên liệu..."
-                    placeholderTextColor="#94a3b8"
-                    style={styles.searchInput}
-                  />
-                </View>
-
-                {filteredStock.length === 0 ? (
-                  <Text style={styles.emptyText}>Chưa có nguyên liệu phù hợp.</Text>
-                ) : filteredStock.map((item) => (
-                  <View key={item.id} style={styles.stockRow}>
-                    <View style={[styles.stockIcon, item.isLowStock && styles.stockIconLow]}>
-                      <Ionicons
-                        name={item.isLowStock ? 'warning-outline' : 'checkmark-circle-outline'}
-                        size={21}
-                        color={item.isLowStock ? '#dc2626' : '#16a34a'}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.stockName}>{item.name}</Text>
-                      <Text style={styles.stockSafe}>An toàn từ {formatQuantity(item.safeLevel)} {item.unit}</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[styles.stockValue, item.isLowStock && { color: '#dc2626' }]}>
-                        {formatQuantity(item.currentStock)}
-                      </Text>
-                      <Text style={styles.stockUnit}>{item.unit}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
-
-          {activeTab === 'STATS' && !isStaff && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>Thống kê sử dụng nguyên liệu</Text>
-                  <Text style={styles.compareSubtitle}>
-                    Tổng hợp theo tháng và so sánh mức sử dụng với tháng trước.
-                  </Text>
-                </View>
-                <Ionicons name="bar-chart-outline" size={22} color="#1565c0" />
-              </View>
-
-              <View style={styles.monthPicker}>
-                <TouchableOpacity
-                  style={styles.monthArrow}
-                  onPress={() => setUsageMonth(addMonthsToKey(usageMonth, -1))}
-                >
-                  <Ionicons name="chevron-back" size={20} color={COLORS.text} />
-                </TouchableOpacity>
-                <View style={styles.monthCenter}>
-                  <Text style={styles.monthLabel}>{getMonthLabel(usageMonth)}</Text>
-                  <Text style={styles.monthSubLabel}>So với {getMonthLabel(addMonthsToKey(usageMonth, -1))}</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.monthArrow}
-                  onPress={() => setUsageMonth(addMonthsToKey(usageMonth, 1))}
-                >
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.text} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.quickMonthRow}>
-                {[
-                  { key: getMonthKey(), label: 'Tháng này' },
-                  { key: addMonthsToKey(getMonthKey(), -1), label: 'Tháng trước' },
-                  { key: addMonthsToKey(getMonthKey(), -2), label: '2 tháng trước' },
-                ].map((option) => (
-                  <TouchableOpacity
-                    key={option.key}
-                    style={[styles.quickMonthChip, usageMonth === option.key && styles.quickMonthChipActive]}
-                    onPress={() => setUsageMonth(option.key)}
-                  >
-                    <Text style={[styles.quickMonthText, usageMonth === option.key && styles.quickMonthTextActive]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.compareSummaryGrid}>
-                <View style={styles.compareSummaryCard}>
-                  <Text style={styles.compareSummaryValue}>{usageSummary.usedItems}</Text>
-                  <Text style={styles.compareSummaryLabel}>Món có dùng</Text>
-                </View>
-                <View style={styles.compareSummaryCard}>
-                  <Text style={styles.compareSummaryValue}>{formatQuantity(usageSummary.totalUsed)}</Text>
-                  <Text style={styles.compareSummaryLabel}>Tổng đã dùng</Text>
-                </View>
-                <View style={[styles.compareSummaryCard, usageSummary.spikeItems > 0 && styles.compareSummaryWarn]}>
-                  <Text style={[styles.compareSummaryValue, usageSummary.spikeItems > 0 && { color: '#b91c1c' }]}>
-                    {usageSummary.spikeItems}
-                  </Text>
-                  <Text style={styles.compareSummaryLabel}>Tăng mạnh</Text>
-                </View>
-                <View style={[styles.compareSummaryCard, usageSummary.shortageItems > 0 && styles.compareSummaryWarn]}>
-                  <Text style={[styles.compareSummaryValue, usageSummary.shortageItems > 0 && { color: '#dc2626' }]}>
-                    {usageSummary.shortageItems}
-                  </Text>
-                  <Text style={styles.compareSummaryLabel}>Hao hụt/thiếu</Text>
-                </View>
-              </View>
-
-              <View style={styles.compareTotalBox}>
-                <Ionicons name="warning-outline" size={18} color="#7c3aed" />
-                <Text style={styles.compareTotalText}>
-                  Chưa kiểm kê: <Text style={styles.compareTotalStrong}>{usageSummary.noCountItems}</Text>
-                  {'  '}• Tổng lệch kiểm kho: <Text style={styles.compareTotalStrong}>{formatQuantity(usageSummary.totalVariance)}</Text>
-                </Text>
-              </View>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
-                {[
-                  { key: 'ALL', label: 'Tất cả' },
-                  { key: 'USED', label: 'Có sử dụng' },
-                  { key: 'SPIKE', label: 'Tăng mạnh' },
-                  { key: 'SHORTAGE', label: 'Hao hụt' },
-                  { key: 'NO_COUNT', label: 'Chưa kiểm kê' },
-                ].map((filter) => (
-                  <TouchableOpacity
-                    key={filter.key}
-                    style={[styles.filterChip, usageFilter === filter.key && styles.filterChipActive]}
-                    onPress={() => setUsageFilter(filter.key)}
-                  >
-                    <Text style={[styles.filterChipText, usageFilter === filter.key && styles.filterChipTextActive]}>
-                      {filter.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              {filteredMonthlyUsageRows.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Ionicons name="file-tray-outline" size={40} color={COLORS.textMuted} />
-                  <Text style={styles.emptyTitle}>Chưa có dữ liệu phù hợp</Text>
-                  <Text style={styles.emptyText}>Thử đổi tháng hoặc bộ lọc thống kê.</Text>
-                </View>
-              ) : filteredMonthlyUsageRows.map((item) => {
-                const isSpike = item.warningLevel === 'SPIKE';
-                const isShortage = item.warningLevel === 'SHORTAGE';
-                const isNoCount = item.warningLevel === 'NO_COUNT';
-                const isDrop = item.warningLevel === 'DROP';
-                const badgeColor = isShortage ? '#dc2626' : isSpike ? '#b91c1c' : isNoCount ? '#b45309' : isDrop ? '#2563eb' : '#15803d';
-                const badgeBg = isShortage || isSpike ? '#fee2e2' : isNoCount ? '#fef3c7' : isDrop ? '#dbeafe' : '#dcfce7';
-                const badgeLabel = isShortage
-                  ? 'Hao hụt'
-                  : isSpike
-                    ? 'Tăng mạnh'
-                    : isNoCount
-                      ? 'Chưa kiểm'
-                      : isDrop
-                        ? 'Giảm mạnh'
-                        : 'Bình thường';
-
-                return (
-                  <View key={`usage-${item.id}`} style={styles.usageCard}>
-                    <View style={styles.compareRowHeader}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.stockName}>{item.name}</Text>
-                        <Text style={styles.compareMeta}>
-                          {storeIdToView === 'ALL'
-                            ? `${storeList.find((store) => String(store.id) === String(item.store_id))?.name || `CN ${item.store_id}`} • `
-                            : ''}
-                          Đơn vị: {item.unit}
-                        </Text>
-                      </View>
-                      <View style={[styles.compareBadge, { backgroundColor: badgeBg }]}>
-                        <Text style={[styles.compareBadgeText, { color: badgeColor }]}>{badgeLabel}</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.usageMainRow}>
-                      <View>
-                        <Text style={styles.usageBigLabel}>Đã sử dụng tháng này</Text>
-                        <Text style={styles.usageBigValue}>{formatQuantity(item.used)} {item.unit}</Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.usageBigLabel}>So tháng trước</Text>
-                        <Text style={[styles.usageDelta, { color: item.delta >= 0 ? '#dc2626' : '#16a34a' }]}>
-                          {item.delta > 0 ? '+' : ''}{formatQuantity(item.delta)} ({formatPercent(item.deltaPercent)})
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.compareMetricGrid}>
-                      <View style={styles.compareMetric}>
-                        <Text style={styles.compareMetricLabel}>Tồn đầu</Text>
-                        <Text style={styles.compareMetricValue}>{formatQuantity(item.openingStock)}</Text>
-                      </View>
-                      <View style={styles.compareMetric}>
-                        <Text style={styles.compareMetricLabel}>Nhập</Text>
-                        <Text style={styles.compareMetricValue}>{formatQuantity(item.imported)}</Text>
-                      </View>
-                      <View style={styles.compareMetric}>
-                        <Text style={styles.compareMetricLabel}>Xuất/Hao</Text>
-                        <Text style={styles.compareMetricValue}>{formatQuantity(item.used)}</Text>
-                      </View>
-                      <View style={styles.compareMetric}>
-                        <Text style={styles.compareMetricLabel}>Kiểm cuối</Text>
-                        <Text style={styles.compareMetricValue}>
-                          {item.hasCount ? formatQuantity(item.countedEndStock) : '--'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.usageFooter}>
-                      <Text style={styles.compareMeta}>
-                        Tồn dự kiến cuối tháng: <Text style={styles.logDetailStrong}>{formatQuantity(item.expectedEndStock)} {item.unit}</Text>
-                      </Text>
-                      <Text style={[styles.compareMeta, item.countVariance < 0 && { color: '#dc2626', fontWeight: '800' }]}>
-                        Lệch kiểm kê: {item.countVariance > 0 ? '+' : ''}{formatQuantity(item.countVariance)} {item.unit}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {activeTab === 'ACTION' && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Tạo phiếu kho đa mặt hàng</Text>
-              
-              <Text style={styles.fieldLabel}>Loại phiếu</Text>
-              <View style={styles.actionGrid}>
-                {['IMPORT', 'EXPORT'].map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[
-                      styles.actionButton,
-                      actionType === type && { backgroundColor: type==='IMPORT'?'#16a34a':type==='EXPORT'?'#dc2626':'#7c3aed', borderColor: type==='IMPORT'?'#16a34a':type==='EXPORT'?'#dc2626':'#7c3aed' },
-                    ]}
-                    onPress={() => { setActionType(type); setCartItems([]); }}
-                  >
-                    <Text style={[styles.actionButtonText, actionType === type && { color: '#fff' }]}>
-                      {type === 'IMPORT' ? 'Nhập Hàng' : 'Xuất Hủy'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={{ height: 1, backgroundColor: '#e2e8f0', marginVertical: 15 }} />
-
-              <Text style={styles.fieldLabel}>Chọn nguyên liệu</Text>
-              <TouchableOpacity
-                style={styles.dropdownButton}
-                onPress={() => setIsItemDropdownOpen(!isItemDropdownOpen)}
-              >
-                <Text style={styles.dropdownButtonText}>
-                  {selectedStock ? selectedStock.name : 'Vui lòng chọn...'}
-                </Text>
-                <Ionicons name={isItemDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color="#475569" />
-              </TouchableOpacity>
-
-              {isItemDropdownOpen && (
-                <View style={styles.dropdownList}>
-                  <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-                    {myItems.map((item) => (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={[styles.dropdownItem, effectiveSelectedItemId === item.id && styles.dropdownItemActive]}
-                        onPress={() => {
-                          setSelectedItemId(item.id);
-                          setIsItemDropdownOpen(false);
-                        }}
-                      >
-                        <Text style={[styles.dropdownItemText, effectiveSelectedItemId === item.id && styles.dropdownItemTextActive]}>
-                          {item.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-
-              {selectedStock && (
-                <View style={styles.currentStockBox}>
-                  <Text style={styles.currentStockLabel}>Tồn khả dụng</Text>
-                  <Text style={styles.currentStockValue}>
-                    {formatQuantity(selectedStock.currentStock)} {selectedStock.unit}
-                  </Text>
-                </View>
-              )}
-
-              <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 10}}>
-                <View style={{flex: 1}}>
-                  <TextInput
-                    style={styles.input}
-                    keyboardType="decimal-pad"
-                    placeholder="Nhập số lượng..."
-                    placeholderTextColor="#94a3b8"
-                    value={amount}
-                    onChangeText={setAmount}
-                  />
-                </View>
-                <TouchableOpacity style={{backgroundColor: '#1565c0', padding: 14, borderRadius: 12}} onPress={handleAddToCart}>
-                  <Ionicons name="add" size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
-
-              {cartItems.length > 0 && (
-                <View style={{marginTop: 20}}>
-                  <Text style={styles.sectionTitle}>Danh sách đã chọn ({cartItems.length})</Text>
-                  {cartItems.map((item, idx) => (
-                    <View key={idx} style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e2e8f0'}}>
-                      <View>
-                        <Text style={{fontWeight: '700', color: '#1e293b'}}>{item.name}</Text>
-                        <Text style={{color: '#64748b', fontSize: 12}}>Số lượng: {formatQuantity(item.amount)} {item.unit}</Text>
-                      </View>
-                      <TouchableOpacity onPress={() => handleRemoveFromCart(item.itemId)}>
-                        <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-
-                  <TouchableOpacity
-                    style={[styles.submitButton, Boolean(busyKey) && styles.disabledButton]}
-                    onPress={handleSubmitAction}
-                    disabled={Boolean(busyKey)}
-                  >
-                    {busyKey === 'submit-action'
-                      ? <ActivityIndicator color="#fff" />
-                      : (
-                        <>
-                          <Ionicons name="paper-plane-outline" size={21} color="#fff" />
-                          <Text style={styles.submitButtonText}>Tạo Phiếu Kho</Text>
-                        </>
-                      )}
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          )}
-
-          {activeTab === 'APPROVALS' && !isStaff && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Phiếu chờ duyệt</Text>
-              {pendingRequests.length === 0
-                ? (
-                  <View style={styles.emptyState}>
-                    <Ionicons name="checkmark-done-circle-outline" size={40} color="#16a34a" />
-                    <Text style={styles.emptyTitle}>Không có phiếu tồn đọng</Text>
-                    <Text style={styles.emptyText}>Các yêu cầu mới sẽ xuất hiện tại đây.</Text>
-                  </View>
-                )
-                : pendingRequests.map((request) => renderRequestCard(request, true))}
-            </View>
-          )}
-
-          {activeTab === 'HISTORY' && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View>
-                  <Text style={styles.sectionTitle}>Lịch sử Nhập/Xuất kho</Text>
-                  <Text style={styles.historyCount}>{filteredHistoryLogs.length} giao dịch mới nhất lên đầu</Text>
-                </View>
-                <Ionicons name="time-outline" size={22} color={COLORS.textMuted} />
-              </View>
-
-              <View style={styles.searchBox}>
-                <Ionicons name="search" size={19} color="#94a3b8" />
-                <TextInput
-                  value={historySearchText}
-                  onChangeText={setHistorySearchText}
-                  placeholder="Tìm theo món, người tạo, ghi chú..."
-                  placeholderTextColor="#94a3b8"
-                  style={styles.searchInput}
-                />
-              </View>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
-                {[
-                  { key: 'ALL', label: 'Tất cả' },
-                  { key: 'IMPORT', label: 'Nhập' },
-                  { key: 'EXPORT', label: 'Xuất' },
-                  { key: 'ADJUST_UP', label: 'Điều chỉnh +' },
-                  { key: 'ADJUST_DOWN', label: 'Điều chỉnh -' },
-                ].map((filter) => (
-                  <TouchableOpacity
-                    key={filter.key}
-                    style={[styles.filterChip, historyTypeFilter === filter.key && styles.filterChipActive]}
-                    onPress={() => setHistoryTypeFilter(filter.key)}
-                  >
-                    <Text style={[styles.filterChipText, historyTypeFilter === filter.key && styles.filterChipTextActive]}>
-                      {filter.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
-                <TouchableOpacity
-                  style={[styles.filterChip, historyItemFilter === 'ALL' && styles.filterChipActive]}
-                  onPress={() => setHistoryItemFilter('ALL')}
-                >
-                  <Text style={[styles.filterChipText, historyItemFilter === 'ALL' && styles.filterChipTextActive]}>
-                    Tất cả nguyên liệu
-                  </Text>
-                </TouchableOpacity>
-                {myItems.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[styles.filterChip, historyItemFilter === item.id && styles.filterChipActive]}
-                    onPress={() => setHistoryItemFilter(item.id)}
-                  >
-                    <Text style={[styles.filterChipText, historyItemFilter === item.id && styles.filterChipTextActive]}>
-                      {item.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              {filteredHistoryLogs.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Ionicons name="file-tray-outline" size={40} color={COLORS.textMuted} />
-                  <Text style={styles.emptyTitle}>Không có lịch sử phù hợp</Text>
-                  <Text style={styles.emptyText}>Thử đổi bộ lọc hoặc từ khoá tìm kiếm.</Text>
-                </View>
-              ) : filteredHistoryLogs.map((log) => {
+                ) : filteredHistoryLogs.map((log) => {
                   const item = getLogItem(log);
                   const action = ACTIONS[log.type] || ACTIONS.IMPORT;
                   const creatorName = staffList.find(s => s.id === log.created_by)?.name || 'Hệ thống';
                   const approverName = staffList.find(s => s.id === log.approved_by)?.name || '';
-                  const store = storeList.find((storeItem) => String(storeItem.id) === String(log.store_id));
 
                   return (
                     <View key={log.id} style={styles.logCard}>
                       <View style={styles.logCardHeader}>
                         <View style={[styles.logIcon, { backgroundColor: `${action.color}18` }]}>
-                          <Ionicons
-                            name={action.sign === '+' ? 'add' : 'remove'}
-                            size={22}
-                            color={action.color}
-                          />
+                          <Ionicons name={action.sign === '+' ? 'add' : 'remove'} size={20} color={action.color} />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.logTitle}>{item?.name || 'Không rõ nguyên liệu'}</Text>
-                          <Text style={styles.logMeta}>
-                            {action.label} • {formatTimestamp(log.created_at || log.date)}
-                          </Text>
-                          {store?.name ? <Text style={styles.logMeta}>{store.name}</Text> : null}
+                          <Text style={styles.logTitle}>{item?.name || 'Không rõ'}</Text>
+                          <Text style={styles.logMeta}>{action.label} • {formatTimestamp(log.created_at || log.date)}</Text>
+                          <Text style={styles.logMeta}>👤 {creatorName}{approverName ? ` • ✅ ${approverName}` : ''}</Text>
+                          {log.note ? <Text style={styles.logNote}>📝 {log.note}</Text> : null}
                         </View>
                         <Text style={[styles.logAmount, { color: action.color }]}>
                           {action.sign}{formatQuantity(log.amount)} {item?.unit || ''}
                         </Text>
                       </View>
-
-                      <View style={styles.logDetailBox}>
-                        <Text style={styles.logDetailText}>
-                          👤 Tạo bởi: <Text style={styles.logDetailStrong}>{creatorName}</Text>
-                        </Text>
-                        {approverName ? (
-                          <Text style={styles.logDetailText}>
-                            ✅ Duyệt bởi: <Text style={[styles.logDetailStrong, { color: '#16a34a' }]}>{approverName}</Text>
-                          </Text>
-                        ) : null}
-                        {log.note ? (
-                          <Text style={styles.logNote}>📝 {log.note}</Text>
-                        ) : null}
-                      </View>
                     </View>
                   );
                 })}
-            </View>
+              </View>
+            </>
           )}
 
+          {/* ===== TAB DANH MỤC ===== */}
           {activeTab === 'ITEMS' && !isStaff && (
             <>
               <View style={styles.section}>
@@ -1340,7 +941,7 @@ export default function InventoryScreen({ navigation }) {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.catalogName}>{item.name}</Text>
                         <Text style={styles.catalogMeta}>
-                          Đơn vị: {item.unit} • Tồn an toàn: {formatQuantity(item.safeLevel)}
+                          {item.unit} • An toàn: {formatQuantity(item.safeLevel)}
                         </Text>
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
@@ -1349,7 +950,7 @@ export default function InventoryScreen({ navigation }) {
                         </Text>
                         {isOwner && (
                           <TouchableOpacity onPress={() => handleDeleteItem(item)} style={{ marginTop: 8 }}>
-                            <Ionicons name="trash-outline" size={20} color="#dc2626" />
+                            <Ionicons name="trash-outline" size={18} color="#dc2626" />
                           </TouchableOpacity>
                         )}
                       </View>
@@ -1360,7 +961,127 @@ export default function InventoryScreen({ navigation }) {
           )}
         </ScrollView>
 
+        {/* ===== MODAL TẠO PHIẾU KHO ===== */}
+        <Modal visible={showActionModal} transparent animationType="slide">
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+              <View style={[styles.actionSheet, { backgroundColor: COLORS.card }]}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Tạo phiếu kho</Text>
+                  <TouchableOpacity onPress={() => setShowActionModal(false)}>
+                    <Ionicons name="close" size={24} color="#475569" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.actionGrid}>
+                  {['IMPORT', 'EXPORT'].map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.actionButton,
+                        actionType === type && { backgroundColor: type === 'IMPORT' ? '#16a34a' : '#dc2626', borderColor: type === 'IMPORT' ? '#16a34a' : '#dc2626' },
+                      ]}
+                      onPress={() => { setActionType(type); setCartItems([]); }}
+                    >
+                      <Text style={[styles.actionButtonText, actionType === type && { color: '#fff' }]}>
+                        {type === 'IMPORT' ? '📥 Nhập Hàng' : '📤 Xuất Hủy'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={{ height: 1, backgroundColor: COLORS.border, marginVertical: 10 }} />
+
+                <Text style={styles.fieldLabel}>Chọn nguyên liệu</Text>
+                <TouchableOpacity
+                  style={styles.dropdownButton}
+                  onPress={() => setIsItemDropdownOpen(!isItemDropdownOpen)}
+                >
+                  <Text style={styles.dropdownButtonText}>
+                    {selectedStock ? selectedStock.name : 'Vui lòng chọn...'}
+                  </Text>
+                  <Ionicons name={isItemDropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color="#475569" />
+                </TouchableOpacity>
+
+                {isItemDropdownOpen && (
+                  <View style={styles.dropdownList}>
+                    <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled>
+                      {myItems.map((item) => (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={[styles.dropdownItem, effectiveSelectedItemId === item.id && styles.dropdownItemActive]}
+                          onPress={() => { setSelectedItemId(item.id); setIsItemDropdownOpen(false); }}
+                        >
+                          <Text style={[styles.dropdownItemText, effectiveSelectedItemId === item.id && styles.dropdownItemTextActive]}>
+                            {item.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {selectedStock && (
+                  <View style={styles.currentStockBox}>
+                    <Text style={styles.currentStockLabel}>Tồn khả dụng</Text>
+                    <Text style={styles.currentStockValue}>
+                      {formatQuantity(selectedStock.currentStock)} {selectedStock.unit}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="decimal-pad"
+                      placeholder="Số lượng..."
+                      placeholderTextColor="#94a3b8"
+                      value={amount}
+                      onChangeText={setAmount}
+                    />
+                  </View>
+                  <TouchableOpacity style={{ backgroundColor: '#1565c0', padding: 13, borderRadius: 12 }} onPress={handleAddToCart}>
+                    <Ionicons name="add" size={20} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+
+                {cartItems.length > 0 && (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={[styles.fieldLabel, { marginBottom: 6 }]}>Đã chọn ({cartItems.length} mặt hàng)</Text>
+                    {cartItems.map((item, idx) => (
+                      <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.inputBg, padding: 9, borderRadius: 8, marginBottom: 5, borderWidth: 1, borderColor: COLORS.border }}>
+                        <View>
+                          <Text style={{ fontWeight: '700', color: COLORS.text, fontSize: 13 }}>{item.name}</Text>
+                          <Text style={{ color: COLORS.textMuted, fontSize: 11 }}>{formatQuantity(item.amount)} {item.unit}</Text>
+                        </View>
+                        <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => handleRemoveFromCart(item.itemId)}>
+                          <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    <TouchableOpacity
+                      style={[styles.submitButton, Boolean(busyKey) && styles.disabledButton]}
+                      onPress={async () => { await handleSubmitAction(); if (!busyKey) setShowActionModal(false); }}
+                      disabled={Boolean(busyKey)}
+                    >
+                      {busyKey === 'submit-action'
+                        ? <ActivityIndicator color="#fff" />
+                        : (
+                          <>
+                            <Ionicons name="paper-plane-outline" size={19} color="#fff" />
+                            <Text style={styles.submitButtonText}>Tạo Phiếu Kho</Text>
+                          </>
+                        )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
         <Modal visible={showCreateModal} transparent animationType="fade">
+
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
@@ -1414,8 +1135,8 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14 },
   backBtn: { padding: 8, marginRight: 8, marginLeft: -8 },
-  header: { fontSize: 25, fontWeight: '800', color: COLORS.text },
-  headerCaption: { color: COLORS.textMuted, marginTop: 2 },
+  header: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+  headerCaption: { color: COLORS.textMuted, marginTop: 1, fontSize: 12 },
   refreshButton: { padding: 10, backgroundColor: COLORS.inputBg, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
   tabContainer: { flexDirection: 'row', marginHorizontal: 20, backgroundColor: COLORS.inputBg, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: COLORS.border },
   tabButton: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 9, paddingHorizontal: 3 },
@@ -1429,15 +1150,15 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   dropdownItemActive: { backgroundColor: isDarkMode ? '#0f2a44' : '#eff6ff' },
   dropdownItemText: { color: COLORS.text, fontSize: 15 },
   dropdownItemTextActive: { color: '#1d4ed8', fontWeight: '700' },
-  scrollContent: { padding: 20, paddingBottom: 50 },
-  summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  summaryCard: { flex: 1, backgroundColor: COLORS.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: COLORS.border },
+  scrollContent: { padding: 14, paddingBottom: 40 },
+  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  summaryCard: { flex: 1, backgroundColor: COLORS.card, borderRadius: 12, padding: 11, borderWidth: 1, borderColor: COLORS.border },
   summaryWarning: { backgroundColor: '#fff7ed', borderColor: '#fed7aa' },
-  summaryValue: { color: COLORS.text, fontSize: 24, fontWeight: '900' },
-  summaryLabel: { color: COLORS.textMuted, fontSize: 11, marginTop: 4 },
-  section: { backgroundColor: COLORS.card, borderRadius: 18, padding: 18, marginBottom: 16, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.22 : 0.06, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: COLORS.border },
+  summaryValue: { color: COLORS.text, fontSize: 20, fontWeight: '900' },
+  summaryLabel: { color: COLORS.textMuted, fontSize: 10, marginTop: 2 },
+  section: { backgroundColor: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 12, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.22 : 0.06, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: COLORS.border },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: COLORS.text, fontSize: 18, fontWeight: '800', marginBottom: 14 },
+  sectionTitle: { color: COLORS.text, fontSize: 15, fontWeight: '800', marginBottom: 12 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 12, paddingHorizontal: 12, marginBottom: 10 },
   searchInput: { flex: 1, minHeight: 44, paddingLeft: 8, color: COLORS.text },
   stockRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
@@ -1541,7 +1262,10 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   usageBigValue: { color: COLORS.text, fontSize: 20, fontWeight: '900', marginTop: 4 },
   usageDelta: { fontSize: 15, fontWeight: '900', marginTop: 4, textAlign: 'right' },
   usageFooter: { backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 10, marginTop: 10, gap: 4 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'center', padding: 20 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  fab: { flexDirection: 'row', alignItems: 'center', gap: 6, position: 'absolute', bottom: 20, right: 20, backgroundColor: '#1565c0', paddingVertical: 12, paddingHorizontal: 18, borderRadius: 30, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, elevation: 6 },
+  fabText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  actionSheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 36, maxHeight: '88%' },
   modalContent: { backgroundColor: COLORS.card, borderRadius: 18, padding: 20, borderWidth: 1, borderColor: COLORS.border },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   modalTitle: { color: COLORS.text, fontSize: 21, fontWeight: '900' },
