@@ -3,9 +3,9 @@
   "name": "The Cốc",
   "short_name": "The Cốc",
   "description": "Ứng dụng vận hành The Cốc: chấm công, giao ca, kho, nhân sự và báo cáo.",
-  "id": "/app-thecoc/",
-  "start_url": "/app-thecoc/?source=pwa",
-  "scope": "/app-thecoc/",
+  "id": ".",
+  "start_url": ".?source=pwa",
+  "scope": ".",
   "display": "standalone",
   "display_override": ["standalone", "fullscreen", "browser"],
   "orientation": "portrait",
@@ -14,13 +14,13 @@
   "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "/app-thecoc/icons/thecoc-icon-512.png",
+      "src": "icons/thecoc-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/app-thecoc/icons/apple-touch-icon.png",
+      "src": "icons/apple-touch-icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
