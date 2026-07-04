@@ -211,49 +211,6 @@ export default function App() {
     setupPwaExperience();
   }, []);
 
-  // ===== APPSTATE: Tự refresh data khi mở lại app từ background =====
-  useEffect(() => {
-    let lastActiveTime = Date.now();
-    const REFRESH_THRESHOLD_MS = 30 * 1000; // 30 giây
-
-    const handleAppStateChange = (nextState) => {
-      if (nextState === 'active') {
-        const elapsed = Date.now() - lastActiveTime;
-        if (elapsed > REFRESH_THRESHOLD_MS) {
-          refreshData();
-        }
-        lastActiveTime = Date.now();
-      } else {
-        lastActiveTime = Date.now();
-      }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    // iOS PWA: dùng visibilitychange vì AppState không fire trên web
-    const handleVisibilityChange = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        const elapsed = Date.now() - lastActiveTime;
-        if (elapsed > REFRESH_THRESHOLD_MS) {
-          refreshData();
-        }
-        lastActiveTime = Date.now();
-      } else {
-        lastActiveTime = Date.now();
-      }
-    };
-
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-    }
-
-    return () => {
-      subscription?.remove?.();
-      if (Platform.OS === 'web' && typeof document !== 'undefined') {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      }
-    };
-  }, [refreshData]);
   const [themeMode, setThemeMode] = useState('system');
   const isDarkMode = themeMode === 'system' ? colorScheme === 'dark' : themeMode === 'dark';
   const COLORS = isDarkMode ? THEMES.dark : THEMES.light;
@@ -367,6 +324,50 @@ export default function App() {
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [refreshData]);
+
+  // ===== APPSTATE: Tự refresh data khi mở lại app từ background =====
+  useEffect(() => {
+    let lastActiveTime = Date.now();
+    const REFRESH_THRESHOLD_MS = 30 * 1000; // 30 giây
+
+    const handleAppStateChange = (nextState) => {
+      if (nextState === 'active') {
+        const elapsed = Date.now() - lastActiveTime;
+        if (elapsed > REFRESH_THRESHOLD_MS) {
+          refreshData();
+        }
+        lastActiveTime = Date.now();
+      } else {
+        lastActiveTime = Date.now();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // iOS PWA: dùng visibilitychange vì AppState không fire trên web
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        const elapsed = Date.now() - lastActiveTime;
+        if (elapsed > REFRESH_THRESHOLD_MS) {
+          refreshData();
+        }
+        lastActiveTime = Date.now();
+      } else {
+        lastActiveTime = Date.now();
+      }
+    };
+
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
+    return () => {
+      subscription?.remove?.();
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
     };
   }, [refreshData]);
 
