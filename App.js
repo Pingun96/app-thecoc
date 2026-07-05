@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
 import React, { useState, useEffect, useCallback, useContext } from 'react';
-import { Platform, View, StyleSheet, TouchableOpacity, Pressable, useColorScheme, AppState } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, Pressable, useColorScheme, AppState, Animated } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -45,27 +45,76 @@ const CustomTabBarButton = ({
   children,
   onPress,
   style,
-  buttonColor = '#e91e63',
-  shadowColor = '#e91e63',
+  buttonColor = '#10B981',
+  shadowColor = '#10B981',
   tabBarColor = '#fff',
-}) => (
-  <View style={style}>
-    <View style={[styles.floatingButtonNotch, { backgroundColor: tabBarColor }]} />
-    <Pressable
-      onPress={onPress}
-      style={[styles.floatingButtonContainer, { shadowColor }]}
-      android_ripple={{ color: 'rgba(255,255,255,0.3)', borderless: true, radius: 35 }}
-    >
-      <View style={[styles.floatingButtonDropTail, { backgroundColor: buttonColor }]} />
-      <View style={[styles.floatingButton, { backgroundColor: buttonColor }]}>
-        <View style={styles.floatingButtonIcon}>
-          {children}
-        </View>
-        <View style={styles.floatingButtonShine} />
-      </View>
-    </Pressable>
-  </View>
-);
+  label = '',
+}) => {
+  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.88,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 6,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 10,
+    }).start();
+  };
+
+  return (
+    <View style={[style, { alignItems: 'center' }]}>
+      {/* Notch background behind the button */}
+      <View style={[styles.floatingButtonNotch, { backgroundColor: tabBarColor }]} />
+
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <Pressable
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={[styles.floatingButtonContainer, {
+            shadowColor,
+            shadowOpacity: 0.55,
+            shadowOffset: { width: 0, height: 8 },
+            shadowRadius: 16,
+            elevation: 12,
+          }]}
+          android_ripple={{ color: 'rgba(255,255,255,0.3)', borderless: true, radius: 38 }}
+        >
+          {/* Outer glow ring */}
+          <View style={[styles.floatingButtonRing, {
+            borderColor: buttonColor,
+            opacity: 0.25,
+          }]} />
+          {/* Main circle */}
+          <View style={[styles.floatingButton, { backgroundColor: buttonColor }]}>
+            {/* Shine highlight */}
+            <View style={styles.floatingButtonShine} />
+            {/* Inner glow */}
+            <View style={[styles.floatingButtonInnerGlow, { backgroundColor: 'rgba(255,255,255,0.15)' }]} />
+            <View style={styles.floatingButtonIcon}>
+              {children}
+            </View>
+          </View>
+        </Pressable>
+      </Animated.View>
+
+      {/* Label below the button */}
+      {label ? (
+        <Text style={[styles.floatingButtonLabel, { color: buttonColor }]}>{label}</Text>
+      ) : null}
+    </View>
+  );
+};
+
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -163,6 +212,7 @@ function MainTabs() {
               buttonColor={checkActionColor}
               shadowColor={checkActionColor}
               tabBarColor={COLORS.card}
+              label={checkActionLabel}
             />
           )
         }}
@@ -518,11 +568,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabBar: {
-    // iOS native: 88px. iOS PWA (Platform.OS=web): cần safe-area bottom.
-    // Android/web: 64px chuẩn
-    height: Platform.OS === 'ios' ? 88 : Platform.OS === 'web' ? 76 : 64,
+    height: Platform.OS === 'ios' ? 88 : Platform.OS === 'web' ? 80 : 64,
     paddingTop: 6,
-    paddingBottom: Platform.OS === 'ios' ? 24 : Platform.OS === 'web' ? 16 : 8,
+    paddingBottom: Platform.OS === 'ios' ? 24 : Platform.OS === 'web' ? 18 : 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 14,
     shadowColor: '#000',
@@ -535,64 +583,66 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   floatingButtonContainer: {
-    top: -33,
+    top: -30,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 82,
-    height: 86,
-    borderRadius: 41,
-    elevation: 8,
-    shadowColor: '#e91e63',
-    shadowOpacity: 0.34,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 10,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     overflow: 'visible',
   },
   floatingButtonNotch: {
     position: 'absolute',
-    top: -34,
+    top: -38,
     alignSelf: 'center',
-    width: 94,
-    height: 56,
-    borderRadius: 47,
-    opacity: 0.96,
+    width: 90,
+    height: 54,
+    borderRadius: 45,
+    opacity: 0.97,
     zIndex: -1,
   },
-  floatingButton: {
+  floatingButtonRing: {
     position: 'absolute',
-    top: 0,
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: '#e91e63',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    top: -2,
+  },
+  floatingButton: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 2,
   },
-  floatingButtonDropTail: {
+  floatingButtonInnerGlow: {
     position: 'absolute',
-    top: 44,
-    width: 34,
-    height: 34,
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    transform: [{ scaleX: 0.92 }],
-    zIndex: 1,
+    top: 6,
+    left: 6,
+    right: 6,
+    height: 22,
+    borderRadius: 11,
   },
   floatingButtonIcon: {
     zIndex: 3,
-    marginTop: -3,
   },
   floatingButtonShine: {
     position: 'absolute',
-    top: 9,
-    left: 16,
-    width: 18,
-    height: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    top: 8,
+    left: 14,
+    width: 20,
+    height: 7,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.30)',
     transform: [{ rotate: '-18deg' }],
+  },
+  floatingButtonLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    marginTop: Platform.OS === 'ios' ? 6 : 4,
+    textTransform: 'uppercase',
   },
 });
