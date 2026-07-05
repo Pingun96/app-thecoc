@@ -5,9 +5,7 @@ const path = require('path');
 const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
 
-// Fix đường dẫn assets cho GitHub Pages subdirectory /app-thecoc/
-html = html.replace(/src="\/_expo\//g, 'src="/app-thecoc/_expo/');
-html = html.replace(/href="\/favicon\.ico"/g, 'href="/app-thecoc/favicon.ico"');
+// Không cần fix đường dẫn assets nữa vì Cloudflare host ở thư mục gốc (/)
 
 const iosMetaTags = `
     <!-- ===== iOS PWA META TAGS ===== -->
@@ -18,17 +16,17 @@ const iosMetaTags = `
     <meta name="theme-color" content="#208AEF" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="/app-thecoc/manifest.webmanifest" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/app-thecoc/icons/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="512x512" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icons/thecoc-icon-512.png" />
     <!-- iPhone 15 Pro Max -->
-    <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
     <!-- iPhone 14 Pro -->
-    <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
     <!-- iPhone 13/14 -->
-    <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/app-thecoc/icons/thecoc-icon-512.png" />
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
     <!-- iPhone SE -->
-    <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/app-thecoc/icons/thecoc-icon-512.png" />`;
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/icons/thecoc-icon-512.png" />`;
 
 const iosCss = `
       /* ===== iOS NATIVE FEEL ===== */
