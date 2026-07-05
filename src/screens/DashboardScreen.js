@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions
 import { Alert } from '../utils/alert';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocalDateKey, isDateInCurrentMonth } from '../utils/dateTime';
@@ -17,28 +17,6 @@ const APP_GRID_GAP = 10;
 
 export default function DashboardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-
-  // Đọc đúng safe-area-inset-top từ iOS PWA (hỗ trợ tai thỏ, Dynamic Island)
-  const [webSafeTop, setWebSafeTop] = useState(44);
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const readSAT = () => {
-        const val = parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue('--ios-sat')
-        );
-        setWebSafeTop(!isNaN(val) && val > 0 ? val : 44);
-      };
-      readSAT();
-      // Đọc lại sau khi render xong vì env() có thể chưa sẵn sàng ngay
-      setTimeout(readSAT, 300);
-      window.addEventListener('resize', readSAT);
-      return () => window.removeEventListener('resize', readSAT);
-    }
-  }, []);
-
-  const headerPaddingTop = Platform.OS === 'web'
-    ? webSafeTop + 10
-    : Math.max(insets.top + 10, 20);
   const {
     currentUser,
     setCurrentUser,
@@ -295,8 +273,9 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* HEADER */}
-      <View style={[styles.headerContainer, { paddingTop: headerPaddingTop, backgroundColor: theme.headerBg, borderWidth: theme.borderWidth, borderColor: theme.borderColor, borderBottomWidth: theme.borderWidth > 0 ? theme.borderWidth : 0, borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}>
+      {/* HEADER - SafeAreaView tự động xử lý đúng cho mọi iPhone */}
+      <SafeAreaView edges={['top']} style={{ backgroundColor: theme.headerBg }}>
+      <View style={[styles.headerContainer, { backgroundColor: theme.headerBg, borderWidth: theme.borderWidth, borderColor: theme.borderColor, borderBottomWidth: theme.borderWidth > 0 ? theme.borderWidth : 0, borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}>
         <TouchableOpacity style={styles.headerProfile} onPress={() => { setNewAvatar(currentUser?.avatar_url || ''); setShowProfileModal(true); }}>
           <Image
             source={{ uri: currentUser?.avatar_url || (currentUser?.role === 'STAFF' ? 'https://i.pravatar.cc/100?img=33' : 'https://i.pravatar.cc/100?img=12') }}
@@ -345,6 +324,7 @@ export default function DashboardScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
+      </SafeAreaView>
 
       {/* CHỌN CHI NHÁNH */}
       {canShowStoreSelector && (
