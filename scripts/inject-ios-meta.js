@@ -33,7 +33,24 @@ const iosCss = `
       * { -webkit-tap-highlight-color: transparent; }
       * { -webkit-overflow-scrolling: touch; }
       * { touch-action: manipulation; }
-      body { -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+      /* Fix cho lỗi iOS PWA bị đẩy giao diện xuống dưới khi bấm thông báo Push */
+      html, body {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 100%;
+        -webkit-user-select: none;
+        user-select: none;
+        overscroll-behavior: none;
+        -webkit-font-smoothing: antialiased;
+      }
+      #root {
+        height: 100dvh !important;
+        width: 100vw !important;
+      }
       input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
       a, img { -webkit-touch-callout: none; }
       ::-webkit-scrollbar { display: none; }
