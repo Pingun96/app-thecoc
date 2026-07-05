@@ -20,6 +20,7 @@ import AttendanceReviewScreen from './src/screens/AttendanceReviewScreen';
 import PwaInstallBanner from './src/components/PwaInstallBanner';
 import WebNotificationBanner from './src/components/WebNotificationBanner';
 import { supabase } from './src/services/supabaseClient';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   getLastNotificationData,
   observeNotificationResponses,
@@ -531,6 +532,7 @@ export default function App() {
   }, [currentUser]);
 
   return (
+    <SafeAreaProvider>
     <AppContext.Provider value={{
       staffList, setStaffList,
       storeList, setStoreList,
@@ -572,6 +574,7 @@ export default function App() {
         <WebNotificationBanner currentUser={currentUser} COLORS={COLORS} isDarkMode={isDarkMode} />
       </View>
     </AppContext.Provider>
+    </SafeAreaProvider>
   );
 }
 
