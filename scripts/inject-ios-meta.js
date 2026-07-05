@@ -63,8 +63,31 @@ html = html.replace(
   `/* These styles make the root element full-height */${iosCss}\n      /* === */`
 );
 
+// 6. Inject iOS PWA layout-shift fix script (runs before React boots)
+const iosFixScript = `
+  <script>
+    // Fix iOS PWA: giao diện bị đẩy xuống khi reload hoặc mở từ thông báo
+    (function() {
+      function fixScroll() { window.scrollTo(0, 0); }
+      window.addEventListener('load', fixScroll);
+      window.addEventListener('pageshow', fixScroll);
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          fixScroll();
+          setTimeout(fixScroll, 100);
+          setTimeout(fixScroll, 500);
+        }
+      });
+      window.addEventListener('focus', function() {
+        setTimeout(fixScroll, 50);
+      });
+    })();
+  </script>`;
+
+html = html.replace('</head>', `${iosFixScript}\n</head>`);
+
 fs.writeFileSync(indexPath, html, 'utf8');
-console.log('✅ iOS meta tags injected into dist/index.html');
+console.log('✅ iOS meta tags + layout-shift fix injected into dist/index.html');
 
 // 6. Fix node_modules block on Cloudflare Pages
 // Cloudflare Pages ignores 'node_modules' folders in the output. Expo web outputs fonts to dist/assets/node_modules/...
