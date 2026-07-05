@@ -33,7 +33,20 @@ const iosCss = `
       * { -webkit-tap-highlight-color: transparent; }
       * { -webkit-overflow-scrolling: touch; }
       * { touch-action: manipulation; }
-      body { -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+      /* Fix iOS PWA viewport height - ngăn màn hình bị lệch */
+      html {
+        height: 100%;
+        height: -webkit-fill-available;
+      }
+      body {
+        min-height: 100%;
+        min-height: -webkit-fill-available;
+        -webkit-user-select: none;
+        user-select: none;
+        overscroll-behavior: none;
+        -webkit-font-smoothing: antialiased;
+        overflow: hidden;
+      }
       input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
       a, img { -webkit-touch-callout: none; }
       ::-webkit-scrollbar { display: none; }
@@ -63,20 +76,38 @@ html = html.replace(
   `/* These styles make the root element full-height */${iosCss}\n      /* === */`
 );
 
-// 6. Inject iOS PWA layout-shift fix script (runs before React boots)
+// 6b. Inject iOS PWA layout-shift fix script (runs before React boots)
 const iosFixScript = `
   <script>
-    // Fix iOS PWA: giao diện bị đẩy xuống khi reload hoặc mở từ thông báo
+    // Fix iOS PWA: màn hình bị đẩy xuống khi reload hoặc mở từ thông báo
     (function() {
-      function fixScroll() { window.scrollTo(0, 0); }
-      window.addEventListener('load', fixScroll);
-      window.addEventListener('pageshow', fixScroll);
+      // Trick: scroll xuống 1px rồi về 0 → buộc iOS tính lại viewport
+      function fixScroll() {
+        window.scrollTo(0, 1);
+        window.scrollTo(0, 0);
+      }
+      // Chạy ngay khi DOM sẵn sàng
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fixScroll);
+      } else {
+        fixScroll();
+      }
+      // Chạy lại sau khi toàn bộ trang load xong
+      window.addEventListener('load', function() {
+        fixScroll();
+        setTimeout(fixScroll, 300);
+      });
+      // Chạy lại khi quay lại app từ background hoặc từ thông báo
       document.addEventListener('visibilitychange', function() {
         if (document.visibilityState === 'visible') {
           fixScroll();
           setTimeout(fixScroll, 100);
           setTimeout(fixScroll, 500);
         }
+      });
+      window.addEventListener('pageshow', function(e) {
+        fixScroll();
+        setTimeout(fixScroll, 100);
       });
       window.addEventListener('focus', function() {
         setTimeout(fixScroll, 50);
