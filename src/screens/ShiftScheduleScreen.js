@@ -334,18 +334,21 @@ export default function ShiftScheduleScreen({ navigation }) {
   // =====================
   // QUẢN LÝ CA LÀM VIỆC
   // =====================
-  const handleManagerDeleteShift = (regId, staffName) => {
+  const handleManagerDeleteShift = (regId, staffName, staffId) => {
     if (!canScheduleShift) {
       Alert.alert('Không có quyền', 'Bạn không có quyền xóa ca làm việc.');
       return;
     }
-    setDeleteConfirmTarget({ regId, staffName });
+    setDeleteConfirmTarget({ regId, staffName, staffId });
   };
 
   const confirmDeleteShift = async () => {
     if (!deleteConfirmTarget) return;
-    const { regId, staffName } = deleteConfirmTarget;
+    const { regId, staffName, staffId } = deleteConfirmTarget;
     try {
+      // Lấy thông tin ca để gửi thông báo trước khi xóa
+      const shiftToDelete = shiftRegistrations.find(r => r.id === regId);
+
       const { error } = await supabase
         .from('shift_registrations')
         .delete()
@@ -356,6 +359,34 @@ export default function ShiftScheduleScreen({ navigation }) {
       }
       setShiftRegistrations(prev => prev.filter(r => r.id !== regId));
       Alert.alert('Thành công', `Đã xóa ca của ${staffName}!`);
+
+      // Gửi thông báo đẩy cho nhân viên bị xóa ca
+      try {
+        const staffMember = staffList.find(s => s.id === staffId);
+        if (staffMember?.push_token) {
+          const shiftDateStr = shiftToDelete?.date ? ` ngày ${shiftToDelete.date}` : '';
+          const shiftTypeStr = shiftToDelete?.shift_type ? ` (ca ${shiftToDelete.shift_type})` : '';
+          await sendPushNotification(
+            staffMember.push_token,
+            '📅 Ca làm việc bị hủy',
+            `Ca làm việc của bạn${shiftDateStr}${shiftTypeStr} đã bị quản lý hủy.`,
+            { route: 'ScheduleTab' }
+          );
+        }
+
+        // Cũng ghi vào bảng notifications trong DB để nhân viên thấy trong app
+        if (staffId) {
+          await supabase.from('notifications').insert({
+            user_id: staffId,
+            title: 'Ca làm việc bị hủy',
+            body: `Ca làm việc của bạn đã bị quản lý hủy.`,
+            type: 'SHIFT_CANCELLED',
+            is_read: false,
+          });
+        }
+      } catch (notifErr) {
+        console.log('Lỗi gửi thông báo xóa ca:', notifErr?.message);
+      }
     } catch (e) {
       Alert.alert('Lỗi', e.message);
     } finally {
@@ -850,7 +881,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                                 <TouchableOpacity
                                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                                   style={styles.iconActionBtn}
-                                  onPress={() => handleManagerDeleteShift(r.id, s.name)}
+                                  onPress={() => handleManagerDeleteShift(r.id, s.name, r.user_id)}
                                 >
                                   <Ionicons name="close-circle" size={18} color={s.textColor} />
                                 </TouchableOpacity>
