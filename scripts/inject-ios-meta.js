@@ -65,3 +65,32 @@ html = html.replace(
 
 fs.writeFileSync(indexPath, html, 'utf8');
 console.log('✅ iOS meta tags injected into dist/index.html');
+
+// 6. Fix node_modules block on Cloudflare Pages
+// Cloudflare Pages ignores 'node_modules' folders in the output. Expo web outputs fonts to dist/assets/node_modules/...
+// We need to rename 'node_modules' to 'modules' and patch the JS bundles.
+const assetsNodeModulesPath = path.join(__dirname, '..', 'dist', 'assets', 'node_modules');
+const assetsModulesPath = path.join(__dirname, '..', 'dist', 'assets', 'modules');
+
+if (fs.existsSync(assetsNodeModulesPath)) {
+  fs.renameSync(assetsNodeModulesPath, assetsModulesPath);
+  console.log('✅ Renamed dist/assets/node_modules to dist/assets/modules');
+
+  // Patch JS files in dist/_expo/static/js/web
+  const jsDir = path.join(__dirname, '..', 'dist', '_expo', 'static', 'js', 'web');
+  if (fs.existsSync(jsDir)) {
+    const files = fs.readdirSync(jsDir);
+    for (const file of files) {
+      if (file.endsWith('.js')) {
+        const filePath = path.join(jsDir, file);
+        let content = fs.readFileSync(filePath, 'utf8');
+        if (content.includes('/assets/node_modules/')) {
+          content = content.replace(/\/assets\/node_modules\//g, '/assets/modules/');
+          fs.writeFileSync(filePath, content, 'utf8');
+          console.log(`✅ Patched asset paths in ${file}`);
+        }
+      }
+    }
+  }
+}
+
