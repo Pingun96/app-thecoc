@@ -268,9 +268,9 @@ export default function App() {
     setupPwaExperience();
   }, []);
 
-  const [themeMode, setThemeMode] = useState('system');
-  const isDarkMode = themeMode === 'system' ? colorScheme === 'dark' : themeMode === 'dark';
-  const COLORS = isDarkMode ? THEMES.dark : THEMES.light;
+  const [themeMode, setThemeMode] = useState('light');
+  const isDarkMode = false; // Bỏ hoàn toàn chế độ dark mode
+  const COLORS = THEMES.light;
 
   const [storeList, setStoreList] = useState([]);
   const [selectedStoreId, setSelectedStoreId] = useState(1);
