@@ -51,7 +51,8 @@ const upsertStyle = () => {
 export const setupPwaExperience = () => {
   if (Platform.OS !== 'web' || typeof window === 'undefined' || typeof document === 'undefined') return;
 
-  const basePath = '';
+  const segments = window.location.pathname.split('/').filter(Boolean);
+  const basePath = segments.length ? `/${segments[0]}` : '';
   const assetPath = (path) => `${basePath}${path}`;
 
   document.documentElement.lang = 'vi';
