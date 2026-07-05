@@ -1201,7 +1201,7 @@ export default function ShiftScreen({ navigation }) {
         <ScrollView 
           showsVerticalScrollIndicator={false} 
           contentContainerStyle={{ paddingBottom: 80 }} 
-          style={{ flex: 1, paddingHorizontal: 20 }}
+          style={{ flex: 1, paddingHorizontal: 6 }}
           refreshControl={<RefreshControl refreshing={isDataLoading || false} onRefresh={refreshData} />}
         >
           {activeTab === 'PENDING' && renderHistoryTab(pendingShifts)}
@@ -1455,7 +1455,7 @@ export default function ShiftScreen({ navigation }) {
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, paddingHorizontal: 10 },
+  container: { flex: 1, backgroundColor: COLORS.bg, paddingHorizontal: 6 },
   mathBtn: { backgroundColor: COLORS.inputBg, paddingVertical: 10, paddingHorizontal: 15, marginLeft: 8, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
   mathBtnText: { fontSize: 20, fontWeight: 'bold', color: COLORS.text },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 15 },
@@ -1466,7 +1466,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   tabBtnActive: { backgroundColor: COLORS.card, elevation: 2 },
   tabText: { fontWeight: 'bold', color: COLORS.textMuted },
   tabTextActive: { color: COLORS.primary },
-  section: { backgroundColor: COLORS.card, padding: 12, borderRadius: 12, marginBottom: 14, elevation: 3, borderWidth: 1, borderColor: COLORS.border },
+  section: { backgroundColor: COLORS.card, padding: 10, borderRadius: 12, marginBottom: 12, elevation: 3, borderWidth: 1, borderColor: COLORS.border },
   sectionTitle: { fontSize: 16, fontWeight: '900', marginBottom: 15, color: COLORS.primary },
   label: { fontSize: 13, fontWeight: 'bold', color: COLORS.text, marginBottom: 5, marginTop: 10 },
   input: { borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: COLORS.inputBg, color: COLORS.text, marginBottom: 5 },
