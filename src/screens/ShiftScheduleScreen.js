@@ -4,7 +4,7 @@ import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 import { Alert } from '../utils/alert';
-import { scheduleShiftReminder, getManagersToNotify, sendPushNotification } from '../services/NotificationService';
+import { scheduleShiftReminder, getManagersToNotify, sendPushNotification, sendNotificationToUser } from '../services/NotificationService';
 
 export default function ShiftScheduleScreen({ navigation }) {
   const { currentUser, selectedStoreId, shiftRegistrations, setShiftRegistrations, shiftSwaps, setShiftSwaps, storeList, staffList, refreshData, isDataLoading, COLORS, isDarkMode } = useContext(AppContext);
@@ -360,44 +360,16 @@ export default function ShiftScheduleScreen({ navigation }) {
       setShiftRegistrations(prev => prev.filter(r => r.id !== regId));
       Alert.alert('Thành công', `Đã xóa ca của ${staffName}!`);
 
-      // Gửi thông báo đẩy cho nhân viên bị xóa ca
-      try {
-        const staffMember = staffList.find(s => s.id === staffId);
+      // Gửi thông báo cho nhân viên bị xóa ca (tự động xử lý push + in-app)
+      if (staffId) {
         const shiftDateStr = shiftToDelete?.date ? ` ngày ${shiftToDelete.date}` : '';
         const shiftTypeStr = shiftToDelete?.shift_type ? ` (ca ${shiftToDelete.shift_type})` : '';
-
-        // Lấy push_token: ưu tiên từ staffList, fallback query push_tokens table
-        let pushToken = staffMember?.push_token;
-        if (!pushToken && staffId) {
-          const { data: ptRows } = await supabase
-            .from('push_tokens')
-            .select('expo_push_token')
-            .eq('user_id', staffId)
-            .limit(1);
-          pushToken = ptRows?.[0]?.expo_push_token || null;
-        }
-
-        if (pushToken) {
-          await sendPushNotification(
-            pushToken,
-            '📅 Ca làm việc bị hủy',
-            `Ca làm việc của bạn${shiftDateStr}${shiftTypeStr} đã bị quản lý hủy.`,
-            { route: 'ScheduleTab' }
-          );
-        }
-
-        // Ghi vào bảng notifications trong DB để nhân viên thấy trong app
-        if (staffId) {
-          await supabase.from('notifications').insert({
-            user_id: staffId,
-            title: 'Ca làm việc bị hủy',
-            body: `Ca làm việc của bạn${shiftDateStr}${shiftTypeStr} đã bị quản lý hủy.`,
-            type: 'SHIFT_CANCELLED',
-            is_read: false,
-          });
-        }
-      } catch (notifErr) {
-        console.log('Lỗi gửi thông báo xóa ca:', notifErr?.message);
+        sendNotificationToUser(
+          staffId,
+          '📅 Ca làm việc bị hủy',
+          `Ca làm việc của bạn${shiftDateStr}${shiftTypeStr} đã bị quản lý hủy.`,
+          { route: 'ScheduleTab', type: 'SHIFT_CANCELLED' }
+        ).catch(e => console.log('Lỗi gửi thông báo xóa ca:', e?.message));
       }
     } catch (e) {
       Alert.alert('Lỗi', e.message);
