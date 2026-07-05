@@ -107,9 +107,16 @@ const CustomTabBarButton = ({
         </Pressable>
       </Animated.View>
 
-      {/* Label below the button */}
+      {/* Label below the button - absolute positioned to avoid offset */}
       {label ? (
-        <Text style={[styles.floatingButtonLabel, { color: buttonColor }]}>{label}</Text>
+        <Text style={[styles.floatingButtonLabel, {
+          color: buttonColor,
+          position: 'absolute',
+          bottom: -2,
+          left: -30,
+          right: -30,
+          textAlign: 'center',
+        }]}>{label}</Text>
       ) : null}
     </View>
   );
