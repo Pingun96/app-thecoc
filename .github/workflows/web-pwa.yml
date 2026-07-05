@@ -45,22 +45,6 @@ jobs:
 
       - name: Prepare static PWA files
         run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const path = require('path');
-          const root = path.join('dist', '_expo', 'static', 'js');
-          const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-            const fullPath = path.join(dir, entry.name);
-            return entry.isDirectory() ? walk(fullPath) : [fullPath];
-          });
-          for (const file of walk(root).filter((item) => item.endsWith('.js'))) {
-            const source = fs.readFileSync(file, 'utf8');
-            const patched = source
-              .replace(/(["'])\/assets\//g, '$1./assets/')
-              .replace(/url\(\/assets\//g, 'url(./assets/');
-            if (patched !== source) fs.writeFileSync(file, patched);
-          }
-          NODE
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
 
