@@ -10,7 +10,8 @@ export const NOTIFICATION_CHANNEL_ID = 'thecoc-default';
 const EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
 
 // --- CẤU HÌNH ONESIGNAL WEB PUSH ---
-const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '';
+const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '1d7708c0-a945-4977-b447-ec3ce5b171bf';
+const ONESIGNAL_REST_API_KEY = 'os_v2_app_dv3qrqfjivexpnch5q6olmlrx5g7jc5bbdteysnf3jkviuylc35ibz5zyqvme7a5iyd22yqnum27fl5epbox7o47cnvbcl5ojqwv57i';
 const ONESIGNAL_EDGE_FUNCTION = 'send-onesignal-push';
 
 Notifications.setNotificationHandler({
@@ -431,7 +432,7 @@ export const sendPushNotifications = async (expoPushTokens, title, body, data = 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
-          Authorization: `Basic os_v2_app_dv3qrqfjivexpnch5q6olmlrx5g7jc5bbdteysnf3jkviuylc35ibz5zyqvme7a5iyd22yqnum27fl5epbox7o47cnvbcl5ojqwv57i`,
+          Authorization: `Basic ${ONESIGNAL_REST_API_KEY}`,
         },
         body: JSON.stringify({
           app_id: ONESIGNAL_APP_ID,
@@ -525,15 +526,12 @@ export const sendNotificationToUser = async (
   const tokens = await getUserPushTokens(userId);
   const result = await sendPushNotifications(tokens, title, body, data);
 
-  // Fallback: Send directly via OneSignal using external_id to guarantee delivery
-  // even if the web_push_ token is missing from our database.
-  const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '';
   try {
     await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        Authorization: `Basic os_v2_app_dv3qrqfjivexpnch5q6olmlrx5g7jc5bbdteysnf3jkviuylc35ibz5zyqvme7a5iyd22yqnum27fl5epbox7o47cnvbcl5ojqwv57i`,
+        Authorization: `Basic ${ONESIGNAL_REST_API_KEY}`,
       },
       body: JSON.stringify({
         app_id: ONESIGNAL_APP_ID,
