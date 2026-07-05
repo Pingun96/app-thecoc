@@ -92,6 +92,14 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const handleManualUpdate = async () => {
+    if (Platform.OS === 'web') {
+      setIsCheckingUpdate(true);
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+      return;
+    }
+    
     try {
       setIsCheckingUpdate(true);
       const update = await Updates.checkForUpdateAsync();
@@ -288,14 +296,7 @@ export default function DashboardScreen({ navigation }) {
         </TouchableOpacity>
 
         <View style={{flexDirection: 'row', alignItems: 'center', gap: 15}}>
-          <TouchableOpacity
-            onPress={toggleThemeMode}
-            style={styles.themeToggleBtn}
-            accessibilityLabel={isDarkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-          >
-            <Ionicons name={isDarkMode ? 'sunny-outline' : 'moon-outline'} size={24} color={theme.iconColor} />
-            {themeMode !== 'system' && <View style={styles.themeModeDot} />}
-          </TouchableOpacity>
+
 
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative' }}>
             <Ionicons name="notifications-outline" size={26} color={theme.iconColor} />
@@ -307,7 +308,7 @@ export default function DashboardScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity onPress={handleManualUpdate}>
-            {isCheckingUpdate ? <ActivityIndicator color={theme.iconColor} size="small" /> : <Ionicons name="cloud-download-outline" size={26} color={theme.iconColor} />}
+            {isCheckingUpdate ? <ActivityIndicator color={theme.iconColor} size="small" /> : <Ionicons name="refresh-outline" size={26} color={theme.iconColor} />}
           </TouchableOpacity>
 
           <TouchableOpacity
