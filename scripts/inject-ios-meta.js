@@ -31,27 +31,8 @@ const iosMetaTags = `
 const iosCss = `
       /* ===== iOS NATIVE FEEL ===== */
       * { -webkit-tap-highlight-color: transparent; }
-      * { -webkit-overflow-scrolling: touch; }
       * { touch-action: manipulation; }
-      /* CSS variable để JS đọc safe-area-inset-top đúng cho từng model iPhone */
-      :root {
-        --ios-sat: env(safe-area-inset-top, 44px);
-        --ios-sab: env(safe-area-inset-bottom, 0px);
-      }
-      /* Fix iOS PWA viewport height */
-      html {
-        height: 100%;
-        height: -webkit-fill-available;
-      }
-      body {
-        min-height: 100%;
-        min-height: -webkit-fill-available;
-        -webkit-user-select: none;
-        user-select: none;
-        overscroll-behavior: none;
-        -webkit-font-smoothing: antialiased;
-        overflow: hidden;
-      }
+      body { -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
       input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
       a, img { -webkit-touch-callout: none; }
       ::-webkit-scrollbar { display: none; }
@@ -81,46 +62,6 @@ html = html.replace(
   `/* These styles make the root element full-height */${iosCss}\n      /* === */`
 );
 
-// 6b. Inject iOS PWA layout-shift fix script (runs before React boots)
-const iosFixScript = `
-  <script>
-    // Fix iOS PWA: màn hình bị đẩy xuống khi reload hoặc mở từ thông báo
-    (function() {
-      // Trick: scroll xuống 1px rồi về 0 → buộc iOS tính lại viewport
-      function fixScroll() {
-        window.scrollTo(0, 1);
-        window.scrollTo(0, 0);
-      }
-      // Chạy ngay khi DOM sẵn sàng
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', fixScroll);
-      } else {
-        fixScroll();
-      }
-      // Chạy lại sau khi toàn bộ trang load xong
-      window.addEventListener('load', function() {
-        fixScroll();
-        setTimeout(fixScroll, 300);
-      });
-      // Chạy lại khi quay lại app từ background hoặc từ thông báo
-      document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'visible') {
-          fixScroll();
-          setTimeout(fixScroll, 100);
-          setTimeout(fixScroll, 500);
-        }
-      });
-      window.addEventListener('pageshow', function(e) {
-        fixScroll();
-        setTimeout(fixScroll, 100);
-      });
-      window.addEventListener('focus', function() {
-        setTimeout(fixScroll, 50);
-      });
-    })();
-  </script>`;
-
-html = html.replace('</head>', `${iosFixScript}\n</head>`);
 
 fs.writeFileSync(indexPath, html, 'utf8');
 console.log('✅ iOS meta tags + layout-shift fix injected into dist/index.html');
