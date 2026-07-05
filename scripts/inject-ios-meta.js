@@ -33,7 +33,12 @@ const iosCss = `
       * { -webkit-tap-highlight-color: transparent; }
       * { -webkit-overflow-scrolling: touch; }
       * { touch-action: manipulation; }
-      /* Fix iOS PWA viewport height - ngăn màn hình bị lệch */
+      /* CSS variable để JS đọc safe-area-inset-top đúng cho từng model iPhone */
+      :root {
+        --ios-sat: env(safe-area-inset-top, 44px);
+        --ios-sab: env(safe-area-inset-bottom, 0px);
+      }
+      /* Fix iOS PWA viewport height */
       html {
         height: 100%;
         height: -webkit-fill-available;
