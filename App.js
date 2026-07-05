@@ -266,6 +266,18 @@ export default function App() {
 
   useEffect(() => {
     setupPwaExperience();
+    
+    // Fix iOS PWA Push Notification Layout Shift Bug
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          setTimeout(() => window.scrollTo(0, 0), 100);
+          setTimeout(() => window.scrollTo(0, 0), 500);
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }
   }, []);
 
   const [themeMode, setThemeMode] = useState('light');
