@@ -720,15 +720,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabBar: {
-    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 78 : 62,
+    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 88 : 62,
     paddingTop: 5,
-    paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 6 : 7,
+    paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 14 : 7,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowRadius: 8,
-    ...(Platform.OS === 'web' ? { position: 'fixed', left: 0, right: 0, bottom: 0 } : null),
+    ...(Platform.OS === 'web' ? { position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 60 } : null),
   },
   tabBarLabel: {
     fontSize: 11,
@@ -736,7 +736,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   floatingButtonContainer: {
-    top: Platform.OS === 'web' ? -18 : -24,
+    top: -24,
     justifyContent: 'center',
     alignItems: 'center',
     width: 70,
@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
   },
   floatingButtonNotch: {
     position: 'absolute',
-    top: Platform.OS === 'web' ? -21 : -27,
+    top: -27,
     alignSelf: 'center',
     width: 76,
     height: 76,

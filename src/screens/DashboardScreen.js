@@ -287,7 +287,6 @@ export default function DashboardScreen({ navigation }) {
       {isIOSWeb ? (
         <>
           <View pointerEvents="none" style={styles.iosTopSafeFill} />
-          <View pointerEvents="none" style={styles.iosBottomSafeFill} />
         </>
       ) : null}
       {/* HEADER */}
@@ -480,15 +479,6 @@ const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
     right: 0,
     height: WEB_HEADER_TOP_PADDING,
     backgroundColor: theme.headerBg,
-    zIndex: 35,
-  },
-  iosBottomSafeFill: {
-    position: 'fixed',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 'env(safe-area-inset-bottom)',
-    backgroundColor: COLORS.card,
     zIndex: 35,
   },
   headerContainer: { backgroundColor: theme.headerBg, paddingBottom: 14, paddingHorizontal: PAGE_PADDING, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 20, borderBottomRightRadius: 20, elevation: 3, shadowColor: '#000', shadowOpacity: 0.09, shadowRadius: 8, ...(Platform.OS === 'web' ? { marginTop: 0, position: 'relative', top: 0, zIndex: 40 } : null) },

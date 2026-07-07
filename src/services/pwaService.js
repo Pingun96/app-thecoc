@@ -75,17 +75,6 @@ const upsertStyle = () => {
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
     }
-    #root::after {
-      content: "";
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: max(34px, env(safe-area-inset-bottom));
-      background: #FFFFFF;
-      pointer-events: none;
-      z-index: 0;
-    }
     #root > * {
       min-height: 0;
     }
