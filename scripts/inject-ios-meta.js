@@ -5,17 +5,6 @@ const path = require('path');
 const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
 
-// Expo web reset is desktop-oriented; iOS PWA needs body/root to remain scrollable.
-html = html
-  .replace(
-    /\s*\/\* These styles disable body scrolling if you are using <ScrollView> \*\/\s*body\s*\{\s*overflow:\s*hidden;\s*\}/,
-    ''
-  )
-  .replace(
-    /#root\s*\{\s*display:\s*flex;\s*height:\s*100%;\s*flex:\s*1;\s*\}/,
-    '#root { display: flex; min-height: 100dvh; flex: 1; }'
-  );
-
 // Không cần fix đường dẫn assets nữa vì Cloudflare host ở thư mục gốc (/)
 
 const iosMetaTags = `
@@ -24,7 +13,7 @@ const iosMetaTags = `
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="The Cốc" />
     <meta name="application-name" content="The Cốc" />
-    <meta name="theme-color" content="#6B3F24" />
+    <meta name="theme-color" content="#208AEF" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -42,44 +31,12 @@ const iosMetaTags = `
 const iosCss = `
       /* ===== iOS NATIVE FEEL ===== */
       * { -webkit-tap-highlight-color: transparent; }
-      html { min-height: 100%; width: 100%; margin: 0; padding: 0; overflow-x: hidden; scroll-padding-top: 0; }
-      body {
-        min-height: 100%;
-        width: 100%;
-        margin: 0 !important;
-        padding: 0 !important;
-        padding-top: 0 !important;
-        overflow-x: hidden;
-        overflow-y: auto;
-        overscroll-behavior-y: contain;
-        -webkit-overflow-scrolling: touch;
-      }
-      html, body, #root {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-        background: #1f2937;
-        text-rendering: optimizeLegibility;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-      body { -webkit-user-select: none; user-select: none; }
-      #root, #root * { -webkit-overflow-scrolling: touch; }
-      a, button, [role="button"] { touch-action: manipulation; }
-      input, textarea, select { -webkit-user-select: auto; user-select: auto; font-family: inherit; font-size: 16px !important; touch-action: auto; }
+      * { touch-action: manipulation; }
+      body { -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+      input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
       a, img { -webkit-touch-callout: none; }
       ::-webkit-scrollbar { display: none; }
-      * { scrollbar-width: none; -ms-overflow-style: none; }
-      #root {
-        width: 100%;
-        min-height: 100dvh;
-        position: relative;
-        top: 0 !important;
-        box-sizing: border-box;
-        margin-top: 0 !important;
-        padding-top: 0 !important;
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
-      }
-      #root > * { min-height: 0; }`;
+      * { scrollbar-width: none; -ms-overflow-style: none; }`;
 
 // 1. Fix viewport - thêm viewport-fit=cover
 html = html.replace(
@@ -137,19 +94,3 @@ if (fs.existsSync(assetsNodeModulesPath)) {
   }
 }
 
-// 7. Avoid Cloudflare Pages fallback quirks for underscore-prefixed asset folders.
-// Expo writes the web bundle under /_expo/...; serve the same files from /expo-static/ instead.
-const expoInternalPath = path.join(__dirname, '..', 'dist', '_expo');
-const expoPublicPath = path.join(__dirname, '..', 'dist', 'expo-static');
-
-if (fs.existsSync(expoInternalPath)) {
-  fs.rmSync(expoPublicPath, { recursive: true, force: true });
-  fs.renameSync(expoInternalPath, expoPublicPath);
-
-  const patchedHtml = fs
-    .readFileSync(indexPath, 'utf8')
-    .replace(/\/_expo\//g, '/expo-static/');
-
-  fs.writeFileSync(indexPath, patchedHtml, 'utf8');
-  console.log('✅ Moved dist/_expo to dist/expo-static and patched script path');
-}
