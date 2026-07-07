@@ -21,7 +21,7 @@ html = html
 const iosMetaTags = `
     <!-- ===== iOS PWA META TAGS ===== -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="The Cốc" />
     <meta name="application-name" content="The Cốc" />
     <meta name="theme-color" content="#6B3F24" />
@@ -56,7 +56,7 @@ const iosCss = `
       }
       html, body, #root {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-        background: #F3F7F5;
+        background: #1f2937;
         text-rendering: optimizeLegibility;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;

@@ -33,7 +33,7 @@ const upsertStyle = () => {
     #root {
       width: 100%;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      background: #F3F7F5;
+      background: #1f2937;
       -webkit-tap-highlight-color: transparent;
       -webkit-touch-callout: none;
       text-rendering: optimizeLegibility;
@@ -112,7 +112,7 @@ export const setupPwaExperience = () => {
   upsertMeta('meta[name="apple-mobile-web-app-title"]', { name: 'apple-mobile-web-app-title', content: 'The Cốc' });
   upsertMeta('meta[name="apple-mobile-web-app-status-bar-style"]', {
     name: 'apple-mobile-web-app-status-bar-style',
-    content: 'default',
+    content: 'black-translucent',
   });
   upsertMeta('meta[name="format-detection"]', { name: 'format-detection', content: 'telephone=no' });
 

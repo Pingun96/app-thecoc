@@ -18,7 +18,8 @@ const STAT_GAP = 10;
 const STAT_CARD_WIDTH = (CONTENT_WIDTH - STAT_GAP) / 2;
 const APP_GRID_COLUMNS = 4;
 const APP_GRID_GAP = width <= 360 ? 7 : 9;
-const WEB_HEADER_TOP_PADDING = 8;
+const isIOSWeb = Platform.OS === 'web' && typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+const WEB_HEADER_TOP_PADDING = isIOSWeb ? 56 : 8;
 
 export default function DashboardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
