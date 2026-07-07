@@ -720,9 +720,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabBar: {
-    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 88 : 62,
+    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 72 : 62,
     paddingTop: 5,
-    paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 14 : 7,
+    paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 5 : 7,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 8,
     shadowColor: '#000',
