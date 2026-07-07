@@ -41,8 +41,8 @@ export const rejectInventoryTicket = async (ticketId, userId) => {
 };
 
 export const approveInventoryTicket = async (ticket, userId, userStoreId) => {
-  const isSourceManager = ticket.source_store_id === userStoreId;
-  const isDestManager = ticket.destination_store_id === userStoreId;
+  const isSourceManager = String(ticket.source_store_id) === String(userStoreId);
+  const isDestManager = String(ticket.destination_store_id) === String(userStoreId);
 
   if (ticket.type === 'IMPORT' && isDestManager && ticket.status === 'PENDING_DEST') {
     // Nhập hàng -> Duyệt phát là xong
@@ -66,6 +66,17 @@ export const approveInventoryTicket = async (ticket, userId, userStoreId) => {
 };
 
 async function processApproval(ticket, nextStatus, approverId, sourceApprover, destApprover, logType, storeId) {
+  const items = ticket.items || [];
+
+  if (logType === 'EXPORT') {
+    for (const item of items) {
+      const currentStock = await getCurrentStock(item.itemId, storeId);
+      if (Number(item.amount || 0) > currentStock) {
+        throw new Error(`Không đủ tồn kho để xuất ${item.name}. Tồn hiện tại: ${currentStock} ${item.unit || ''}.`);
+      }
+    }
+  }
+
   // 1. Cập nhật trạng thái phiếu
   const updatePayload = { 
     status: nextStatus,
@@ -83,8 +94,6 @@ async function processApproval(ticket, nextStatus, approverId, sourceApprover, d
   if (updateError) throw updateError;
 
   // 2. Xử lý ghi log kho (Nhập hoặc Xuất)
-  const items = ticket.items || [];
-  
   // Nếu là IMPORT (đặc biệt khi TRANSFER sang chi nhánh mới), cần tìm hoặc tạo Item
   let destItemsMap = {};
   if (logType === 'IMPORT') {
@@ -147,4 +156,21 @@ async function processApproval(ticket, nextStatus, approverId, sourceApprover, d
       throw logError;
     }
   }
+}
+
+async function getCurrentStock(itemId, storeId) {
+  const { data, error } = await supabase
+    .from('inventory_logs')
+    .select('type, amount')
+    .eq('itemid', itemId)
+    .eq('store_id', storeId);
+
+  if (error) throw error;
+
+  return (data || []).reduce((total, log) => {
+    const amount = Number(log.amount || 0);
+    if (log.type === 'IMPORT' || log.type === 'ADJUST_UP') return total + amount;
+    if (log.type === 'EXPORT' || log.type === 'ADJUST_DOWN') return total - amount;
+    return total;
+  }, 0);
 }
