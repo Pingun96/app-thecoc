@@ -678,8 +678,8 @@ export default function App() {
   return (
     <SafeAreaProvider>
     <AppContext.Provider value={appContextValue}>
-      <View style={[styles.webContainer, { backgroundColor: COLORS.bg }]}>
-        <View style={[styles.webWrapper, { backgroundColor: COLORS.bg }]}>
+      <View style={[styles.webContainer, { backgroundColor: COLORS.card }]}>
+        <View style={[styles.webWrapper, { backgroundColor: COLORS.card }]}>
           <NavigationContainer ref={navigationRef}>
             <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
               <Stack.Screen name="Login" component={LoginScreen} />
