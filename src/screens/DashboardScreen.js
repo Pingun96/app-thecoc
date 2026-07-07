@@ -488,7 +488,7 @@ const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
     right: 0,
     bottom: 0,
     height: 'env(safe-area-inset-bottom)',
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.card,
     zIndex: 35,
   },
   headerContainer: { backgroundColor: theme.headerBg, paddingBottom: 14, paddingHorizontal: PAGE_PADDING, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 20, borderBottomRightRadius: 20, elevation: 3, shadowColor: '#000', shadowOpacity: 0.09, shadowRadius: 8, ...(Platform.OS === 'web' ? { marginTop: 0, position: 'relative', top: 0, zIndex: 40 } : null) },
