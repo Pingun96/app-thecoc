@@ -33,7 +33,7 @@ const upsertStyle = () => {
     #root {
       width: 100%;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      background: #1f2937;
+      background: #F3F7F5;
       -webkit-tap-highlight-color: transparent;
       -webkit-touch-callout: none;
       text-rendering: optimizeLegibility;
@@ -71,6 +71,7 @@ const upsertStyle = () => {
       box-sizing: border-box;
       margin-top: 0 !important;
       padding-top: 0 !important;
+      background: #F3F7F5;
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
     }

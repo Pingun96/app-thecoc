@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Modal,
   TextInput,
+  Alert,
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
@@ -21,6 +22,9 @@ import { exportToExcel } from '../utils/exportExcel';
 import DateRangePickerModal from '../components/DateRangePickerModal';
 
 const screenWidth = Dimensions.get('window').width;
+const EDGE_PADDING = screenWidth <= 430 ? 8 : 12;
+const INNER_PADDING = screenWidth <= 430 ? 12 : 16;
+const CARD_RADIUS = screenWidth <= 430 ? 14 : 18;
 
 // Lấy ngày theo giờ Việt Nam (UTC+7)
 function getVNDateStr(date = new Date()) {
@@ -53,10 +57,11 @@ function CustomBarChart({ data, labels, COLORS }) {
   if (!data || data.length === 0) return null;
   const maxVal = Math.max(...data, 1);
   const CHART_HEIGHT = 160;
-  const barWidth = Math.max(18, Math.min(36, (screenWidth - 80) / data.length - 4));
+  const chartPadding = screenWidth <= 430 ? 10 : 20;
+  const barWidth = Math.max(18, Math.min(36, (screenWidth - EDGE_PADDING * 2 - chartPadding * 2) / data.length - 4));
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: chartPadding, paddingBottom: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: CHART_HEIGHT + 36 }}>
         {data.map((val, idx) => {
           const barH = Math.max(4, Math.round((val / maxVal) * CHART_HEIGHT));
@@ -86,7 +91,7 @@ function CustomPieBars({ data, COLORS }) {
   if (!data || data.length === 0) return null;
   const total = data.reduce((s, d) => s + d.population, 0);
   return (
-    <View style={{ paddingHorizontal: 20 }}>
+    <View style={{ paddingHorizontal: INNER_PADDING }}>
       {data.map((item, idx) => {
         const pct = total > 0 ? (item.population / total) * 100 : 0;
         return (
@@ -476,6 +481,7 @@ export default function FinanceScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.stickyTopBar}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
@@ -519,6 +525,7 @@ export default function FinanceScreen({ navigation }) {
           </View>
         </TouchableOpacity>
       </ScrollView>
+      </View>
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={COLORS.primary} /></View>
@@ -553,13 +560,13 @@ export default function FinanceScreen({ navigation }) {
 
           {storeIdToView === 'ALL' && pieData.length > 0 && (
             <View style={styles.chartCard}>
-              <Text style={[styles.sectionTitle, { paddingHorizontal: 20, marginBottom: 15 }]}>Tỷ trọng chi nhánh</Text>
+              <Text style={[styles.sectionTitle, { paddingHorizontal: INNER_PADDING, marginBottom: 15 }]}>Tỷ trọng chi nhánh</Text>
               <CustomPieBars data={pieData} COLORS={COLORS} />
             </View>
           )}
 
           <View style={styles.listCard}>
-            <Text style={[styles.sectionTitle, { paddingHorizontal: 20, marginBottom: 15 }]}>Lịch sử chi tiết</Text>
+            <Text style={[styles.sectionTitle, { paddingHorizontal: INNER_PADDING, marginBottom: 15 }]}>Lịch sử chi tiết</Text>
             {revenues.length === 0 ? (
               <Text style={styles.emptyText}>Không có dữ liệu</Text>
             ) : (
@@ -608,39 +615,40 @@ export default function FinanceScreen({ navigation }) {
 
 const getStyles = (COLORS) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
-  backBtn: { marginRight: 15, padding: 5 },
-  header: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
+  stickyTopBar: { backgroundColor: COLORS.bg, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: EDGE_PADDING, paddingTop: 8, paddingBottom: 9 },
+  backBtn: { marginRight: 8, padding: 5 },
+  header: { fontSize: screenWidth <= 360 ? 20 : 22, fontWeight: 'bold', color: COLORS.text },
   headerCaption: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  filterRow: { flexDirection: 'row', paddingHorizontal: 20, alignItems: 'center' },
-  filterBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.border, marginRight: 10 },
+  filterRow: { flexDirection: 'row', paddingHorizontal: EDGE_PADDING, alignItems: 'center' },
+  filterBtn: { paddingHorizontal: 13, paddingVertical: 8, borderRadius: 18, backgroundColor: COLORS.border, marginRight: 7 },
   filterBtnActive: { backgroundColor: COLORS.primary },
   filterBtnText: { color: COLORS.textMuted, fontWeight: '600', fontSize: 13 },
   filterBtnTextActive: { color: '#FFF' },
-  periodRow: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 4, alignItems: 'center' },
-  periodBtn: { paddingVertical: 6, paddingHorizontal: 12, marginRight: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  periodRow: { flexDirection: 'row', paddingHorizontal: EDGE_PADDING, paddingVertical: 3, alignItems: 'center' },
+  periodBtn: { paddingVertical: 6, paddingHorizontal: 9, marginRight: 7, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   periodBtnActive: { borderBottomColor: COLORS.primary },
   periodText: { color: COLORS.textMuted, fontWeight: '600', fontSize: 13 },
   periodTextActive: { color: COLORS.primary },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
-  mainCard: { backgroundColor: COLORS.primary, padding: 24, borderRadius: 20, marginBottom: 15, elevation: 5 },
+  scrollContent: { flex: 1, paddingHorizontal: EDGE_PADDING, paddingTop: 8, paddingBottom: 36 },
+  mainCard: { backgroundColor: COLORS.primary, padding: screenWidth <= 430 ? 16 : 20, borderRadius: CARD_RADIUS, marginBottom: 10, elevation: 5 },
   mainCardLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginBottom: 8, fontWeight: '600' },
-  mainCardValue: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
+  mainCardValue: { color: '#fff', fontSize: screenWidth <= 360 ? 28 : 34, fontWeight: 'bold' },
   mainCardSync: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 8, fontWeight: '500' },
-  metricsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  metricCard: { width: '48%', backgroundColor: COLORS.card, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border },
-  metricIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(59,130,246,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  metricsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  metricCard: { width: '49%', backgroundColor: COLORS.card, padding: 12, borderRadius: 13, borderWidth: 1, borderColor: COLORS.border },
+  metricIconWrap: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(59,130,246,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   metricLabel: { color: COLORS.textMuted, fontSize: 12, marginBottom: 4 },
   metricValue: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
-  chartCard: { backgroundColor: COLORS.card, paddingTop: 20, paddingBottom: 8, borderRadius: 20, marginBottom: 20, borderWidth: 1, borderColor: COLORS.border },
-  chartTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, marginBottom: 15 },
+  chartCard: { backgroundColor: COLORS.card, paddingTop: 15, paddingBottom: 7, borderRadius: CARD_RADIUS, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
+  chartTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: INNER_PADDING, marginBottom: 12 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
   chartTotalBadge: { alignItems: 'flex-end' },
   chartTotalText: { fontSize: 14, fontWeight: 'bold', color: COLORS.accent },
   chartTotalSub: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   emptyText: { textAlign: 'center', color: COLORS.textMuted, fontStyle: 'italic', paddingVertical: 20 },
-  listCard: { backgroundColor: COLORS.card, paddingVertical: 20, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  listCard: { backgroundColor: COLORS.card, paddingVertical: 14, borderRadius: CARD_RADIUS, borderWidth: 1, borderColor: COLORS.border },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 11, paddingHorizontal: INNER_PADDING, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   rowToday: { backgroundColor: 'rgba(59,130,246,0.07)' },
   todayBadge: { backgroundColor: COLORS.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   todayBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },

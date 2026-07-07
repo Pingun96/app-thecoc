@@ -284,6 +284,12 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      {isIOSWeb ? (
+        <>
+          <View pointerEvents="none" style={styles.iosTopSafeFill} />
+          <View pointerEvents="none" style={styles.iosBottomSafeFill} />
+        </>
+      ) : null}
       {/* HEADER */}
       <View style={[styles.headerContainer, { paddingTop: Platform.OS === 'web' ? WEB_HEADER_TOP_PADDING : Math.max(insets.top + 8, 18), backgroundColor: theme.headerBg, borderWidth: theme.borderWidth, borderColor: theme.borderColor, borderBottomWidth: theme.borderWidth > 0 ? theme.borderWidth : 0, borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}>
         <TouchableOpacity style={styles.headerProfile} onPress={() => { setNewAvatar(currentUser?.avatar_url || ''); setShowProfileModal(true); }}>
@@ -467,6 +473,24 @@ export default function DashboardScreen({ navigation }) {
 
 const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
+  iosTopSafeFill: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: WEB_HEADER_TOP_PADDING,
+    backgroundColor: theme.headerBg,
+    zIndex: 35,
+  },
+  iosBottomSafeFill: {
+    position: 'fixed',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 'env(safe-area-inset-bottom)',
+    backgroundColor: COLORS.bg,
+    zIndex: 35,
+  },
   headerContainer: { backgroundColor: theme.headerBg, paddingBottom: 14, paddingHorizontal: PAGE_PADDING, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 20, borderBottomRightRadius: 20, elevation: 3, shadowColor: '#000', shadowOpacity: 0.09, shadowRadius: 8, ...(Platform.OS === 'web' ? { marginTop: 0, position: 'relative', top: 0, zIndex: 40 } : null) },
   headerProfile: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#fff' },

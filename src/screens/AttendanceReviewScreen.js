@@ -1,11 +1,12 @@
 import React, { useContext, useMemo, useState } from 'react';
-import { RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Alert } from '../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import { getLocalDateKey, formatDate } from '../utils/dateTime';
 import { buildAttendanceReview, getShiftLabel, getShiftWindow } from '../utils/attendanceRules';
 import { supabase } from '../services/supabaseClient';
+import { reviewAttendanceCorrection } from '../services/attendanceService';
 import DateRangePickerModal from '../components/DateRangePickerModal';
 
 const addDays = (dateKey, offset) => {
@@ -47,16 +48,24 @@ const FILTERS = [
   { key: 'missing_checkin', label: 'Có lịch chưa check-in' },
   { key: 'outside_schedule', label: 'Ngoài lịch / sai quán' },
   { key: 'missing_checkout', label: 'Thiếu checkout' },
+  { key: 'attendance_correction', label: 'Chỉnh công' },
   { key: 'late', label: 'Đi trễ' },
   { key: 'early_leave', label: 'Về sớm' },
   { key: 'overtime', label: 'Tăng ca' },
 ];
+
+const screenWidth = Dimensions.get('window').width;
+const EDGE_PADDING = screenWidth <= 430 ? 8 : 14;
+const HEADER_PADDING = screenWidth <= 430 ? 12 : 18;
+const COMPACT_RADIUS = screenWidth <= 430 ? 13 : 16;
 
 export default function AttendanceReviewScreen({ navigation }) {
   const {
     currentUser,
     selectedStoreId,
     attendanceHistory,
+    attendanceCorrectionLogs,
+    setAttendanceCorrectionLogs,
     shiftRegistrations,
     setShiftRegistrations,
     staffList,
@@ -95,13 +104,14 @@ export default function AttendanceReviewScreen({ navigation }) {
   const reviewRows = useMemo(() => dateKeys.flatMap((dateKey) => (
     buildAttendanceReview({
       attendanceHistory,
+      attendanceCorrectionLogs,
       shiftRegistrations,
       staffList,
       storeList,
       date: dateKey,
       storeId: effectiveStoreId,
     }).map((row) => ({ ...row, date: dateKey }))
-  )), [attendanceHistory, shiftRegistrations, staffList, storeList, dateKeys, effectiveStoreId]);
+  )), [attendanceHistory, attendanceCorrectionLogs, shiftRegistrations, staffList, storeList, dateKeys, effectiveStoreId]);
 
   const filteredRows = useMemo(() => {
     const search = searchText.trim().toLowerCase();
@@ -202,6 +212,41 @@ export default function AttendanceReviewScreen({ navigation }) {
     );
   };
 
+  const handleReviewCorrection = (row, status) => {
+    if (!row?.correction?.id) return;
+    const actionLabel = status === 'APPROVED' ? 'Duyệt' : 'Từ chối';
+    Alert.alert(
+      `${actionLabel} chỉnh công`,
+      `${actionLabel} yêu cầu mở lại ca của ${row.staff?.name || 'nhân viên này'}?`,
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        {
+          text: actionLabel,
+          style: status === 'REJECTED' ? 'destructive' : 'default',
+          onPress: async () => {
+            try {
+              const updated = await reviewAttendanceCorrection({
+                id: row.correction.id,
+                status,
+                reviewedBy: currentUser?.id,
+                reviewNote: status === 'APPROVED'
+                  ? 'Quản lý đã duyệt yêu cầu tiếp tục giờ làm.'
+                  : 'Quản lý từ chối yêu cầu tiếp tục giờ làm.',
+              });
+
+              setAttendanceCorrectionLogs((current) => (current || []).map((item) => (
+                item.id === row.correction.id ? { ...item, ...(updated || {}), status } : item
+              )));
+              Alert.alert('Đã cập nhật', `Yêu cầu chỉnh công đã được ${status === 'APPROVED' ? 'duyệt' : 'từ chối'}.`);
+            } catch (error) {
+              Alert.alert('Không thể cập nhật', error.message || 'Vui lòng thử lại.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const renderStoreFilters = () => {
     if (displayStoreId !== 'ALL') return null;
     return (
@@ -227,6 +272,7 @@ export default function AttendanceReviewScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.stickyTopBar}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
@@ -235,6 +281,7 @@ export default function AttendanceReviewScreen({ navigation }) {
           <Text style={styles.header}>Đối chiếu công</Text>
           <Text style={styles.caption}>Lọc vi phạm theo quán để chốt lương minh bạch</Text>
         </View>
+      </View>
       </View>
 
       <ScrollView
@@ -320,20 +367,39 @@ export default function AttendanceReviewScreen({ navigation }) {
 
             return (
               <View key={`${row.date}_${row.id}`} style={styles.issueCard}>
-                <View style={styles.issueHeader}>
-                  <View style={[styles.severityPill, severityStyle(row.severity)]}>
-                    <Text style={[styles.severityPillText, severityTextStyle(row.severity)]}>{row.title}</Text>
+                <View style={styles.issueTopRow}>
+                  <View style={styles.issueTitleBlock}>
+                    <Text style={styles.staffName} numberOfLines={1}>{row.staff?.name || `Nhân viên ${row.shift?.user_id || row.record?.user_id}`}</Text>
+                    <View style={[styles.severityPill, severityStyle(row.severity)]}>
+                      <Text style={[styles.severityPillText, severityTextStyle(row.severity)]} numberOfLines={1}>{row.title}</Text>
+                    </View>
                   </View>
                   <Text style={styles.dateBadge}>{formatDate(row.date)}</Text>
                 </View>
 
-                <Text style={styles.staffName}>{row.staff?.name || `Nhân viên ${row.shift?.user_id || row.record?.user_id}`}</Text>
-                <View style={styles.metaGrid}>
-                  <Text style={styles.metaText}>Quán: {row.store?.name || 'Chưa rõ'}</Text>
-                  <Text style={styles.metaText}>Ca: {getShiftLabel(row.shiftType)}</Text>
-                  <Text style={styles.metaText}>Khung ca: {shiftWindow ? `${shiftWindow.start} - ${shiftWindow.end}` : 'Ngoài lịch'}</Text>
-                  <Text style={styles.metaText}>Thực tế: {row.record ? `${checkIn} - ${checkOut}` : 'Chưa chấm công'}</Text>
-                  {row.record ? <Text style={styles.metaText}>Giờ công ghi nhận: {workedHours.toFixed(2)}h</Text> : null}
+                <View style={styles.metaCompactGrid}>
+                  <View style={styles.metaCompactItem}>
+                    <Text style={styles.metaLabel}>Quán</Text>
+                    <Text style={styles.metaValue} numberOfLines={1}>{row.store?.name || 'Chưa rõ'}</Text>
+                  </View>
+                  <View style={styles.metaCompactItem}>
+                    <Text style={styles.metaLabel}>Ca</Text>
+                    <Text style={styles.metaValue} numberOfLines={1}>{getShiftLabel(row.shiftType)}</Text>
+                  </View>
+                  <View style={styles.metaCompactItem}>
+                    <Text style={styles.metaLabel}>Khung</Text>
+                    <Text style={styles.metaValue} numberOfLines={1}>{shiftWindow ? `${shiftWindow.start} - ${shiftWindow.end}` : 'Ngoài lịch'}</Text>
+                  </View>
+                  <View style={styles.metaCompactItem}>
+                    <Text style={styles.metaLabel}>Thực tế</Text>
+                    <Text style={styles.metaValue} numberOfLines={1}>{row.record ? `${checkIn} - ${checkOut}` : 'Chưa chấm công'}</Text>
+                  </View>
+                  {row.record ? (
+                    <View style={styles.metaCompactItem}>
+                      <Text style={styles.metaLabel}>Giờ công</Text>
+                      <Text style={styles.metaValue} numberOfLines={1}>{workedHours.toFixed(2)}h</Text>
+                    </View>
+                  ) : null}
                 </View>
 
                 <View style={styles.payrollImpactBox}>
@@ -346,6 +412,18 @@ export default function AttendanceReviewScreen({ navigation }) {
                     <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
                     <Text style={styles.approveBtnText}>Duyệt vào lịch</Text>
                   </TouchableOpacity>
+                )}
+                {row.type === 'attendance_correction' && (
+                  <View style={styles.reviewActionRow}>
+                    <TouchableOpacity style={[styles.reviewActionBtn, styles.rejectBtn]} onPress={() => handleReviewCorrection(row, 'REJECTED')}>
+                      <Ionicons name="close-circle-outline" size={17} color="#b91c1c" />
+                      <Text style={styles.rejectBtnText}>Từ chối</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.reviewActionBtn, styles.approveLightBtn]} onPress={() => handleReviewCorrection(row, 'APPROVED')}>
+                      <Ionicons name="checkmark-circle-outline" size={17} color={COLORS.primary} />
+                      <Text style={styles.approveLightBtnText}>Duyệt</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
             );
@@ -369,51 +447,61 @@ export default function AttendanceReviewScreen({ navigation }) {
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  headerRow: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 10 },
-  backBtn: { padding: 6, marginRight: 10 },
-  header: { color: COLORS.text, fontSize: 22, fontWeight: '900' },
-  caption: { color: COLORS.textMuted, marginTop: 3, lineHeight: 19 },
-  scrollContent: { padding: 20, paddingTop: 8, paddingBottom: 50 },
-  controlCard: { backgroundColor: COLORS.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 14 },
-  rangeButton: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.inputBg, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: COLORS.inputBorder },
+  stickyTopBar: { backgroundColor: COLORS.bg, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: HEADER_PADDING, paddingTop: 10, paddingBottom: 8 },
+  backBtn: { padding: 5, marginRight: 8 },
+  header: { color: COLORS.text, fontSize: screenWidth <= 360 ? 20 : 22, fontWeight: '900' },
+  caption: { color: COLORS.textMuted, marginTop: 2, lineHeight: 18, fontSize: 12 },
+  scrollContent: { paddingHorizontal: EDGE_PADDING, paddingTop: 4, paddingBottom: 36 },
+  controlCard: { backgroundColor: COLORS.card, borderRadius: COMPACT_RADIUS, padding: 8, borderWidth: 1, borderColor: COLORS.border, marginBottom: 8 },
+  rangeButton: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.inputBg, borderRadius: 12, padding: 9, borderWidth: 1, borderColor: COLORS.inputBorder },
   rangeLabel: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700' },
   rangeValue: { color: COLORS.text, fontWeight: '900', fontSize: 15, marginTop: 2 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 14, paddingHorizontal: 12, marginTop: 10 },
-  searchInput: { flex: 1, minHeight: 44, paddingLeft: 8, color: COLORS.text },
-  chipRow: { paddingTop: 10, paddingBottom: 2 },
-  filterChip: { backgroundColor: COLORS.inputBg, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9, marginRight: 8, borderWidth: 1, borderColor: COLORS.border },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 12, paddingHorizontal: 9, marginTop: 7 },
+  searchInput: { flex: 1, minHeight: 36, paddingLeft: 8, color: COLORS.text },
+  chipRow: { paddingTop: 7, paddingBottom: 1 },
+  filterChip: { backgroundColor: COLORS.inputBg, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 7, marginRight: 6, borderWidth: 1, borderColor: COLORS.border },
   filterChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   filterChipText: { color: COLORS.textMuted, fontWeight: '800', fontSize: 12 },
   filterChipTextActive: { color: isDarkMode ? '#052e16' : '#fff' },
-  summaryGrid: { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  summaryBox: { flex: 1, borderRadius: 14, paddingVertical: 12, alignItems: 'center', borderWidth: 1 },
-  summaryNumber: { color: COLORS.text, fontSize: 23, fontWeight: '900' },
+  summaryGrid: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  summaryBox: { flex: 1, borderRadius: 12, paddingVertical: 8, alignItems: 'center', borderWidth: 1 },
+  summaryNumber: { color: COLORS.text, fontSize: 20, fontWeight: '900' },
   summaryLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '800', marginTop: 2, textAlign: 'center' },
-  payrollCard: { backgroundColor: COLORS.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 14 },
+  payrollCard: { backgroundColor: COLORS.card, borderRadius: COMPACT_RADIUS, padding: 9, borderWidth: 1, borderColor: COLORS.border, marginBottom: 8 },
   payrollRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   payrollLabel: { color: COLORS.text, fontWeight: '900', fontSize: 15 },
   payrollValue: { color: '#dc2626', fontWeight: '900', fontSize: 16 },
-  payrollMiniGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  payrollMini: { color: COLORS.textMuted, backgroundColor: COLORS.inputBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, fontSize: 12, fontWeight: '800' },
+  payrollMiniGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  payrollMini: { color: COLORS.textMuted, backgroundColor: COLORS.inputBg, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 5, fontSize: 11, fontWeight: '800' },
   emptyCard: { backgroundColor: COLORS.card, borderRadius: 18, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
   emptyTitle: { color: COLORS.text, fontSize: 18, fontWeight: '900', marginTop: 10 },
   emptyText: { color: COLORS.textMuted, textAlign: 'center', marginTop: 5, lineHeight: 20 },
-  issueCard: { backgroundColor: COLORS.card, borderRadius: 16, padding: 15, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.2 : 0.06, shadowRadius: 8, elevation: 2 },
-  issueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 8 },
-  severityPill: { flex: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1 },
-  severityPillText: { fontSize: 12, fontWeight: '900' },
+  issueCard: { backgroundColor: COLORS.card, borderRadius: COMPACT_RADIUS, padding: 9, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.16 : 0.05, shadowRadius: 6, elevation: 1 },
+  issueTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
+  issueTitleBlock: { flex: 1, minWidth: 0 },
+  severityPill: { alignSelf: 'flex-start', maxWidth: '100%', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, marginTop: 4, borderWidth: 1 },
+  severityPillText: { fontSize: 11, fontWeight: '900' },
   severityDanger: { backgroundColor: isDarkMode ? '#3b1111' : '#fee2e2', borderColor: isDarkMode ? '#7f1d1d' : '#fecaca' },
   severityDangerText: { color: isDarkMode ? '#fecaca' : '#991b1b' },
   severityWarning: { backgroundColor: isDarkMode ? '#3b2a11' : '#fef3c7', borderColor: isDarkMode ? '#92400e' : '#fde68a' },
   severityWarningText: { color: isDarkMode ? '#fde68a' : '#92400e' },
   severityInfo: { backgroundColor: isDarkMode ? '#0f2a44' : '#dbeafe', borderColor: isDarkMode ? '#1d4ed8' : '#bfdbfe' },
   severityInfoText: { color: isDarkMode ? '#bfdbfe' : '#1d4ed8' },
-  dateBadge: { color: COLORS.primary, fontWeight: '900', fontSize: 12, backgroundColor: COLORS.inputBg, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999 },
-  staffName: { color: COLORS.text, fontSize: 17, fontWeight: '900', marginBottom: 8 },
-  metaGrid: { backgroundColor: COLORS.inputBg, borderRadius: 12, padding: 11, borderWidth: 1, borderColor: COLORS.border },
-  metaText: { color: COLORS.textMuted, marginTop: 2, lineHeight: 20, fontWeight: '700' },
-  payrollImpactBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: isDarkMode ? '#0f2a44' : '#eff6ff', borderRadius: 12, padding: 11, marginTop: 10, borderWidth: 1, borderColor: isDarkMode ? '#1d4ed8' : '#bfdbfe' },
-  payrollImpactText: { flex: 1, color: COLORS.text, fontWeight: '800', lineHeight: 20 },
-  approveBtn: { marginTop: 12, backgroundColor: COLORS.accent, borderRadius: 10, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
+  dateBadge: { color: COLORS.primary, fontWeight: '900', fontSize: 11, backgroundColor: COLORS.inputBg, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999 },
+  staffName: { color: COLORS.text, fontSize: 16, fontWeight: '900' },
+  metaCompactGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, backgroundColor: COLORS.inputBg, borderRadius: 10, padding: 8, borderWidth: 1, borderColor: COLORS.border },
+  metaCompactItem: { flexBasis: '48%', flexGrow: 1, minWidth: 120 },
+  metaLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '800', marginBottom: 1 },
+  metaValue: { color: COLORS.text, fontSize: 12, fontWeight: '800', lineHeight: 16 },
+  payrollImpactBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, backgroundColor: isDarkMode ? '#0f2a44' : '#eff6ff', borderRadius: 10, padding: 8, marginTop: 8, borderWidth: 1, borderColor: isDarkMode ? '#1d4ed8' : '#bfdbfe' },
+  payrollImpactText: { flex: 1, color: COLORS.text, fontSize: 12, fontWeight: '800', lineHeight: 17 },
+  approveBtn: { marginTop: 8, backgroundColor: COLORS.accent, borderRadius: 10, paddingVertical: 9, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   approveBtnText: { color: '#fff', fontWeight: '900', marginLeft: 6 },
+  reviewActionRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  reviewActionBtn: { flex: 1, borderRadius: 10, paddingVertical: 9, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5, borderWidth: 1 },
+  rejectBtn: { backgroundColor: isDarkMode ? '#3b1111' : '#fee2e2', borderColor: isDarkMode ? '#7f1d1d' : '#fecaca' },
+  rejectBtnText: { color: '#b91c1c', fontWeight: '900', fontSize: 12 },
+  approveLightBtn: { backgroundColor: isDarkMode ? '#052e16' : '#ecfdf5', borderColor: isDarkMode ? '#166534' : '#bbf7d0' },
+  approveLightBtnText: { color: COLORS.primary, fontWeight: '900', fontSize: 12 },
 });
