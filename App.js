@@ -678,8 +678,8 @@ export default function App() {
   return (
     <SafeAreaProvider>
     <AppContext.Provider value={appContextValue}>
-      <View style={[styles.webContainer, { backgroundColor: COLORS.card }]}>
-        <View style={[styles.webWrapper, { backgroundColor: COLORS.card }]}>
+      <View style={[styles.webContainer, { backgroundColor: COLORS.bg }]}>
+        <View style={[styles.webWrapper, { backgroundColor: COLORS.bg }]}>
           <NavigationContainer ref={navigationRef}>
             <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
               <Stack.Screen name="Login" component={LoginScreen} />
@@ -720,15 +720,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabBar: {
-    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 72 : 62,
+    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 82 : 62,
     paddingTop: 5,
-    paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 5 : 7,
+    paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 8 : 7,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowRadius: 8,
-    ...(Platform.OS === 'web' ? { position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 60 } : null),
   },
   tabBarLabel: {
     fontSize: 11,

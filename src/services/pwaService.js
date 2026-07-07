@@ -28,65 +28,21 @@ const upsertStyle = () => {
   const style = document.createElement('style');
   style.id = id;
   style.textContent = `
-    html,
-    body,
-    #root {
+    html, body, #root {
+      min-height: 100%;
       width: 100%;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      background: #FFFFFF;
+      background: #0f172a;
+      overscroll-behavior: none;
       -webkit-tap-highlight-color: transparent;
       -webkit-touch-callout: none;
-      text-rendering: optimizeLegibility;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-    html {
-      min-height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow-x: hidden;
-      scroll-padding-top: 0;
-    }
-    body {
-      min-height: 100%;
-      margin: 0 !important;
-      padding: 0 !important;
-      padding-top: 0 !important;
-      overflow-x: hidden;
-      overflow-y: auto;
-      overscroll-behavior-y: contain;
-      -webkit-overflow-scrolling: touch;
-    }
-    html,
-    body,
-    #root,
-    #root * {
-      -webkit-overflow-scrolling: touch;
-    }
-    #root {
-      display: flex;
-      min-height: 100dvh;
-      position: relative;
-      top: 0 !important;
-      box-sizing: border-box;
-      margin-top: 0 !important;
-      padding-top: 0 !important;
-      background: #FFFFFF;
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
-    }
-    #root > * {
-      min-height: 0;
-    }
-    a,
-    button,
-    [role="button"] {
       touch-action: manipulation;
     }
+    body {
+      margin: 0;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
     input, textarea, select {
-      font-family: inherit;
       font-size: 16px !important;
-      touch-action: auto;
     }
   `;
   document.head.appendChild(style);
@@ -107,7 +63,7 @@ export const setupPwaExperience = () => {
     name: 'viewport',
     content: 'width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no',
   });
-  upsertMeta('meta[name="theme-color"]', { name: 'theme-color', content: '#6B3F24' });
+  upsertMeta('meta[name="theme-color"]', { name: 'theme-color', content: '#208AEF' });
   upsertMeta('meta[name="mobile-web-app-capable"]', { name: 'mobile-web-app-capable', content: 'yes' });
   upsertMeta('meta[name="apple-mobile-web-app-capable"]', { name: 'apple-mobile-web-app-capable', content: 'yes' });
   upsertMeta('meta[name="apple-mobile-web-app-title"]', { name: 'apple-mobile-web-app-title', content: 'The Cốc' });

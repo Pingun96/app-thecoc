@@ -10,14 +10,14 @@
     <!-- ===== iOS PWA CRITICAL META TAGS ===== -->
     <!-- Bắt buộc để Safari nhận diện đây là PWA khi "Add to Home Screen" -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!-- Status bar dùng nền app để tránh viền đen trên iPhone PWA -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- black-translucent = content extend đến tận cạnh màn hình, status bar trong suốt -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="The Cốc" />
 
     <!-- ===== PWA GENERAL ===== -->
     <meta name="application-name" content="The Cốc" />
-    <meta name="theme-color" content="#E2F4EA" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#E2F4EA" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#208AEF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
 
@@ -54,21 +54,14 @@
 
     <!-- ===== CSS CRITICAL - iOS native feel ===== -->
     <style id="expo-reset">
-      /* Full height without locking iOS PWA scroll */
-      html { min-height: 100%; margin: 0; padding: 0; overflow-x: hidden; background: #FFFFFF; }
-      body {
-        min-height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow-x: hidden;
-        overflow-y: auto;
-        overscroll-behavior-y: contain;
-        -webkit-overflow-scrolling: touch;
-        background: #FFFFFF;
-      }
+      /* Full height */
+      html, body { height: 100%; margin: 0; padding: 0; }
+
+      /* Prevent body scroll (React Native ScrollView handles scroll) */
+      body { overflow: hidden; }
 
       /* Full height root */
-      #root { display: flex; min-height: 100dvh; flex: 1; background: #FFFFFF; }
+      #root { display: flex; height: 100%; flex: 1; }
 
       /* ===== iOS NATIVE FEEL ===== */
 
@@ -78,8 +71,8 @@
       /* Momentum scroll - cảm giác scroll mượt như native */
       * { -webkit-overflow-scrolling: touch; }
 
-      /* Chống double-tap trên nút, nhưng không chặn thao tác kéo cuộn */
-      a, button, [role="button"] { touch-action: manipulation; }
+      /* Chống zoom khi double-tap hoặc focus input */
+      * { touch-action: manipulation; }
 
       /* Chống chọn text khi long-press (chỉ áp dụng cho element không phải input) */
       body { -webkit-user-select: none; user-select: none; }
@@ -90,6 +83,8 @@
 
       /* Safe area insets cho iPhone notch / Dynamic Island / Home Indicator */
       #root {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
         padding-left: env(safe-area-inset-left);
         padding-right: env(safe-area-inset-right);
       }
@@ -107,7 +102,6 @@
       /* Input font size >= 16px để tránh iOS auto-zoom khi focus */
       input, select, textarea {
         font-size: 16px !important;
-        touch-action: auto;
       }
 
       /* Ẩn scrollbar trên web (giống native) */
