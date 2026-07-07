@@ -49,8 +49,9 @@ const upsertStyle = () => {
     }
     body {
       min-height: 100%;
-      margin: 0;
-      padding: 0;
+      margin: 0 !important;
+      padding: 0 !important;
+      padding-top: 0 !important;
       overflow-x: hidden;
       overflow-y: auto;
       overscroll-behavior-y: contain;
@@ -65,6 +66,8 @@ const upsertStyle = () => {
     #root {
       display: flex;
       min-height: 100dvh;
+      position: relative;
+      top: 0 !important;
       box-sizing: border-box;
       margin-top: 0 !important;
       padding-top: 0 !important;

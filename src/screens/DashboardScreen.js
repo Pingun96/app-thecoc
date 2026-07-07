@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, ActivityIndicator, Modal, TextInput, Platform } from 'react-native';
 import { Alert } from '../utils/alert';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,11 +9,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocalDateKey, isDateInCurrentMonth } from '../utils/dateTime';
 import { supabase } from '../services/supabaseClient';
 import SkeletonLoader from '../components/SkeletonLoader';
+import { getBusinessStores } from '../utils/warehouse';
 
 const { width } = Dimensions.get('window');
+const PAGE_PADDING = width <= 360 ? 14 : 16;
+const CONTENT_WIDTH = Math.min(width - PAGE_PADDING * 2, 500);
+const STAT_GAP = 10;
+const STAT_CARD_WIDTH = (CONTENT_WIDTH - STAT_GAP) / 2;
 const APP_GRID_COLUMNS = 4;
-const APP_GRID_MAX_WIDTH = 520;
-const APP_GRID_GAP = 10;
+const APP_GRID_GAP = width <= 360 ? 7 : 9;
+const WEB_HEADER_TOP_PADDING = 8;
 
 export default function DashboardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -30,8 +35,6 @@ export default function DashboardScreen({ navigation }) {
     isDataLoading,
     COLORS,
     isDarkMode,
-    themeMode,
-    toggleThemeMode,
   } = useContext(AppContext);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -154,6 +157,7 @@ export default function DashboardScreen({ navigation }) {
 
   const isOwner = currentUser?.role === 'OWNER';
   const viewableStores = currentUser?.permissions?.viewable_stores || [];
+  const businessStores = React.useMemo(() => getBusinessStores(storeList), [storeList]);
 
   // Hiển thị thanh chọn store nếu là OWNER hoặc được cấp quyền xem nhiều hơn 1 chi nhánh
   const canShowStoreSelector = isOwner || viewableStores.length > 1;
@@ -188,6 +192,10 @@ export default function DashboardScreen({ navigation }) {
 
     const permissions = currentUser?.permissions || {};
     const hasExplicitPermissions = Object.keys(permissions).length > 0;
+
+    if (featureKey === 'central_warehouse') {
+      return permissions.central_warehouse === true;
+    }
 
     // Tương thích tài khoản quản lý cũ chưa có object permissions.
     if (currentUser?.role === 'MANAGER' && !hasExplicitPermissions) return true;
@@ -226,6 +234,7 @@ export default function DashboardScreen({ navigation }) {
     const compactTitleMap = {
       cashier: 'Giao ca',
       inventory: 'Kho hàng',
+      central_warehouse: 'Kho tổng',
       payroll: 'Bảng lương',
       finance: 'Tài chính',
     };
@@ -237,6 +246,7 @@ export default function DashboardScreen({ navigation }) {
     const iconColorMap = {
       cashier: '#16a34a',
       inventory: '#f97316',
+      central_warehouse: '#7c3aed',
       payroll: '#d97706',
       finance: '#7c3aed',
       hr: routeName === 'AttendanceReview' ? '#0d9488' : '#2563eb',
@@ -253,9 +263,9 @@ export default function DashboardScreen({ navigation }) {
       >
         <View style={[styles.gridIconBox, { backgroundColor: allowed ? bgColor : '#e5e7eb' }]}>
           {iconLib === 'Ionicons' ? (
-            <Ionicons name={iconName} size={28} color={safeIconColor} />
+            <Ionicons name={iconName} size={width <= 360 ? 34 : 36} color={safeIconColor} />
           ) : (
-            <MaterialCommunityIcons name={iconName} size={28} color={safeIconColor} />
+            <MaterialCommunityIcons name={iconName} size={width <= 360 ? 34 : 36} color={safeIconColor} />
           )}
         </View>
         <Text style={[styles.gridItemTitle, !allowed && {color: '#9ca3af'}]} numberOfLines={2}>
@@ -274,7 +284,7 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* HEADER */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 10, 20), backgroundColor: theme.headerBg, borderWidth: theme.borderWidth, borderColor: theme.borderColor, borderBottomWidth: theme.borderWidth > 0 ? theme.borderWidth : 0, borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}>
+      <View style={[styles.headerContainer, { paddingTop: Platform.OS === 'web' ? WEB_HEADER_TOP_PADDING : Math.max(insets.top + 8, 18), backgroundColor: theme.headerBg, borderWidth: theme.borderWidth, borderColor: theme.borderColor, borderBottomWidth: theme.borderWidth > 0 ? theme.borderWidth : 0, borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}>
         <TouchableOpacity style={styles.headerProfile} onPress={() => { setNewAvatar(currentUser?.avatar_url || ''); setShowProfileModal(true); }}>
           <Image
             source={{ uri: currentUser?.avatar_url || (currentUser?.role === 'STAFF' ? 'https://i.pravatar.cc/100?img=33' : 'https://i.pravatar.cc/100?img=12') }}
@@ -295,7 +305,7 @@ export default function DashboardScreen({ navigation }) {
           </View>
         </TouchableOpacity>
 
-        <View style={{flexDirection: 'row', alignItems: 'center', gap: 15}}>
+        <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
 
 
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative' }}>
@@ -326,8 +336,8 @@ export default function DashboardScreen({ navigation }) {
 
       {/* CHỌN CHI NHÁNH */}
       {canShowStoreSelector && (
-        <View style={{ paddingHorizontal: 20, paddingTop: 15 }}>
-          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6b7280', marginBottom: 10 }}>Dữ liệu hiển thị cho:</Text>
+        <View style={styles.storeSection}>
+          <Text style={styles.storeLabel}>Dữ liệu hiển thị cho:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storeSelector}>
 
             {/* TẤT CẢ CHI NHÁNH CHỈ DÀNH CHO OWNER */}
@@ -341,7 +351,7 @@ export default function DashboardScreen({ navigation }) {
             )}
 
             {/* CÁC CHI NHÁNH ĐƯỢC PHÉP XEM */}
-            {storeList.filter(s => isOwner || viewableStores.includes(s.id)).map(store => (
+            {businessStores.filter(s => isOwner || viewableStores.includes(s.id)).map(store => (
               <TouchableOpacity
                 key={store.id}
                 style={[styles.storeChip, selectedStoreId === store.id && styles.storeChipActive]}
@@ -369,8 +379,8 @@ export default function DashboardScreen({ navigation }) {
         <View style={styles.statsRow}>
           {isDataLoading && staffList.length === 0 ? (
             <>
-              <SkeletonLoader width={(width - 55) / 2} height={125} borderRadius={16} isDarkMode={isDarkMode} />
-              <SkeletonLoader width={(width - 55) / 2} height={125} borderRadius={16} isDarkMode={isDarkMode} />
+              <SkeletonLoader width={STAT_CARD_WIDTH} height={104} borderRadius={14} isDarkMode={isDarkMode} />
+              <SkeletonLoader width={STAT_CARD_WIDTH} height={104} borderRadius={14} isDarkMode={isDarkMode} />
             </>
           ) : (
             <>
@@ -406,6 +416,7 @@ export default function DashboardScreen({ navigation }) {
         <View style={styles.gridContainer}>
           {renderGridItem('Giao Ca & Doanh Thu', 'Quản lý Két & Chốt Ca', 'cash-register', 'Material', '#e8f5e9', 'cashier', 'Shifts', 'Shifts')}
           {renderGridItem('Kho Hàng', 'Tồn kho & Yêu cầu', 'warehouse', 'Material', '#fff3e0', 'inventory', 'Inventory', 'Inventory')}
+          {renderGridItem('Kho Tổng', 'Duyệt xuất hàng', 'package-variant-closed', 'Material', '#ede9fe', 'central_warehouse', 'CentralWarehouse', 'CentralWarehouse')}
           {renderGridItem(currentUser?.role === 'STAFF' ? 'Chấm Công' : 'Nhân Sự', currentUser?.role === 'STAFF' ? 'Định vị GPS / Camera' : 'Hồ sơ & Phân quyền', currentUser?.role === 'STAFF' ? "scan-circle" : "id-card", 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
           {currentUser?.role !== 'STAFF' && renderGridItem('Đối Chiếu Công', 'Lịch làm vs chấm công', 'clipboard-check-outline', 'Material', '#dcfce7', 'hr', 'AttendanceReview', 'AttendanceReview')}
           {renderGridItem('Bảng Lương', 'Bảng lương chi tiết', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'Payroll', 'Payroll')}
@@ -455,30 +466,32 @@ export default function DashboardScreen({ navigation }) {
 
 const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  headerContainer: { backgroundColor: theme.headerBg, paddingBottom: 25, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 25, borderBottomRightRadius: 25, elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10 },
+  headerContainer: { backgroundColor: theme.headerBg, paddingBottom: 14, paddingHorizontal: PAGE_PADDING, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 20, borderBottomRightRadius: 20, elevation: 3, shadowColor: '#000', shadowOpacity: 0.09, shadowRadius: 8, ...(Platform.OS === 'web' ? { marginTop: 0, position: 'relative', top: 0, zIndex: 40 } : null) },
   headerProfile: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: '#fff' },
-  headerTextContainer: { marginLeft: 13, maxWidth: width - 135 },
-  greetingText: { color: '#9ca3af', fontSize: 14 },
-  nameText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  roleText: { color: '#86efac', fontSize: 12, fontWeight: '700', marginTop: 2 },
-  logoutBtn: { padding: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
+  avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#fff' },
+  headerTextContainer: { marginLeft: 10, maxWidth: width - 130 },
+  greetingText: { color: '#9ca3af', fontSize: 12 },
+  nameText: { color: '#fff', fontSize: 17, fontWeight: '900' },
+  roleText: { color: '#86efac', fontSize: 11, fontWeight: '800', marginTop: 1 },
+  logoutBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 18 },
   themeToggleBtn: { padding: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, position: 'relative' },
   themeModeDot: { position: 'absolute', right: 8, top: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.accent },
+  storeSection: { paddingHorizontal: PAGE_PADDING, paddingTop: 8 },
+  storeLabel: { fontSize: 12, fontWeight: '800', color: COLORS.textMuted, marginBottom: 7 },
   storeSelector: { flexDirection: 'row' },
-  storeChip: { backgroundColor: COLORS.border, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 10, height: 36, justifyContent: 'center' },
-  storeChipActive: { backgroundColor: '#1976d2' },
-  storeChipText: { color: COLORS.textMuted, fontWeight: 'bold', fontSize: 13 },
+  storeChip: { backgroundColor: COLORS.inputBg, paddingHorizontal: 13, paddingVertical: 7, borderRadius: 18, marginRight: 8, height: 32, justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
+  storeChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  storeChipText: { color: COLORS.textMuted, fontWeight: '800', fontSize: 12 },
   storeChipTextActive: { color: '#fff' },
-  scrollContent: { padding: 20, paddingBottom: 40 },
+  scrollContent: { padding: PAGE_PADDING, paddingTop: 12, paddingBottom: 28 },
   updateButton: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', backgroundColor: isDarkMode ? '#1e293b' : '#e8f1ff', borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9, marginBottom: 16 },
   updateButtonText: { color: '#1565c0', fontWeight: '800', fontSize: 12, marginLeft: 7 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 15, marginTop: 5 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
-  statCard: { backgroundColor: COLORS.card, width: (width - 55) / 2, padding: 15, borderRadius: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, alignItems: 'center', justifyContent: 'center', minHeight: 125 },
-  iconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 10, alignSelf: 'center' },
-  statValue: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, textAlign: 'center' },
-  statLabel: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 3 },
+  sectionTitle: { fontSize: 16, fontWeight: '900', color: COLORS.text, marginBottom: 10, marginTop: 2 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 18, gap: STAT_GAP },
+  statCard: { backgroundColor: COLORS.card, width: STAT_CARD_WIDTH, padding: 12, borderRadius: 14, elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, alignItems: 'center', justifyContent: 'center', minHeight: 104, borderWidth: 1, borderColor: COLORS.border },
+  iconBox: { width: 38, height: 38, borderRadius: 11, justifyContent: 'center', alignItems: 'center', marginBottom: 7, alignSelf: 'center' },
+  statValue: { fontSize: 17, fontWeight: '900', color: COLORS.text, textAlign: 'center' },
+  statLabel: { fontSize: 11, color: COLORS.textMuted, textAlign: 'center', marginTop: 2 },
   badge: {
     position: 'absolute',
     top: -4,
@@ -497,38 +510,38 @@ const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
     fontWeight: 'bold',
   },
   gridContainer: {
-    width: Math.min(width - 40, APP_GRID_MAX_WIDTH),
+    width: CONTENT_WIDTH,
     alignSelf: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
     columnGap: APP_GRID_GAP,
-    rowGap: 16,
+    rowGap: 12,
   },
   gridItem: {
-    width: (Math.min(width - 40, APP_GRID_MAX_WIDTH) - (APP_GRID_GAP * (APP_GRID_COLUMNS - 1))) / APP_GRID_COLUMNS,
+    width: (CONTENT_WIDTH - (APP_GRID_GAP * (APP_GRID_COLUMNS - 1))) / APP_GRID_COLUMNS,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingVertical: 4,
+    paddingVertical: 2,
     position: 'relative',
   },
   gridItemDisabled: { opacity: 0.62 },
   gridIconBox: {
-    width: 58,
-    height: 58,
+    width: width <= 360 ? 56 : 62,
+    height: width <= 360 ? 56 : 62,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 7,
     borderWidth: 1,
     borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)',
     shadowColor: '#000',
-    shadowOpacity: isDarkMode ? 0.22 : 0.09,
-    shadowRadius: 7,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    shadowOpacity: isDarkMode ? 0.16 : 0.05,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   gridItemTitle: {
-    fontSize: 11,
+    fontSize: width <= 360 ? 10 : 11,
     fontWeight: '800',
     color: COLORS.text,
     textAlign: 'center',
