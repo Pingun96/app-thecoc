@@ -387,11 +387,28 @@ export default function PayrollScreen({ navigation }) {
     .signatures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 34px; text-align: center; }
     .sig { min-height: 90px; border-top: 1px dashed #94a3b8; padding-top: 8px; color: #475569; font-size: 13px; }
     @media print { .no-print { display: none; } body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
-    .print-btn { position: fixed; top: 12px; right: 12px; border: 0; border-radius: 10px; background: #0f766e; color: white; padding: 10px 14px; font-weight: 700; cursor: pointer; }
+    .toolbar { position: fixed; top: 12px; right: 12px; left: 12px; z-index: 20; display: flex; justify-content: flex-end; gap: 8px; pointer-events: none; }
+    .toolbar button, .toolbar a { pointer-events: auto; border: 0; border-radius: 10px; color: white; padding: 10px 14px; font-weight: 700; cursor: pointer; text-decoration: none; font-size: 14px; box-shadow: 0 8px 20px rgba(15,23,42,.16); }
+    .print-btn { background: #0f766e; }
+    .back-btn { background: #2563eb; }
+    .close-btn { background: #475569; }
+    @media (max-width: 640px) { .toolbar { top: auto; bottom: 14px; justify-content: center; flex-wrap: wrap; } .toolbar button, .toolbar a { flex: 1; text-align: center; padding: 12px 10px; } .sheet { padding-bottom: 92px; } }
   </style>
 </head>
 <body>
-  <button class="print-btn no-print" onclick="window.print()">In phiếu lương</button>
+  <script>
+    function closePayslip() {
+      try { window.close(); } catch (e) {}
+      setTimeout(function () {
+        if (!window.closed) window.location.href = '/';
+      }, 120);
+    }
+  </script>
+  <div class="toolbar no-print">
+    <button class="print-btn" onclick="window.print()">In phiếu</button>
+    <a class="back-btn" href="/">Quay lại app</a>
+    <button class="close-btn" onclick="closePayslip()">Đóng phiếu</button>
+  </div>
   <main class="sheet">
     <div class="top">
       <div>
