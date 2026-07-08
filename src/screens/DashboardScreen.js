@@ -14,6 +14,7 @@ const { width } = Dimensions.get('window');
 const APP_GRID_COLUMNS = 4;
 const APP_GRID_MAX_WIDTH = 520;
 const APP_GRID_GAP = 10;
+const WEB_HEADER_TOP_PADDING = 34;
 
 export default function DashboardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -69,6 +70,9 @@ export default function DashboardScreen({ navigation }) {
     };
   };
   const theme = getThemeStyles();
+  const headerTopPadding = Platform.OS === 'web'
+    ? WEB_HEADER_TOP_PADDING
+    : Math.max(insets.top + 10, 20);
 
   const styles = React.useMemo(() => getStyles(COLORS, isDarkMode, theme), [COLORS, isDarkMode, theme]);
 
@@ -274,7 +278,7 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* HEADER */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 10, 20), backgroundColor: theme.headerBg, borderWidth: theme.borderWidth, borderColor: theme.borderColor, borderBottomWidth: theme.borderWidth > 0 ? theme.borderWidth : 0, borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}>
+      <View style={[styles.headerContainer, { paddingTop: headerTopPadding, backgroundColor: theme.headerBg, borderWidth: theme.borderWidth, borderColor: theme.borderColor, borderBottomWidth: theme.borderWidth > 0 ? theme.borderWidth : 0, borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}>
         <TouchableOpacity style={styles.headerProfile} onPress={() => { setNewAvatar(currentUser?.avatar_url || ''); setShowProfileModal(true); }}>
           <Image
             source={{ uri: currentUser?.avatar_url || (currentUser?.role === 'STAFF' ? 'https://i.pravatar.cc/100?img=33' : 'https://i.pravatar.cc/100?img=12') }}
