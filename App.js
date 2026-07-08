@@ -21,7 +21,7 @@ import AttendanceReviewScreen from './src/screens/AttendanceReviewScreen';
 import PwaInstallBanner from './src/components/PwaInstallBanner';
 import WebNotificationBanner from './src/components/WebNotificationBanner';
 import { supabase } from './src/services/supabaseClient';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getLastNotificationData,
   observeNotificationResponses,
@@ -83,8 +83,10 @@ function MainTabs() {
     attendanceHistory = [],
   } = useContext(AppContext);
 
-  const tabBarH = Platform.OS === 'web' ? 76 : Platform.OS === 'ios' ? 84 : 62;
-  const tabBarPB = Platform.OS === 'web' ? 10 : Platform.OS === 'ios' ? 22 : 7;
+  // Lấy đúng safe area từ SafeAreaProvider (tự động đúng cho mọi iPhone)
+  const { bottom: safeBottom, top: safeTop } = useSafeAreaInsets();
+  const tabBarH = Platform.OS === 'web' ? Math.max(62 + safeBottom, 76) : Platform.OS === 'ios' ? 84 : 62;
+  const tabBarPB = Platform.OS === 'web' ? Math.max(safeBottom + 4, 8) : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();
   const hasOpenAttendance = Boolean(

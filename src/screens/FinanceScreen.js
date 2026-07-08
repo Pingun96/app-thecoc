@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -21,6 +22,7 @@ import { exportToExcel } from '../utils/exportExcel';
 import DateRangePickerModal from '../components/DateRangePickerModal';
 
 const screenWidth = Dimensions.get('window').width;
+const IS_COMPACT_WEB = Platform.OS === 'web' && screenWidth <= 430;
 
 // Lấy ngày theo giờ Việt Nam (UTC+7)
 function getVNDateStr(date = new Date()) {
@@ -607,13 +609,13 @@ export default function FinanceScreen({ navigation }) {
 }
 
 const getStyles = (COLORS) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
+  container: { flex: 1, minHeight: 0, overflow: Platform.OS === 'web' ? 'visible' : 'hidden', backgroundColor: COLORS.bg },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: IS_COMPACT_WEB ? 8 : 10, paddingBottom: IS_COMPACT_WEB ? 10 : 15 },
   backBtn: { marginRight: 15, padding: 5 },
-  header: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
+  header: { fontSize: IS_COMPACT_WEB ? 19 : 22, fontWeight: 'bold', color: COLORS.text },
   headerCaption: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
   filterRow: { flexDirection: 'row', paddingHorizontal: 20, alignItems: 'center' },
-  filterBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.border, marginRight: 10 },
+  filterBtn: { paddingHorizontal: IS_COMPACT_WEB ? 12 : 16, paddingVertical: 7, borderRadius: 20, backgroundColor: COLORS.border, marginRight: 8 },
   filterBtnActive: { backgroundColor: COLORS.primary },
   filterBtnText: { color: COLORS.textMuted, fontWeight: '600', fontSize: 13 },
   filterBtnTextActive: { color: '#FFF' },
@@ -622,17 +624,17 @@ const getStyles = (COLORS) => StyleSheet.create({
   periodBtnActive: { borderBottomColor: COLORS.primary },
   periodText: { color: COLORS.textMuted, fontWeight: '600', fontSize: 13 },
   periodTextActive: { color: COLORS.primary },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
-  mainCard: { backgroundColor: COLORS.primary, padding: 24, borderRadius: 20, marginBottom: 15, elevation: 5 },
+  scrollContent: { flex: 1, minHeight: 0, paddingHorizontal: IS_COMPACT_WEB ? 16 : 20, paddingTop: 8 },
+  mainCard: { backgroundColor: COLORS.primary, padding: IS_COMPACT_WEB ? 18 : 24, borderRadius: 18, marginBottom: 12, elevation: 5 },
   mainCardLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginBottom: 8, fontWeight: '600' },
-  mainCardValue: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
+  mainCardValue: { color: '#fff', fontSize: IS_COMPACT_WEB ? 26 : 34, fontWeight: 'bold' },
   mainCardSync: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 8, fontWeight: '500' },
   metricsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  metricCard: { width: '48%', backgroundColor: COLORS.card, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border },
+  metricCard: { width: '48%', backgroundColor: COLORS.card, padding: IS_COMPACT_WEB ? 12 : 16, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border },
   metricIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(59,130,246,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   metricLabel: { color: COLORS.textMuted, fontSize: 12, marginBottom: 4 },
-  metricValue: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
-  chartCard: { backgroundColor: COLORS.card, paddingTop: 20, paddingBottom: 8, borderRadius: 20, marginBottom: 20, borderWidth: 1, borderColor: COLORS.border },
+  metricValue: { color: COLORS.text, fontSize: IS_COMPACT_WEB ? 16 : 18, fontWeight: 'bold' },
+  chartCard: { backgroundColor: COLORS.card, paddingTop: IS_COMPACT_WEB ? 14 : 20, paddingBottom: 8, borderRadius: 18, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
   chartTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, marginBottom: 15 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
   chartTotalBadge: { alignItems: 'flex-end' },

@@ -414,7 +414,7 @@ export default function CentralWarehouseScreen({ navigation }) {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.flexScroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {!warehouseId ? (
           <View style={styles.emptyScreen}>
             <MaterialCommunityIcons name="package-variant-closed" size={50} color="#7c3aed" />
@@ -595,7 +595,8 @@ export default function CentralWarehouseScreen({ navigation }) {
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  container: { flex: 1, minHeight: 0, overflow: Platform.OS === 'web' ? 'visible' : 'hidden', backgroundColor: COLORS.bg },
+  flexScroll: { flex: 1, minHeight: 0 },
   stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
   headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, backgroundColor: COLORS.bg },
   backBtn: { padding: 8, marginLeft: -8, marginRight: 6 },

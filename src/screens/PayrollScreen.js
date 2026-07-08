@@ -1,10 +1,12 @@
 import React, { useContext, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl, Modal, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl, Modal, TextInput, Alert, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 import { sendPushNotification } from '../services/NotificationService';
 import { exportToExcel } from '../utils/exportExcel';
+
+const IS_COMPACT_WEB = Platform.OS === 'web' && Dimensions.get('window').width <= 430;
 
 export default function PayrollScreen({ navigation }) {
   const { currentUser, attendanceHistory, staffList, payrollAdjustments, setPayrollAdjustments, payrollApprovals, setPayrollApprovals, refreshData, isDataLoading, COLORS, isDarkMode } = useContext(AppContext);
@@ -540,8 +542,8 @@ export default function PayrollScreen({ navigation }) {
       </View>
 
       <ScrollView 
-        style={{ flex: 1 }}
-        contentContainerStyle={{padding: 20, paddingBottom: 100}}
+        style={styles.flexRoot}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
       >
         {isManager || isOwner ? (
@@ -727,20 +729,22 @@ export default function PayrollScreen({ navigation }) {
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  container: { flex: 1, minHeight: 0, overflow: Platform.OS === 'web' ? 'visible' : 'hidden', backgroundColor: COLORS.bg },
+  flexRoot: { flex: 1, minHeight: 0 },
   stickyTopBar: { backgroundColor: COLORS.bg, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
-  headerRow: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 10 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', padding: IS_COMPACT_WEB ? 16 : 20, paddingBottom: IS_COMPACT_WEB ? 8 : 10 },
   backBtn: { padding: 5, marginRight: 10 },
-  header: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
+  header: { fontSize: IS_COMPACT_WEB ? 19 : 22, fontWeight: 'bold', color: COLORS.text },
   
-  monthSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', marginHorizontal: 20, padding: 10, borderRadius: 8, marginTop: 10, borderWidth: 1, borderColor: COLORS.border },
+  monthSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', marginHorizontal: IS_COMPACT_WEB ? 16 : 20, padding: IS_COMPACT_WEB ? 8 : 10, borderRadius: 8, marginTop: IS_COMPACT_WEB ? 6 : 10, borderWidth: 1, borderColor: COLORS.border },
   monthBtn: { padding: 5 },
-  monthText: { fontSize: 18, fontWeight: 'bold', color: COLORS.primary },
+  monthText: { fontSize: IS_COMPACT_WEB ? 16 : 18, fontWeight: 'bold', color: COLORS.primary },
   
-  summaryCard: { backgroundColor: '#1976d2', padding: 20, borderRadius: 12, marginBottom: 20, elevation: 4 },
+  scrollContent: { padding: IS_COMPACT_WEB ? 16 : 20, paddingBottom: 100 },
+  summaryCard: { backgroundColor: '#1976d2', padding: IS_COMPACT_WEB ? 16 : 20, borderRadius: 12, marginBottom: IS_COMPACT_WEB ? 16 : 20, elevation: 4 },
   summaryHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
-  summaryTitle: { color: '#e3f2fd', fontSize: 16, marginBottom: 5 },
-  summaryAmount: { color: '#fff', fontSize: 30, fontWeight: 'bold' },
+  summaryTitle: { color: '#e3f2fd', fontSize: IS_COMPACT_WEB ? 13 : 16, marginBottom: 5 },
+  summaryAmount: { color: '#fff', fontSize: IS_COMPACT_WEB ? 24 : 30, fontWeight: 'bold' },
   exportBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, gap: 6 },
   exportBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
   summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
@@ -748,12 +752,12 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   summaryMiniValue: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   summaryMiniLabel: { color: '#dbeafe', fontSize: 12, marginTop: 3 },
   
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 15 },
+  sectionTitle: { fontSize: IS_COMPACT_WEB ? 16 : 18, fontWeight: 'bold', color: COLORS.text, marginBottom: IS_COMPACT_WEB ? 12 : 15 },
   
   staffCard: { backgroundColor: COLORS.card, borderRadius: 10, marginBottom: 12, elevation: 2, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
-  staffHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, alignItems: 'center' },
+  staffHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: IS_COMPACT_WEB ? 12 : 15, alignItems: 'center' },
   staffHeaderFinalized: { backgroundColor: isDarkMode ? '#0f2a1d' : '#f1f8e9' },
-  staffName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
+  staffName: { fontSize: IS_COMPACT_WEB ? 14 : 16, fontWeight: 'bold', color: COLORS.text },
   staffRole: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
   staffTotal: { fontSize: 16, fontWeight: 'bold', color: '#4CAF50' },
   staffHours: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },

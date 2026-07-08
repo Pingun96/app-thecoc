@@ -497,10 +497,10 @@ export default function ShiftScheduleScreen({ navigation }) {
   };
 
   const renderPersonalSchedule = () => (
-    <View style={{flex: 1}}>
+    <View style={styles.flexRoot}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        style={{ flex: 1 }}
+        style={styles.flexRoot}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{paddingBottom: 100}}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
@@ -615,10 +615,10 @@ export default function ShiftScheduleScreen({ navigation }) {
   );
 
   const renderStaffRegister = () => (
-    <View style={{flex: 1}}>
+    <View style={styles.flexRoot}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        style={{ flex: 1 }}
+        style={styles.flexRoot}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{paddingBottom: 100}}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
@@ -714,6 +714,7 @@ export default function ShiftScheduleScreen({ navigation }) {
   // =====================
   const renderScheduleOverview = () => (
     <ScrollView
+      style={styles.flexRoot}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{paddingBottom: 80}}
       refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
@@ -969,7 +970,7 @@ export default function ShiftScheduleScreen({ navigation }) {
       </View>
       </View>
 
-      <View style={{flex: 1, paddingHorizontal: 20}}>
+      <View style={styles.contentArea}>
         {activeTab === 'PERSONAL' && renderPersonalSchedule()}
         {activeTab === 'SCHEDULE' && renderScheduleOverview()}
         {activeTab === 'REGISTER' && renderStaffRegister()}
@@ -1101,7 +1102,9 @@ export default function ShiftScheduleScreen({ navigation }) {
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  container: { flex: 1, minHeight: 0, overflow: Platform.OS === 'web' ? 'visible' : 'hidden', backgroundColor: COLORS.bg },
+  flexRoot: { flex: 1, minHeight: 0 },
+  contentArea: { flex: 1, minHeight: 0, paddingHorizontal: 20 },
   stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: 10, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
   headerRow: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 10 },
   backBtn: { padding: 5, marginRight: 10 },

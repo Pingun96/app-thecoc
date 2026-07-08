@@ -335,7 +335,7 @@ export default function StaffManagementScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flexRoot}>
         <View style={styles.stickyTopBar}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -349,7 +349,7 @@ export default function StaffManagementScreen({ navigation }) {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 80 }}
-          style={{ flex: 1 }}
+          style={styles.flexRoot}
           refreshControl={
             <RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />
           }
@@ -719,7 +719,8 @@ export default function StaffManagementScreen({ navigation }) {
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  container: { flex: 1, minHeight: 0, overflow: Platform.OS === 'web' ? 'visible' : 'hidden', backgroundColor: COLORS.bg },
+  flexRoot: { flex: 1, minHeight: 0 },
   stickyTopBar: { backgroundColor: COLORS.bg, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
   headerRow: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 10 },
   backBtn: { padding: 5, marginRight: 10 },

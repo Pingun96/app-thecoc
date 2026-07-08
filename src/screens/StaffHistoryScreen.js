@@ -1,6 +1,7 @@
 import React, { useContext, useMemo } from 'react';
 import {
   FlatList,
+  Platform,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -126,6 +127,7 @@ export default function StaffHistoryScreen({ navigation }) {
       <Text style={styles.sectionTitle}>Lịch sử chấm công</Text>
 
       <FlatList
+        style={styles.flexRoot}
         data={myHistory}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
@@ -144,7 +146,8 @@ export default function StaffHistoryScreen({ navigation }) {
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, paddingHorizontal: 20 },
+  container: { flex: 1, minHeight: 0, overflow: Platform.OS === 'web' ? 'visible' : 'hidden', backgroundColor: COLORS.bg, paddingHorizontal: 20 },
+  flexRoot: { flex: 1, minHeight: 0 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 20 },
   backBtn: { padding: 8, marginRight: 8, marginLeft: -8 },
   header: { fontSize: 25, fontWeight: '800', color: COLORS.text },

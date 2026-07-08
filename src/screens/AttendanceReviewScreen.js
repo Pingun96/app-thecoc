@@ -1,5 +1,5 @@
 import React, { useContext, useMemo, useState } from 'react';
-import { RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Alert } from '../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
@@ -7,6 +7,8 @@ import { getLocalDateKey, formatDate } from '../utils/dateTime';
 import { buildAttendanceReview, getShiftLabel, getShiftWindow } from '../utils/attendanceRules';
 import { supabase } from '../services/supabaseClient';
 import DateRangePickerModal from '../components/DateRangePickerModal';
+
+const IS_COMPACT_WEB = Platform.OS === 'web' && Dimensions.get('window').width <= 430;
 
 const addDays = (dateKey, offset) => {
   const [year, month, day] = dateKey.split('-').map(Number);
@@ -238,6 +240,7 @@ export default function AttendanceReviewScreen({ navigation }) {
       </View>
 
       <ScrollView
+        style={styles.flexScroll}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} tintColor={COLORS.primary} />}
         keyboardShouldPersistTaps="handled"
@@ -368,14 +371,15 @@ export default function AttendanceReviewScreen({ navigation }) {
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  headerRow: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 10 },
+  container: { flex: 1, minHeight: 0, overflow: Platform.OS === 'web' ? 'visible' : 'hidden', backgroundColor: COLORS.bg },
+  flexScroll: { flex: 1, minHeight: 0 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', padding: IS_COMPACT_WEB ? 16 : 20, paddingBottom: IS_COMPACT_WEB ? 8 : 10 },
   backBtn: { padding: 6, marginRight: 10 },
-  header: { color: COLORS.text, fontSize: 22, fontWeight: '900' },
-  caption: { color: COLORS.textMuted, marginTop: 3, lineHeight: 19 },
-  scrollContent: { padding: 20, paddingTop: 8, paddingBottom: 50 },
-  controlCard: { backgroundColor: COLORS.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 14 },
-  rangeButton: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.inputBg, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: COLORS.inputBorder },
+  header: { color: COLORS.text, fontSize: IS_COMPACT_WEB ? 19 : 22, fontWeight: '900' },
+  caption: { color: COLORS.textMuted, marginTop: 3, lineHeight: 18, fontSize: IS_COMPACT_WEB ? 12 : 14 },
+  scrollContent: { padding: IS_COMPACT_WEB ? 16 : 20, paddingTop: 8, paddingBottom: 50 },
+  controlCard: { backgroundColor: COLORS.card, borderRadius: 16, padding: IS_COMPACT_WEB ? 11 : 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 14 },
+  rangeButton: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.inputBg, borderRadius: 14, padding: IS_COMPACT_WEB ? 10 : 12, borderWidth: 1, borderColor: COLORS.inputBorder },
   rangeLabel: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700' },
   rangeValue: { color: COLORS.text, fontWeight: '900', fontSize: 15, marginTop: 2 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 14, paddingHorizontal: 12, marginTop: 10 },
@@ -387,7 +391,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   filterChipTextActive: { color: isDarkMode ? '#052e16' : '#fff' },
   summaryGrid: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   summaryBox: { flex: 1, borderRadius: 14, paddingVertical: 12, alignItems: 'center', borderWidth: 1 },
-  summaryNumber: { color: COLORS.text, fontSize: 23, fontWeight: '900' },
+  summaryNumber: { color: COLORS.text, fontSize: IS_COMPACT_WEB ? 19 : 23, fontWeight: '900' },
   summaryLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '800', marginTop: 2, textAlign: 'center' },
   payrollCard: { backgroundColor: COLORS.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 14 },
   payrollRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -398,7 +402,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   emptyCard: { backgroundColor: COLORS.card, borderRadius: 18, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
   emptyTitle: { color: COLORS.text, fontSize: 18, fontWeight: '900', marginTop: 10 },
   emptyText: { color: COLORS.textMuted, textAlign: 'center', marginTop: 5, lineHeight: 20 },
-  issueCard: { backgroundColor: COLORS.card, borderRadius: 16, padding: 15, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.2 : 0.06, shadowRadius: 8, elevation: 2 },
+  issueCard: { backgroundColor: COLORS.card, borderRadius: 15, padding: IS_COMPACT_WEB ? 12 : 15, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.2 : 0.06, shadowRadius: 8, elevation: 2 },
   issueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 8 },
   severityPill: { flex: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1 },
   severityPillText: { fontSize: 12, fontWeight: '900' },
@@ -409,7 +413,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   severityInfo: { backgroundColor: isDarkMode ? '#0f2a44' : '#dbeafe', borderColor: isDarkMode ? '#1d4ed8' : '#bfdbfe' },
   severityInfoText: { color: isDarkMode ? '#bfdbfe' : '#1d4ed8' },
   dateBadge: { color: COLORS.primary, fontWeight: '900', fontSize: 12, backgroundColor: COLORS.inputBg, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999 },
-  staffName: { color: COLORS.text, fontSize: 17, fontWeight: '900', marginBottom: 8 },
+  staffName: { color: COLORS.text, fontSize: IS_COMPACT_WEB ? 15 : 17, fontWeight: '900', marginBottom: 8 },
   metaGrid: { backgroundColor: COLORS.inputBg, borderRadius: 12, padding: 11, borderWidth: 1, borderColor: COLORS.border },
   metaText: { color: COLORS.textMuted, marginTop: 2, lineHeight: 20, fontWeight: '700' },
   payrollImpactBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: isDarkMode ? '#0f2a44' : '#eff6ff', borderRadius: 12, padding: 11, marginTop: 10, borderWidth: 1, borderColor: isDarkMode ? '#1d4ed8' : '#bfdbfe' },

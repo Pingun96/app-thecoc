@@ -55,13 +55,13 @@
     <!-- ===== CSS CRITICAL - iOS native feel ===== -->
     <style id="expo-reset">
       /* Full height */
-      html, body { height: 100%; margin: 0; padding: 0; background: #F3F7F5; }
+      html, body { min-height: 100%; margin: 0; padding: 0; background: #F3F7F5; }
 
-      /* Prevent body scroll (React Native ScrollView handles scroll) */
-      body { overflow: hidden; }
+      /* Let iOS PWA fall back to body scrolling when nested panes are finicky. */
+      body { overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
       /* Full height root */
-      #root { display: flex; height: 100%; flex: 1; }
+      #root { display: flex; min-height: 100dvh; flex: 1; }
 
       /* ===== iOS NATIVE FEEL ===== */
 
@@ -72,16 +72,21 @@
       * { -webkit-overflow-scrolling: touch; }
 
       /* Chống zoom khi double-tap hoặc focus input */
-      * { touch-action: manipulation; }
+      * { touch-action: auto; }
 
       /* Chống chọn text khi long-press (chỉ áp dụng cho element không phải input) */
       body { -webkit-user-select: none; user-select: none; }
       input, textarea { -webkit-user-select: auto; user-select: auto; }
 
       /* Chống overscroll bounce (rubber band effect) trên toàn body */
-      body { overscroll-behavior: none; }
+      body { overscroll-behavior-y: none; }
 
       /* Safe area insets cho iPhone notch / Dynamic Island / Home Indicator */
+      :root {
+        --sat: env(safe-area-inset-top, 0px);
+        --sab: env(safe-area-inset-bottom, 0px);
+      }
+
       #root {
         padding-left: env(safe-area-inset-left);
         padding-right: env(safe-area-inset-right);
@@ -89,6 +94,8 @@
 
       /* Font rendering mượt hơn trên iOS */
       body {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         text-rendering: optimizeLegibility;
@@ -105,6 +112,15 @@
       /* Ẩn scrollbar trên web (giống native) */
       ::-webkit-scrollbar { display: none; }
       * { scrollbar-width: none; -ms-overflow-style: none; }
+
+      .r-150rngu, .r-150rngu * {
+        -webkit-overflow-scrolling: touch !important;
+        touch-action: auto !important;
+      }
+      .r-150rngu {
+        overflow-y: auto !important;
+        overscroll-behavior-y: contain;
+      }
     </style>
   </head>
 

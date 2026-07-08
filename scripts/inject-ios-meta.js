@@ -8,7 +8,7 @@ let html = fs.readFileSync(indexPath, 'utf8');
 const iosMetaTags = `
     <!-- ===== iOS PWA META TAGS ===== -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="The Cốc" />
     <meta name="application-name" content="The Cốc" />
     <meta name="theme-color" content="#F3F7F5" />
@@ -19,15 +19,13 @@ const iosMetaTags = `
     <link rel="apple-touch-icon" sizes="512x512" href="/icons/thecoc-icon-512.png" />
     <!-- iPhone 15 Pro Max -->
     <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
-    <!-- iPhone 14 Pro -->
+    <!-- iPhone 14 Pro / 15 Pro -->
     <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
-    <!-- iPhone 13/14 -->
+    <!-- iPhone 13 / 14 -->
     <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
     <!-- iPhone SE -->
     <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/icons/thecoc-icon-512.png" />`;
 
-// CSS: chỉ dùng env(safe-area-inset-top) cho #root để đẩy nội dung xuống đúng
-// KHÔNG dùng padding-bottom vì tab bar tự lo bottom
 const iosCss = `
       /* ===== iOS NATIVE FEEL ===== */
       * { -webkit-tap-highlight-color: transparent; }
@@ -37,14 +35,17 @@ const iosCss = `
       a, img { -webkit-touch-callout: none; }
       ::-webkit-scrollbar { display: none; }
       * { scrollbar-width: none; -ms-overflow-style: none; }
-      /* CSS vars để JS đọc safe area từ iOS */
-      :root { --sat: 0px; --sab: 0px; }
+      /* CSS vars để JS đọc đúng safe area từ iOS - cần viewport-fit=cover */
+      :root {
+        --sat: env(safe-area-inset-top, 0px);
+        --sab: env(safe-area-inset-bottom, 0px);
+      }
       #root { background-color: #f9fafb; }`;
 
-// 1. Use stable viewport for iOS PWA (no edge-to-edge safe-area hacks)
+// 1. Fix viewport: PHẢI có viewport-fit=cover để iOS báo đúng safe area
 html = html.replace(
   /<meta name="viewport" content="[^"]*" \/>/,
-  '<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no" />'
+  '<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />'
 );
 
 // 2. Fix title
@@ -55,8 +56,8 @@ html = html.replace('<html lang="en">', '<html lang="vi">');
 
 // 4. Inject iOS meta tags sau viewport
 html = html.replace(
-  'shrink-to-fit=no, user-scalable=no" />',
-  `shrink-to-fit=no, user-scalable=no" />${iosMetaTags}`
+  'viewport-fit=cover" />',
+  `viewport-fit=cover" />${iosMetaTags}`
 );
 
 // 5. Inject iOS CSS vào style#expo-reset
@@ -66,7 +67,7 @@ html = html.replace(
 );
 
 fs.writeFileSync(indexPath, html, 'utf8');
-console.log('✅ iOS meta tags injected into dist/index.html');
+console.log('✅ iOS meta tags injected (viewport-fit=cover + CSS safe area vars)');
 
 // 6. Fix node_modules block on Cloudflare Pages
 const assetsNodeModulesPath = path.join(__dirname, '..', 'dist', 'assets', 'node_modules');

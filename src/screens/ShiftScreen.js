@@ -1351,7 +1351,7 @@ export default function ShiftScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flexRoot}>
         <View style={styles.stickyTopBar}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
@@ -1384,7 +1384,7 @@ export default function ShiftScreen({ navigation }) {
         <ScrollView 
           showsVerticalScrollIndicator={false} 
           contentContainerStyle={{ paddingBottom: 80 }} 
-          style={{ flex: 1, paddingHorizontal: 6 }}
+          style={styles.mainScroll}
           refreshControl={<RefreshControl refreshing={isDataLoading || false} onRefresh={refreshData} />}
         >
           {activeTab === 'PENDING' && renderHistoryTab(pendingShifts)}
@@ -1597,7 +1597,9 @@ export default function ShiftScreen({ navigation }) {
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, paddingHorizontal: 6 },
+  container: { flex: 1, minHeight: 0, overflow: Platform.OS === 'web' ? 'visible' : 'hidden', backgroundColor: COLORS.bg, paddingHorizontal: 6 },
+  flexRoot: { flex: 1, minHeight: 0 },
+  mainScroll: { flex: 1, minHeight: 0, paddingHorizontal: 6 },
   stickyTopBar: { backgroundColor: COLORS.bg, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
   mathBtn: { backgroundColor: COLORS.inputBg, paddingVertical: 10, paddingHorizontal: 15, marginLeft: 8, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
   mathBtnText: { fontSize: 20, fontWeight: 'bold', color: COLORS.text },

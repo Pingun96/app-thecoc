@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -33,6 +34,8 @@ import {
   getStoreName,
   isCentralWarehouseStore,
 } from '../utils/warehouse';
+
+const IS_COMPACT_WEB = Platform.OS === 'web' && Dimensions.get('window').width <= 430;
 
 const ACTIONS = {
   IMPORT: { label: 'Nhập kho', shortLabel: 'NHẬP', color: '#16a34a', sign: '+' },
@@ -803,7 +806,7 @@ export default function InventoryScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
+        style={styles.flexRoot}
       >
         <View style={styles.stickyTopBar}>
         <View style={styles.headerRow}>
@@ -848,7 +851,7 @@ export default function InventoryScreen({ navigation }) {
         </View>
 
         <ScrollView
-          style={{ flex: 1 }}
+          style={styles.flexRoot}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scrollContent}
@@ -1262,18 +1265,19 @@ export default function InventoryScreen({ navigation }) {
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: 10, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
-  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14 },
+  container: { flex: 1, minHeight: 0, overflow: Platform.OS === 'web' ? 'visible' : 'hidden', backgroundColor: COLORS.bg },
+  flexRoot: { flex: 1, minHeight: 0 },
+  stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: IS_COMPACT_WEB ? 6 : 10, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: IS_COMPACT_WEB ? 10 : 14 },
   backBtn: { padding: 8, marginRight: 8, marginLeft: -8 },
-  header: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+  header: { fontSize: IS_COMPACT_WEB ? 18 : 20, fontWeight: '800', color: COLORS.text },
   headerCaption: { color: COLORS.textMuted, marginTop: 1, fontSize: 12 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  createTicketButton: { minHeight: 42, borderRadius: 13, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: '#1565c0' },
+  createTicketButton: { minHeight: IS_COMPACT_WEB ? 38 : 42, borderRadius: 12, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: '#1565c0' },
   createTicketText: { color: '#fff', fontSize: 12, fontWeight: '900' },
   refreshButton: { padding: 10, backgroundColor: COLORS.inputBg, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
-  tabContainer: { flexDirection: 'row', marginHorizontal: 20, backgroundColor: COLORS.inputBg, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: COLORS.border },
-  tabButton: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 9, paddingHorizontal: 3 },
+  tabContainer: { flexDirection: 'row', marginHorizontal: 16, backgroundColor: COLORS.inputBg, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: COLORS.border },
+  tabButton: { flex: 1, minHeight: IS_COMPACT_WEB ? 36 : 40, alignItems: 'center', justifyContent: 'center', borderRadius: 9, paddingHorizontal: 3 },
   tabButtonActive: { backgroundColor: COLORS.card, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.25 : 0.08, shadowRadius: 5, elevation: 2 },
   tabText: { color: COLORS.textMuted, fontWeight: '700', fontSize: 12 },
   tabTextActive: { color: COLORS.primary },
@@ -1284,11 +1288,11 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   dropdownItemActive: { backgroundColor: isDarkMode ? '#0f2a44' : '#eff6ff' },
   dropdownItemText: { color: COLORS.text, fontSize: 15 },
   dropdownItemTextActive: { color: '#1d4ed8', fontWeight: '700' },
-  scrollContent: { padding: 10, paddingBottom: 32 },
+  scrollContent: { padding: IS_COMPACT_WEB ? 8 : 10, paddingBottom: 32 },
   summaryRow: { flexDirection: 'row', gap: 7, marginBottom: 9 },
-  summaryCard: { flex: 1, backgroundColor: COLORS.card, borderRadius: 12, padding: 9, borderWidth: 1, borderColor: COLORS.border },
+  summaryCard: { flex: 1, backgroundColor: COLORS.card, borderRadius: 12, padding: IS_COMPACT_WEB ? 7 : 9, borderWidth: 1, borderColor: COLORS.border },
   summaryWarning: { backgroundColor: '#fff7ed', borderColor: '#fed7aa' },
-  summaryValue: { color: COLORS.text, fontSize: 20, fontWeight: '900' },
+  summaryValue: { color: COLORS.text, fontSize: IS_COMPACT_WEB ? 17 : 20, fontWeight: '900' },
   summaryLabel: { color: COLORS.textMuted, fontSize: 10, marginTop: 2 },
   section: { backgroundColor: COLORS.card, borderRadius: 14, padding: 10, marginBottom: 10, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.18 : 0.04, shadowRadius: 6, elevation: 1, borderWidth: 1, borderColor: COLORS.border },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -1304,7 +1308,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   stockIconLow: { backgroundColor: '#fee2e2' },
   stockName: { color: COLORS.text, fontWeight: '800', fontSize: 13 },
   stockSafe: { color: COLORS.textMuted, fontSize: 11, marginTop: 1 },
-  stockValue: { color: '#15803d', fontWeight: '900', fontSize: 18 },
+  stockValue: { color: '#15803d', fontWeight: '900', fontSize: IS_COMPACT_WEB ? 16 : 18 },
   stockUnit: { color: COLORS.textMuted, fontSize: 11 },
   fieldLabel: { color: COLORS.text, fontWeight: '800', fontSize: 13, marginTop: 7, marginBottom: 5 },
   itemScroller: { marginBottom: 5 },
@@ -1331,7 +1335,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   requestHeader: { flexDirection: 'row', alignItems: 'flex-start' },
   requestType: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   requestItem: { color: COLORS.text, fontWeight: '800', fontSize: 15, marginTop: 3 },
-  requestAmount: { color: COLORS.text, fontSize: 22, fontWeight: '900', marginTop: 12 },
+  requestAmount: { color: COLORS.text, fontSize: IS_COMPACT_WEB ? 18 : 22, fontWeight: '900', marginTop: 10 },
   requestMeta: { color: COLORS.textMuted, fontSize: 11, marginTop: 5 },
   statusBadge: { borderRadius: 20, paddingHorizontal: 9, paddingVertical: 5 },
   statusBadgeText: { fontWeight: '800', fontSize: 10 },

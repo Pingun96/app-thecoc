@@ -643,7 +643,7 @@ export default function StaffCheckinScreen({ navigation }) {
   };
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.flexScroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#1565c0" />
@@ -790,7 +790,8 @@ export default function StaffCheckinScreen({ navigation }) {
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  container: { flex: 1, minHeight: 0, overflow: Platform.OS === 'web' ? 'visible' : 'hidden', backgroundColor: COLORS.bg },
+  flexScroll: { flex: 1, minHeight: 0 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 22, backgroundColor: COLORS.bg, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40, paddingTop: 8, paddingBottom: 8 } : null) },
   backBtn: { padding: 8, marginRight: 8, marginLeft: -8 },
