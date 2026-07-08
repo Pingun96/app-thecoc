@@ -185,34 +185,8 @@ function MainTabs() {
     attendanceHistory = [],
   } = useContext(AppContext);
 
-  const [webSafeBottom, setWebSafeBottom] = React.useState(0);
-
-  React.useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined' || typeof document === 'undefined') return undefined;
-
-    const readSafeBottom = () => {
-      const raw = window
-        .getComputedStyle(document.documentElement)
-        .getPropertyValue('--sab')
-        .trim();
-      const parsed = Number.parseFloat(raw || '0');
-      setWebSafeBottom(Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 28) : 0);
-    };
-
-    readSafeBottom();
-    window.addEventListener('resize', readSafeBottom);
-    window.addEventListener('orientationchange', readSafeBottom);
-    window.visualViewport?.addEventListener('resize', readSafeBottom);
-
-    return () => {
-      window.removeEventListener('resize', readSafeBottom);
-      window.removeEventListener('orientationchange', readSafeBottom);
-      window.visualViewport?.removeEventListener('resize', readSafeBottom);
-    };
-  }, []);
-
-  const tabBarH = Platform.OS === 'web' ? 86 + webSafeBottom : Platform.OS === 'ios' ? 84 : 62;
-  const tabBarPB = Platform.OS === 'web' ? 8 + webSafeBottom : Platform.OS === 'ios' ? 22 : 7;
+  const tabBarH = Platform.OS === 'web' ? 86 : Platform.OS === 'ios' ? 84 : 62;
+  const tabBarPB = Platform.OS === 'web' ? 8 : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();
   const hasOpenAttendance = Boolean(
@@ -740,6 +714,12 @@ export default function App() {
               <Stack.Screen name="Shifts" component={require('./src/screens/ShiftScreen').default} />
             </Stack.Navigator>
           </NavigationContainer>
+          {Platform.OS === 'web' && (
+            <View
+              pointerEvents="none"
+              style={[styles.webBottomSafeAreaFill, { backgroundColor: COLORS.card }]}
+            />
+          )}
         </View>
         <PwaInstallBanner COLORS={COLORS} isDarkMode={isDarkMode} currentUser={currentUser} />
         <WebNotificationBanner currentUser={currentUser} COLORS={COLORS} isDarkMode={isDarkMode} />
@@ -761,6 +741,14 @@ const styles = StyleSheet.create({
     minHeight: Platform.OS === 'web' ? '100dvh' : '100%',
     width: '100%',
     backgroundColor: '#fff',
+  },
+  webBottomSafeAreaFill: {
+    position: 'fixed',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 'env(safe-area-inset-bottom)',
+    zIndex: 1,
   },
   tabBar: {
     height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 86 : 62,

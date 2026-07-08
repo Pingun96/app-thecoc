@@ -70,7 +70,9 @@ export default function DashboardScreen({ navigation }) {
     };
   };
   const theme = getThemeStyles();
-  const headerTopPadding = Math.max(insets.top + 10, 20);
+  const headerTopPadding = Platform.OS === 'web'
+    ? Math.max(insets.top + 10, WEB_HEADER_TOP_PADDING)
+    : Math.max(insets.top + 10, 20);
 
   const styles = React.useMemo(() => getStyles(COLORS, isDarkMode, theme), [COLORS, isDarkMode, theme]);
 
