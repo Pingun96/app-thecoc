@@ -83,8 +83,8 @@ function MainTabs() {
     attendanceHistory = [],
   } = useContext(AppContext);
 
-  const tabBarH = Platform.OS === 'web' ? 72 : Platform.OS === 'ios' ? 84 : 62;
-  const tabBarPB = Platform.OS === 'web' ? 8 : Platform.OS === 'ios' ? 22 : 7;
+  const tabBarH = Platform.OS === 'web' ? 76 : Platform.OS === 'ios' ? 84 : 62;
+  const tabBarPB = Platform.OS === 'web' ? 10 : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();
   const hasOpenAttendance = Boolean(
@@ -114,7 +114,7 @@ function MainTabs() {
           } else if (route.name === 'StaffCheckin') {
             iconName = checkActionIcon;
             iconColor = checkActionColor;
-            iconSize = 28;
+            iconSize = Platform.OS === 'web' ? 26 : 28;
           } else if (route.name === 'ScheduleTab') {
             iconName = focused ? 'calendar' : 'calendar-outline';
           }
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabBar: {
-    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 72 : 62,
+    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 76 : 62,
     paddingTop: Platform.OS === 'web' ? 6 : 5,
     paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 6 : 7,
     overflow: 'visible',
@@ -642,15 +642,18 @@ const styles = StyleSheet.create({
   tabBarLabel: {
     fontSize: 11,
     fontWeight: '700',
-    marginTop: 2,
+    marginTop: Platform.OS === 'web' ? 1 : 2,
     ...(Platform.OS === 'web' ? { marginBottom: 0, lineHeight: 14 } : null),
   },
   tabBarItemWeb: {
-    height: 58,
-    paddingTop: 6,
-    paddingBottom: 6,
+    height: 60,
+    paddingTop: 5,
+    paddingBottom: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabBarIconWeb: {
     marginTop: 0,
+    marginBottom: 0,
   },
 });
