@@ -83,10 +83,10 @@ function MainTabs() {
     attendanceHistory = [],
   } = useContext(AppContext);
 
-  // Lấy đúng safe area từ SafeAreaProvider (tự động đúng cho mọi iPhone)
-  const { bottom: safeBottom, top: safeTop } = useSafeAreaInsets();
-  const tabBarH = Platform.OS === 'web' ? Math.max(62 + safeBottom, 76) : Platform.OS === 'ios' ? 84 : 62;
-  const tabBarPB = Platform.OS === 'web' ? Math.max(safeBottom + 4, 8) : Platform.OS === 'ios' ? 22 : 7;
+  // SafeAreaProvider đã tự lo - KHÔNG cộng thêm vào tab bar
+  // (React Navigation tự thêm safeBottom, nếu ta thêm nữa sẽ bị double)
+  const tabBarH = Platform.OS === 'web' ? 62 : Platform.OS === 'ios' ? 84 : 62;
+  const tabBarPB = Platform.OS === 'web' ? 6 : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();
   const hasOpenAttendance = Boolean(
@@ -124,7 +124,7 @@ function MainTabs() {
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
-        safeAreaInsets: Platform.OS === 'web' ? { top: 0, right: 0, bottom: 0, left: 0 } : undefined,
+        tabBarSafeAreaInsets: Platform.OS === 'web' ? { bottom: 0 } : undefined,
         tabBarStyle: [
           styles.tabBar,
           {
