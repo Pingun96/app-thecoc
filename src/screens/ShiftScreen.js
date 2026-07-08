@@ -1100,7 +1100,7 @@ export default function ShiftScreen({ navigation }) {
           <Text style={styles.historyCalendarText}>Tùy chọn</Text>
         </TouchableOpacity>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyQuickRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyQuickRow} decelerationRate="fast" scrollEventThrottle={16}>
         {[
           ['all', 'Tất cả'],
           ['today', 'Hôm nay'],
@@ -1196,7 +1196,7 @@ export default function ShiftScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" scrollEventThrottle={16}>
               <View style={{marginBottom: 15}}>
                 <Text style={{fontWeight: 'bold'}}>Chi nhánh: {storeList.find(s=>s.id===item.store_id)?.name}</Text>
                 <Text>Người mở ca: {item.opened_by_name} lúc {item.opened_at}</Text>
@@ -1359,7 +1359,7 @@ export default function ShiftScreen({ navigation }) {
         </View>
 
         <View style={styles.tabContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} decelerationRate="fast" scrollEventThrottle={16}>
             <TouchableOpacity style={[styles.tabBtn, activeTab === 'INVENTORY' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('INVENTORY')}>
               <Text style={[styles.tabText, activeTab === 'INVENTORY' && styles.tabTextActive]}>Kiểm Kho</Text>
             </TouchableOpacity>
@@ -1382,6 +1382,8 @@ export default function ShiftScreen({ navigation }) {
         </View>
 
         <ScrollView 
+          decelerationRate="fast"
+          scrollEventThrottle={16} 
           showsVerticalScrollIndicator={false} 
           contentContainerStyle={{ paddingBottom: 80 }} 
           style={styles.mainScroll}

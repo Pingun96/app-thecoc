@@ -86,7 +86,7 @@ function MainTabs() {
   // SafeAreaProvider đã tự lo - KHÔNG cộng thêm vào tab bar
   // (React Navigation tự thêm safeBottom, nếu ta thêm nữa sẽ bị double)
   const tabBarH = Platform.OS === 'web' ? 62 : Platform.OS === 'ios' ? 84 : 62;
-  const tabBarPB = Platform.OS === 'web' ? 6 : Platform.OS === 'ios' ? 22 : 7;
+  const tabBarPB = Platform.OS === 'web' ? 12 : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();
   const hasOpenAttendance = Boolean(

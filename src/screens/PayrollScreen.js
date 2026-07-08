@@ -544,6 +544,8 @@ export default function PayrollScreen({ navigation }) {
       <ScrollView 
         style={styles.flexRoot}
         contentContainerStyle={styles.scrollContent}
+        decelerationRate="fast"
+        scrollEventThrottle={16}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
       >
         {isManager || isOwner ? (
@@ -703,7 +705,7 @@ export default function PayrollScreen({ navigation }) {
             </View>
             <Text style={styles.modalSubtitle}>Nhân viên: {adjTarget?.name}</Text>
             
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" scrollEventThrottle={16}>
               <Text style={styles.label}>Số giờ thưởng thêm (vd: 2.5):</Text>
               <TextInput style={styles.input} keyboardType="numeric" value={editBonusHours} onChangeText={setEditBonusHours} />
               

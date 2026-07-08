@@ -58,7 +58,7 @@ function CustomBarChart({ data, labels, COLORS }) {
   const barWidth = Math.max(18, Math.min(36, (screenWidth - 80) / data.length - 4));
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }} decelerationRate="fast" scrollEventThrottle={16}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: CHART_HEIGHT + 36 }}>
         {data.map((val, idx) => {
           const barH = Math.max(4, Math.round((val / maxVal) * CHART_HEIGHT));
@@ -276,7 +276,7 @@ function DateRangeModal({ visible, onClose, onApply, COLORS }) {
           </View>
 
           {/* Shortcut buttons */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} decelerationRate="fast" scrollEventThrottle={16}>
             {[
               { label: 'Hôm qua', start: (() => { const d = new Date(); d.setDate(d.getDate() - 1); return getVNDateStr(d); })(), end: (() => { const d = new Date(); d.setDate(d.getDate() - 1); return getVNDateStr(d); })() },
               { label: 'Tuần này', start: (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); return getVNDateStr(d); })() },
@@ -493,7 +493,7 @@ export default function FinanceScreen({ navigation }) {
 
       {/* Branch Selector */}
       {isOwner && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} style={{ flexGrow: 0, height: 50 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} style={{ flexGrow: 0, height: 50 }} decelerationRate="fast" scrollEventThrottle={16}>
           <TouchableOpacity style={[styles.filterBtn, storeIdToView === 'ALL' && styles.filterBtnActive]} onPress={() => setStoreIdToView('ALL')}>
             <Text style={[styles.filterBtnText, storeIdToView === 'ALL' && styles.filterBtnTextActive]}>Tất cả</Text>
           </TouchableOpacity>
@@ -506,7 +506,7 @@ export default function FinanceScreen({ navigation }) {
       )}
 
       {/* Period Selector */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRow} style={{ flexGrow: 0, height: 45 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRow} style={{ flexGrow: 0, height: 45 }} decelerationRate="fast" scrollEventThrottle={16}>
         {[['today', 'Hôm nay'], ['yesterday', 'Hôm qua'], ['week', 'Tuần này'], ['month', 'Tháng này'], ['7', '7 ngày'], ['30', '30 ngày']].map(([val, label]) => (
           <TouchableOpacity key={val} style={[styles.periodBtn, period === val && styles.periodBtnActive]} onPress={() => setPeriod(val)}>
             <Text style={[styles.periodText, period === val && styles.periodTextActive]}>{label}</Text>
@@ -525,7 +525,7 @@ export default function FinanceScreen({ navigation }) {
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={COLORS.primary} /></View>
       ) : (
-        <ScrollView style={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}>
+        <ScrollView style={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />} decelerationRate="fast" scrollEventThrottle={16}>
           <View style={styles.mainCard}>
             <Text style={styles.mainCardLabel}>Tổng doanh thu Ocha</Text>
             <Text style={styles.mainCardValue}>{totalRevenue.toLocaleString('vi-VN')} đ</Text>

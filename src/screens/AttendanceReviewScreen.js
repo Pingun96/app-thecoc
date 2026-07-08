@@ -207,7 +207,7 @@ export default function AttendanceReviewScreen({ navigation }) {
   const renderStoreFilters = () => {
     if (displayStoreId !== 'ALL') return null;
     return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow} decelerationRate="fast" scrollEventThrottle={16}>
         <TouchableOpacity
           style={[styles.filterChip, storeFilter === 'ALL' && styles.filterChipActive]}
           onPress={() => setStoreFilter('ALL')}
@@ -239,7 +239,9 @@ export default function AttendanceReviewScreen({ navigation }) {
         </View>
       </View>
 
-      <ScrollView
+      <ScrollView 
+        decelerationRate="fast"
+        scrollEventThrottle={16}
         style={styles.flexScroll}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} tintColor={COLORS.primary} />}
@@ -268,7 +270,7 @@ export default function AttendanceReviewScreen({ navigation }) {
 
           {renderStoreFilters()}
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow} decelerationRate="fast" scrollEventThrottle={16}>
             {FILTERS.map((filter) => (
               <TouchableOpacity
                 key={filter.key}

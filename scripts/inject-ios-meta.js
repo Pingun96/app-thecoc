@@ -52,8 +52,11 @@ const iosCss = `
       /* Scrollable views của React Native Web - dùng native momentum scroll */
       [style*="overflow-y"][style*="scroll"],
       [style*="overflow: scroll"],
-      [style*="overflow:scroll"] {
+      [style*="overflow:scroll"],
+      [style*="overflow-y: scroll"],
+      [style*="overflow-y:scroll"] {
         -webkit-overflow-scrolling: touch !important;
+        scroll-behavior: auto !important;
       }
       /* CSS vars để JS đọc đúng safe area từ iOS - cần viewport-fit=cover */
       :root {
