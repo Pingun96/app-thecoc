@@ -134,7 +134,7 @@ const CustomTabBarButton = ({
         <Text style={[styles.floatingButtonLabel, {
           color: buttonColor,
           position: 'absolute',
-          ...(Platform.OS === 'web' ? { top: 54 } : { bottom: -2 }),
+          ...(Platform.OS === 'web' ? { top: 55 } : { bottom: -2 }),
           left: -30,
           right: -30,
           textAlign: 'center',
@@ -714,12 +714,6 @@ export default function App() {
               <Stack.Screen name="Shifts" component={require('./src/screens/ShiftScreen').default} />
             </Stack.Navigator>
           </NavigationContainer>
-          {Platform.OS === 'web' && (
-            <View
-              pointerEvents="none"
-              style={[styles.webBottomSafeAreaFill, { backgroundColor: COLORS.card }]}
-            />
-          )}
         </View>
         <PwaInstallBanner COLORS={COLORS} isDarkMode={isDarkMode} currentUser={currentUser} />
         <WebNotificationBanner currentUser={currentUser} COLORS={COLORS} isDarkMode={isDarkMode} />
@@ -742,14 +736,6 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#fff',
   },
-  webBottomSafeAreaFill: {
-    position: 'fixed',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 'env(safe-area-inset-bottom)',
-    zIndex: 1,
-  },
   tabBar: {
     height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 86 : 62,
     paddingTop: Platform.OS === 'web' ? 6 : 5,
@@ -760,6 +746,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowRadius: 8,
+    zIndex: 50,
   },
   tabBarLabel: {
     fontSize: 11,
@@ -777,21 +764,21 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   floatingButtonContainer: {
-    top: -24,
+    top: Platform.OS === 'web' ? -18 : -24,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: Platform.OS === 'web' ? 66 : 70,
+    height: Platform.OS === 'web' ? 66 : 70,
+    borderRadius: Platform.OS === 'web' ? 33 : 35,
     overflow: 'visible',
   },
   floatingButtonNotch: {
     position: 'absolute',
-    top: -27,
+    top: Platform.OS === 'web' ? -21 : -27,
     alignSelf: 'center',
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: Platform.OS === 'web' ? 72 : 76,
+    height: Platform.OS === 'web' ? 72 : 76,
+    borderRadius: Platform.OS === 'web' ? 36 : 38,
     borderWidth: 1,
     opacity: 0.96,
     shadowOpacity: 0.08,
