@@ -206,6 +206,7 @@ function MainTabs() {
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
+        safeAreaInsets: Platform.OS === 'web' ? { top: 0, right: 0, bottom: 0, left: 0 } : undefined,
         tabBarStyle: [
           styles.tabBar,
           {
@@ -722,7 +723,7 @@ const styles = StyleSheet.create({
   tabBar: {
     height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 82 : 62,
     paddingTop: 5,
-    paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 8 : 7,
+    paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 6 : 7,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 8,
     shadowColor: '#000',
