@@ -74,7 +74,7 @@ const CustomTabBarButton = ({
   };
 
   return (
-    <View style={[style, { alignItems: 'center' }]}>
+    <View style={[style, { alignItems: 'center', overflow: 'visible', ...(Platform.OS === 'web' ? { height: 82, justifyContent: 'flex-start' } : null) }]}>
       {/* Notch background behind the button */}
       <View style={[styles.floatingButtonNotch, {
         backgroundColor: tabBarColor,
@@ -125,7 +125,7 @@ const CustomTabBarButton = ({
         <Text style={[styles.floatingButtonLabel, {
           color: buttonColor,
           position: 'absolute',
-          bottom: Platform.OS === 'web' ? 4 : -2,
+          ...(Platform.OS === 'web' ? { top: 55 } : { bottom: -2 }),
           left: -30,
           right: -30,
           textAlign: 'center',
@@ -176,23 +176,8 @@ function MainTabs() {
     attendanceHistory = [],
   } = useContext(AppContext);
 
-  // Đọc bottom safe area thực tế từ iOS (home indicator height: ~34px)
-  const [webSafeBottom, setWebSafeBottom] = React.useState(34);
-  React.useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const read = () => {
-        const val = parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue('--sab')
-        );
-        if (!isNaN(val) && val > 0) setWebSafeBottom(val);
-      };
-      read();
-      setTimeout(read, 500);
-    }
-  }, []);
-
-  const tabBarH = Platform.OS === 'web' ? 56 + webSafeBottom : Platform.OS === 'ios' ? 84 : 62;
-  const tabBarPB = Platform.OS === 'web' ? webSafeBottom + 2 : Platform.OS === 'ios' ? 22 : 7;
+  const tabBarH = Platform.OS === 'web' ? 82 : Platform.OS === 'ios' ? 84 : 62;
+  const tabBarPB = Platform.OS === 'web' ? 8 : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();
   const hasOpenAttendance = Boolean(
@@ -224,7 +209,7 @@ function MainTabs() {
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarSafeAreaInsets: Platform.OS === 'web' ? { bottom: 0 } : undefined,
+        safeAreaInsets: Platform.OS === 'web' ? { top: 0, right: 0, bottom: 0, left: 0 } : undefined,
         tabBarStyle: [
           styles.tabBar,
           {
@@ -236,6 +221,8 @@ function MainTabs() {
           },
         ],
         tabBarLabelStyle: styles.tabBarLabel,
+        tabBarItemStyle: Platform.OS === 'web' ? styles.tabBarItemWeb : undefined,
+        tabBarIconStyle: Platform.OS === 'web' ? styles.tabBarIconWeb : undefined,
       })}
     >
       <Tab.Screen name="HomeTab" component={DashboardScreen} options={{ title: 'Trang Chủ' }} />
@@ -741,9 +728,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabBar: {
-    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 90 : 62,
+    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 82 : 62,
     paddingTop: 5,
     paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 6 : 7,
+    overflow: 'visible',
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 8,
     shadowColor: '#000',
@@ -754,6 +742,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     marginTop: 2,
+    ...(Platform.OS === 'web' ? { marginBottom: 0, lineHeight: 14 } : null),
+  },
+  tabBarItemWeb: {
+    height: 74,
+    paddingTop: 8,
+    paddingBottom: 8,
+    overflow: 'visible',
+  },
+  tabBarIconWeb: {
+    marginTop: 0,
   },
   floatingButtonContainer: {
     top: -24,
