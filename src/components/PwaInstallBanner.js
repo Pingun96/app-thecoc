@@ -8,17 +8,21 @@ const isStandalonePwa = () => {
     || window.navigator?.standalone === true;
 };
 
-export default function PwaInstallBanner({ COLORS, isDarkMode }) {
+export default function PwaInstallBanner({ COLORS, isDarkMode, currentUser }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (currentUser) {
+      setVisible(false);
+      return;
+    }
     if (isStandalonePwa()) return;
     if (window.localStorage?.getItem('thecocPwaInstallBannerDismissed') === '1') return;
 
     const timer = setTimeout(() => setVisible(true), 1200);
     return () => clearTimeout(timer);
-  }, []);
+  }, [currentUser]);
 
   if (!visible) return null;
 

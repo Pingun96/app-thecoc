@@ -26,6 +26,13 @@ import {
 import {
   normalizeInventoryItem,
 } from '../services/dataMappers';
+import {
+  buildInventoryStockRows,
+  getBusinessStores,
+  getCentralWarehouseStore,
+  getStoreName,
+  isCentralWarehouseStore,
+} from '../utils/warehouse';
 
 const ACTIONS = {
   IMPORT: { label: 'Nhập kho', shortLabel: 'NHẬP', color: '#16a34a', sign: '+' },
@@ -118,9 +125,22 @@ const formatPercent = (value) => {
 
 const makeId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-const getRequestStatus = (status) => {
-  if (status === 'PENDING_SOURCE') return { label: 'Chờ chi nhánh chuyển duyệt', color: '#b45309', bg: '#fef3c7' };
-  if (status === 'PENDING_DEST') return { label: 'Chờ chi nhánh nhận duyệt', color: '#1d4ed8', bg: '#dbeafe' };
+const getRequestStatus = (status, ticket = {}) => {
+  const isWarehouseTransfer = ticket.type === 'TRANSFER' && ticket.source_is_warehouse;
+  if (status === 'PENDING_SOURCE') {
+    return {
+      label: isWarehouseTransfer ? 'Chờ kho tổng xác nhận' : 'Chờ nơi xuất duyệt',
+      color: '#b45309',
+      bg: '#fef3c7',
+    };
+  }
+  if (status === 'PENDING_DEST') {
+    return {
+      label: isWarehouseTransfer ? 'Đang giao về cửa hàng' : 'Chờ nơi nhận duyệt',
+      color: '#1d4ed8',
+      bg: '#dbeafe',
+    };
+  }
   if (status === 'APPROVED') return { label: 'Đã duyệt', color: '#15803d', bg: '#dcfce7' };
   if (status === 'REJECTED') return { label: 'Đã từ chối', color: '#b91c1c', bg: '#fee2e2' };
   return { label: status || 'Không rõ', color: '#475569', bg: '#e2e8f0' };
@@ -147,6 +167,9 @@ export default function InventoryScreen({ navigation }) {
   const isOwner = currentUser?.role === 'OWNER';
   const isStaff = currentUser?.role === 'STAFF';
   const viewableStores = currentUser?.permissions?.viewable_stores || [];
+  const businessStores = useMemo(() => getBusinessStores(storeList), [storeList]);
+  const centralWarehouse = useMemo(() => getCentralWarehouseStore(storeList), [storeList]);
+  const centralWarehouseId = centralWarehouse?.id;
 
   let storeIdToView = currentUser?.store_id;
   if (isOwner || viewableStores.includes(selectedStoreId)) storeIdToView = selectedStoreId;
@@ -154,33 +177,25 @@ export default function InventoryScreen({ navigation }) {
 
   const storeName = storeIdToView === 'ALL'
     ? 'Tất cả chi nhánh'
-    : storeList.find((store) => store.id === storeIdToView)?.name || `Chi nhánh ${storeIdToView || '--'}`;
+    : getStoreName(businessStores, storeIdToView);
 
   const myItems = useMemo(
     () => inventoryItems.filter(
-      (item) => storeIdToView === 'ALL' || item.store_id === storeIdToView,
+      (item) => (storeIdToView === 'ALL' || item.store_id === storeIdToView)
+        && String(item.store_id) !== String(centralWarehouseId || ''),
     ),
-    [inventoryItems, storeIdToView],
+    [inventoryItems, storeIdToView, centralWarehouseId],
   );
 
-  const stockData = useMemo(() => myItems.map((item) => {
-    const logs = inventoryLogs.filter(
-      (log) => log.itemId === item.id && log.store_id === item.store_id,
-    );
-    const imported = logs
-      .filter((log) => log.type === 'IMPORT' || log.type === 'ADJUST_UP')
-      .reduce((sum, log) => sum + Number(log.amount || 0), 0);
-    const exported = logs
-      .filter((log) => log.type === 'EXPORT' || log.type === 'ADJUST_DOWN')
-      .reduce((sum, log) => sum + Number(log.amount || 0), 0);
-    const currentStock = Number((imported - exported).toFixed(2));
-    return {
-      ...item,
-      logs,
-      currentStock,
-      isLowStock: currentStock <= Number(item.safeLevel || 0),
-    };
-  }), [inventoryLogs, myItems]);
+  const warehouseItems = useMemo(
+    () => inventoryItems.filter((item) => (
+      centralWarehouseId && String(item.store_id) === String(centralWarehouseId)
+    )),
+    [inventoryItems, centralWarehouseId],
+  );
+
+  const stockData = useMemo(() => buildInventoryStockRows(myItems, inventoryLogs), [inventoryLogs, myItems]);
+  const warehouseStockData = useMemo(() => buildInventoryStockRows(warehouseItems, inventoryLogs), [inventoryLogs, warehouseItems]);
 
   const stockByItemId = useMemo(
     () => Object.fromEntries(stockData.map((item) => [item.id, item])),
@@ -250,7 +265,7 @@ export default function InventoryScreen({ navigation }) {
       setBusyKey('sync-offline');
       for (const ticket of offlineTickets) {
         await createInventoryTicket(ticket);
-        if (isOwner) {
+        if (isOwner && ticket.type !== 'TRANSFER') {
           await approveInventoryTicket(ticket, currentUser.id, ticket.source_store_id || ticket.destination_store_id);
         }
         successCount++;
@@ -275,14 +290,32 @@ export default function InventoryScreen({ navigation }) {
   const [newItemUnit, setNewItemUnit] = useState('kg');
   const [newItemSafeLevel, setNewItemSafeLevel] = useState('5');
 
-  const effectiveSelectedItemId = myItems.some((item) => item.id === selectedItemId)
+  const actionStockData = actionType === 'TRANSFER' ? warehouseStockData : stockData;
+  const actionStockByItemId = useMemo(
+    () => Object.fromEntries(actionStockData.map((item) => [item.id, item])),
+    [actionStockData],
+  );
+  const effectiveSelectedItemId = actionStockData.some((item) => item.id === selectedItemId)
     ? selectedItemId
-    : myItems[0]?.id || '';
+    : actionStockData[0]?.id || '';
   const filteredStock = stockData.filter((item) => (
     item.name.toLowerCase().includes(searchText.trim().toLowerCase())
   ));
   const lowStockCount = stockData.filter((item) => item.isLowStock).length;
-  const selectedStock = stockByItemId[effectiveSelectedItemId];
+  const selectedStock = actionStockByItemId[effectiveSelectedItemId];
+  const warehouseStockByName = useMemo(() => (
+    Object.fromEntries(warehouseStockData.map((item) => [String(item.name || '').trim().toLowerCase(), item]))
+  ), [warehouseStockData]);
+  const suggestedImportRows = useMemo(() => stockData
+    .map((item) => {
+      const targetStock = Number(item.safeLevel || 0);
+      const suggestedAmount = Number(Math.max(targetStock - Number(item.currentStock || 0), 0).toFixed(2));
+      const warehouseItem = warehouseStockByName[String(item.name || '').trim().toLowerCase()];
+      return { ...item, suggestedAmount, warehouseItem };
+    })
+    .filter((item) => item.suggestedAmount > 0 && item.warehouseItem)
+    .sort((a, b) => b.suggestedAmount - a.suggestedAmount),
+  [stockData, warehouseStockByName]);
   const inventoryComparisonRows = useMemo(() => {
     const scopedShifts = (shifts || [])
       .filter((shift) => storeIdToView === 'ALL' || String(shift.store_id) === String(storeIdToView))
@@ -462,10 +495,14 @@ export default function InventoryScreen({ navigation }) {
   }, [monthlyUsageRows]);
 
   const pendingRequests = inventoryTickets.filter((ticket) => {
-    if (storeIdToView !== 'ALL' && ticket.source_store_id !== storeIdToView && ticket.destination_store_id !== storeIdToView) return false;
+    if (
+      storeIdToView !== 'ALL'
+      && String(ticket.source_store_id) !== String(storeIdToView)
+      && String(ticket.destination_store_id) !== String(storeIdToView)
+    ) return false;
     
-    const isSourceManager = ticket.source_store_id === currentUser?.store_id;
-    const isDestManager = ticket.destination_store_id === currentUser?.store_id;
+    const isSourceManager = String(ticket.source_store_id) === String(currentUser?.store_id);
+    const isDestManager = String(ticket.destination_store_id) === String(currentUser?.store_id);
 
     if (isOwner) {
       return ['PENDING_SOURCE', 'PENDING_DEST'].includes(ticket.status);
@@ -491,6 +528,9 @@ export default function InventoryScreen({ navigation }) {
 
   const handleAddToCart = () => {
     if (!selectedStock) return Alert.alert('Lỗi', 'Vui lòng chọn nguyên liệu');
+    if (actionType === 'TRANSFER' && !centralWarehouseId) {
+      return Alert.alert('Chưa có Kho tổng', 'Vui lòng tạo một kho tên "Kho Tổng" hoặc bật is_warehouse cho kho tổng trong dữ liệu.');
+    }
     const numericAmount = Number(String(amount).replace(',', '.'));
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
       return Alert.alert('Lỗi', 'Số lượng phải lớn hơn 0.');
@@ -507,7 +547,8 @@ export default function InventoryScreen({ navigation }) {
         name: selectedStock.name,
         unit: selectedStock.unit,
         amount: numericAmount,
-        currentStock: selectedStock.currentStock
+        currentStock: selectedStock.currentStock,
+        source_store_id: actionType === 'TRANSFER' ? centralWarehouseId : undefined,
       }]);
     }
     setAmount('');
@@ -515,11 +556,52 @@ export default function InventoryScreen({ navigation }) {
 
   const handleRemoveFromCart = (itemId) => setCartItems(cartItems.filter(i => i.itemId !== itemId));
 
+  const handleCreateSuggestedTransfer = () => {
+    if (!centralWarehouseId) {
+      Alert.alert('Chưa có Kho tổng', 'Vui lòng tạo một kho tên "Kho Tổng" hoặc bật is_warehouse cho kho tổng trong dữ liệu.');
+      return;
+    }
+    if (storeIdToView === 'ALL') {
+      Alert.alert('Chọn chi nhánh', 'Vui lòng chọn một chi nhánh cụ thể trước khi tạo đề xuất nhập.');
+      return;
+    }
+    if (suggestedImportRows.length === 0) {
+      Alert.alert('Chưa có gợi ý', 'Các mặt hàng hiện chưa thấp hơn mức tồn an toàn hoặc chưa có mặt hàng trùng tên trong Kho tổng.');
+      return;
+    }
+
+    const nextCart = suggestedImportRows.map((item) => ({
+      itemId: item.warehouseItem.id,
+      name: item.warehouseItem.name,
+      unit: item.warehouseItem.unit,
+      amount: item.suggestedAmount,
+      currentStock: item.warehouseItem.currentStock,
+      source_store_id: centralWarehouseId,
+      suggested_for_store_item_id: item.id,
+    }));
+
+    setActionType('TRANSFER');
+    setCartItems(nextCart);
+    setSelectedItemId(nextCart[0]?.itemId || '');
+    setAmount('');
+    setShowActionModal(true);
+  };
+
+  const openActionModal = () => {
+    setCartItems([]);
+    setAmount('');
+    setSelectedItemId('');
+    setIsItemDropdownOpen(false);
+    setShowActionModal(true);
+  };
+
   const handleSubmitAction = () => runOperation('submit-action', async () => {
     if (cartItems.length === 0) throw new Error('Giỏ hàng trống. Vui lòng thêm ít nhất 1 mặt hàng.');
     if (storeIdToView === 'ALL') throw new Error('Vui lòng chọn một chi nhánh cụ thể.');
+    if (isCentralWarehouseStore({ id: storeIdToView, name: storeName })) throw new Error('Kho tổng dùng màn riêng để duyệt và xuất hàng.');
+    if (actionType === 'TRANSFER' && !centralWarehouseId) throw new Error('Chưa tìm thấy Kho tổng trong hệ thống.');
 
-    if (actionType === 'EXPORT') {
+    if (actionType === 'EXPORT' || actionType === 'TRANSFER') {
       for (const item of cartItems) {
         if (item.amount > item.currentStock) {
           throw new Error(`Không thể xuất ${item.name}. Tồn kho hiện tại chỉ còn ${formatQuantity(item.currentStock)} ${item.unit}.`);
@@ -533,8 +615,8 @@ export default function InventoryScreen({ navigation }) {
     const ticket = {
       id: makeId('ticket'),
       type: actionType,
-      source_store_id: actionType === 'EXPORT' ? storeIdToView : null,
-      destination_store_id: actionType === 'IMPORT' ? storeIdToView : null,
+      source_store_id: actionType === 'TRANSFER' ? centralWarehouseId : (actionType === 'EXPORT' ? storeIdToView : null),
+      destination_store_id: actionType === 'TRANSFER' || actionType === 'IMPORT' ? storeIdToView : null,
       items: cartItems,
       status: initialStatus,
       requested_by: currentUser?.id,
@@ -544,9 +626,11 @@ export default function InventoryScreen({ navigation }) {
 
     try {
       await createInventoryTicket(ticket);
-      if (isOwner) {
+      if (isOwner && actionType !== 'TRANSFER') {
          await approveInventoryTicket(ticket, currentUser.id, storeIdToView);
          Alert.alert('Thành công', 'Phiếu đã được tạo và tự động duyệt vì bạn là Chủ Cửa Hàng.');
+      } else if (actionType === 'TRANSFER') {
+         Alert.alert('Đã gửi đề xuất', 'Đơn đề xuất nhập hàng đã gửi sang Kho tổng để xác nhận xuất.');
       } else {
          Alert.alert('Đã gửi phiếu', 'Yêu cầu đã được gửi đến quản lý để phê duyệt.');
       }
@@ -634,8 +718,8 @@ export default function InventoryScreen({ navigation }) {
     );
   };
 
-  const renderStatusBadge = (status) => {
-    const config = getRequestStatus(status);
+  const renderStatusBadge = (ticket) => {
+    const config = getRequestStatus(ticket.status, ticket);
     return (
       <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
         <Text style={[styles.statusBadgeText, { color: config.color }]}>{config.label}</Text>
@@ -644,11 +728,15 @@ export default function InventoryScreen({ navigation }) {
   };
 
   const renderRequestCard = (ticket, reviewable = false) => {
+    const sourceIsWarehouse = ticket.type === 'TRANSFER'
+      && centralWarehouseId
+      && String(ticket.source_store_id) === String(centralWarehouseId);
+    const displayTicket = { ...ticket, source_is_warehouse: sourceIsWarehouse };
     let actionLabel = ticket.type;
     let actionColor = '#475569';
     if (ticket.type === 'IMPORT') { actionLabel = 'Nhập kho'; actionColor = '#16a34a'; }
     if (ticket.type === 'EXPORT') { actionLabel = 'Xuất kho'; actionColor = '#dc2626'; }
-    if (ticket.type === 'TRANSFER') { actionLabel = 'Chuyển kho'; actionColor = '#7c3aed'; }
+    if (ticket.type === 'TRANSFER') { actionLabel = sourceIsWarehouse ? 'Đề xuất nhập từ Kho tổng' : 'Chuyển kho'; actionColor = '#7c3aed'; }
 
     const isBusy = busyKey === `review-${ticket.id}`;
     
@@ -659,11 +747,11 @@ export default function InventoryScreen({ navigation }) {
             <Text style={[styles.requestType, { color: actionColor }]}>{actionLabel}</Text>
             {ticket.type === 'TRANSFER' && (
               <Text style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                Từ: CN {ticket.source_store_id} ➔ Đến: CN {ticket.destination_store_id}
+                Từ: {getStoreName(storeList, ticket.source_store_id, 'Kho')} ➔ Đến: {getStoreName(storeList, ticket.destination_store_id)}
               </Text>
             )}
           </View>
-          {renderStatusBadge(ticket.status)}
+          {renderStatusBadge(displayTicket)}
         </View>
         
         <View style={{ marginTop: 10, backgroundColor: '#f8fafc', padding: 8, borderRadius: 8 }}>
@@ -717,6 +805,7 @@ export default function InventoryScreen({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
+        <View style={styles.stickyTopBar}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#1565c0" />
@@ -725,11 +814,19 @@ export default function InventoryScreen({ navigation }) {
             <Text style={styles.header}>Quản lý kho</Text>
             <Text style={styles.headerCaption}>{storeName}</Text>
           </View>
-          {!isStaff && (
-            <TouchableOpacity onPress={() => refreshData?.()} style={styles.refreshButton}>
-              <Ionicons name="refresh" size={21} color="#1565c0" />
-            </TouchableOpacity>
-          )}
+          <View style={styles.headerActions}>
+            {!isStaff && (
+              <TouchableOpacity onPress={openActionModal} style={styles.createTicketButton}>
+                <Ionicons name="add-circle-outline" size={18} color="#fff" />
+                <Text style={styles.createTicketText}>Phiếu</Text>
+              </TouchableOpacity>
+            )}
+            {!isStaff && (
+              <TouchableOpacity onPress={() => refreshData?.()} style={styles.refreshButton}>
+                <Ionicons name="refresh" size={21} color="#1565c0" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <View style={styles.tabContainer}>
@@ -747,6 +844,7 @@ export default function InventoryScreen({ navigation }) {
               </Text>
             </TouchableOpacity>
           ))}
+        </View>
         </View>
 
         <ScrollView
@@ -773,6 +871,43 @@ export default function InventoryScreen({ navigation }) {
                     <Text style={styles.summaryValue}>{pendingRequests.length}</Text>
                     <Text style={styles.summaryLabel}>Chờ duyệt</Text>
                   </View>
+                </View>
+              )}
+
+              {!isStaff && storeIdToView !== 'ALL' && (
+                <View style={[styles.section, styles.suggestionBox]}>
+                  <View style={styles.sectionHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.sectionTitle}>Gợi ý nhập từ Kho tổng</Text>
+                      <Text style={styles.suggestionHint}>
+                        Dựa trên tồn an toàn của cửa hàng và tồn khả dụng tại Kho tổng.
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.addButton, suggestedImportRows.length === 0 && styles.disabledButton]}
+                      onPress={handleCreateSuggestedTransfer}
+                      disabled={suggestedImportRows.length === 0}
+                    >
+                      <Ionicons name="paper-plane-outline" size={16} color="#fff" />
+                      <Text style={styles.addButtonText}>Tạo đề xuất</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {!centralWarehouseId ? (
+                    <Text style={styles.emptyText}>Chưa cấu hình Kho tổng. Tạo kho tên Kho Tổng hoặc bật is_warehouse trong bảng stores.</Text>
+                  ) : suggestedImportRows.length === 0 ? (
+                    <Text style={styles.emptyText}>Chưa có mặt hàng nào cần đề xuất nhập.</Text>
+                  ) : suggestedImportRows.slice(0, 4).map((item) => (
+                    <View key={item.id} style={styles.suggestionRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.stockName}>{item.name}</Text>
+                        <Text style={styles.stockSafe}>
+                          Cửa hàng còn {formatQuantity(item.currentStock)} / an toàn {formatQuantity(item.safeLevel)} {item.unit}
+                        </Text>
+                      </View>
+                      <Text style={styles.suggestionQty}>+{formatQuantity(item.suggestedAmount)} {item.unit}</Text>
+                    </View>
+                  ))}
                 </View>
               )}
 
@@ -821,15 +956,6 @@ export default function InventoryScreen({ navigation }) {
                   ))}
                 </View>
               )}
-
-              {/* FAB - Tạo phiếu kho */}
-              <TouchableOpacity
-                style={styles.fab}
-                onPress={() => { setShowActionModal(true); setCartItems([]); setAmount(''); setSelectedItemId(''); }}
-              >
-                <Ionicons name="add" size={22} color="#fff" />
-                <Text style={styles.fabText}>Tạo phiếu</Text>
-              </TouchableOpacity>
             </>
           )}
 
@@ -974,17 +1100,21 @@ export default function InventoryScreen({ navigation }) {
                 </View>
 
                 <View style={styles.actionGrid}>
-                  {['IMPORT', 'EXPORT'].map((type) => (
+                  {[
+                    { key: 'TRANSFER', label: 'Đề xuất nhập', color: '#7c3aed' },
+                    { key: 'IMPORT', label: 'Nhập tay', color: '#16a34a' },
+                    { key: 'EXPORT', label: 'Xuất hủy', color: '#dc2626' },
+                  ].map((action) => (
                     <TouchableOpacity
-                      key={type}
+                      key={action.key}
                       style={[
                         styles.actionButton,
-                        actionType === type && { backgroundColor: type === 'IMPORT' ? '#16a34a' : '#dc2626', borderColor: type === 'IMPORT' ? '#16a34a' : '#dc2626' },
+                        actionType === action.key && { backgroundColor: action.color, borderColor: action.color },
                       ]}
-                      onPress={() => { setActionType(type); setCartItems([]); }}
+                      onPress={() => { setActionType(action.key); setCartItems([]); setSelectedItemId(''); }}
                     >
-                      <Text style={[styles.actionButtonText, actionType === type && { color: '#fff' }]}>
-                        {type === 'IMPORT' ? '📥 Nhập Hàng' : '📤 Xuất Hủy'}
+                      <Text style={[styles.actionButtonText, actionType === action.key && { color: '#fff' }]}>
+                        {action.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -997,7 +1127,7 @@ export default function InventoryScreen({ navigation }) {
                   onPress={() => setIsItemDropdownOpen(!isItemDropdownOpen)}
                 >
                   <Text style={styles.dropdownButtonText}>
-                    {selectedStock ? selectedStock.name : 'Vui lòng chọn...'}
+                    {selectedStock ? selectedStock.name : (actionType === 'TRANSFER' ? 'Chọn hàng từ Kho tổng...' : 'Vui lòng chọn...')}
                   </Text>
                   <Ionicons name={isItemDropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color="#475569" />
                 </TouchableOpacity>
@@ -1005,7 +1135,7 @@ export default function InventoryScreen({ navigation }) {
                 {isItemDropdownOpen && (
                   <View style={styles.dropdownList}>
                     <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled>
-                      {myItems.map((item) => (
+                      {actionStockData.map((item) => (
                         <TouchableOpacity
                           key={item.id}
                           style={[styles.dropdownItem, effectiveSelectedItemId === item.id && styles.dropdownItemActive]}
@@ -1022,7 +1152,7 @@ export default function InventoryScreen({ navigation }) {
 
                 {selectedStock && (
                   <View style={styles.currentStockBox}>
-                    <Text style={styles.currentStockLabel}>Tồn khả dụng</Text>
+                    <Text style={styles.currentStockLabel}>{actionType === 'TRANSFER' ? 'Tồn Kho tổng khả dụng' : 'Tồn khả dụng'}</Text>
                     <Text style={styles.currentStockValue}>
                       {formatQuantity(selectedStock.currentStock)} {selectedStock.unit}
                     </Text>
@@ -1069,7 +1199,7 @@ export default function InventoryScreen({ navigation }) {
                         : (
                           <>
                             <Ionicons name="paper-plane-outline" size={19} color="#fff" />
-                            <Text style={styles.submitButtonText}>Tạo Phiếu Kho</Text>
+                            <Text style={styles.submitButtonText}>{actionType === 'TRANSFER' ? 'Gửi đề xuất nhập' : 'Tạo Phiếu Kho'}</Text>
                           </>
                         )}
                     </TouchableOpacity>
@@ -1133,10 +1263,14 @@ export default function InventoryScreen({ navigation }) {
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
+  stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: 10, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
   headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14 },
   backBtn: { padding: 8, marginRight: 8, marginLeft: -8 },
   header: { fontSize: 20, fontWeight: '800', color: COLORS.text },
   headerCaption: { color: COLORS.textMuted, marginTop: 1, fontSize: 12 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  createTicketButton: { minHeight: 42, borderRadius: 13, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: '#1565c0' },
+  createTicketText: { color: '#fff', fontSize: 12, fontWeight: '900' },
   refreshButton: { padding: 10, backgroundColor: COLORS.inputBg, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
   tabContainer: { flexDirection: 'row', marginHorizontal: 20, backgroundColor: COLORS.inputBg, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: COLORS.border },
   tabButton: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 9, paddingHorizontal: 3 },
@@ -1150,25 +1284,29 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   dropdownItemActive: { backgroundColor: isDarkMode ? '#0f2a44' : '#eff6ff' },
   dropdownItemText: { color: COLORS.text, fontSize: 15 },
   dropdownItemTextActive: { color: '#1d4ed8', fontWeight: '700' },
-  scrollContent: { padding: 14, paddingBottom: 40 },
-  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  summaryCard: { flex: 1, backgroundColor: COLORS.card, borderRadius: 12, padding: 11, borderWidth: 1, borderColor: COLORS.border },
+  scrollContent: { padding: 10, paddingBottom: 32 },
+  summaryRow: { flexDirection: 'row', gap: 7, marginBottom: 9 },
+  summaryCard: { flex: 1, backgroundColor: COLORS.card, borderRadius: 12, padding: 9, borderWidth: 1, borderColor: COLORS.border },
   summaryWarning: { backgroundColor: '#fff7ed', borderColor: '#fed7aa' },
   summaryValue: { color: COLORS.text, fontSize: 20, fontWeight: '900' },
   summaryLabel: { color: COLORS.textMuted, fontSize: 10, marginTop: 2 },
-  section: { backgroundColor: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 12, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.22 : 0.06, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: COLORS.border },
+  section: { backgroundColor: COLORS.card, borderRadius: 14, padding: 10, marginBottom: 10, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.18 : 0.04, shadowRadius: 6, elevation: 1, borderWidth: 1, borderColor: COLORS.border },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: COLORS.text, fontSize: 15, fontWeight: '800', marginBottom: 12 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 12, paddingHorizontal: 12, marginBottom: 10 },
-  searchInput: { flex: 1, minHeight: 44, paddingLeft: 8, color: COLORS.text },
-  stockRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  stockIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginRight: 11 },
+  sectionTitle: { color: COLORS.text, fontSize: 15, fontWeight: '800', marginBottom: 8 },
+  suggestionBox: { backgroundColor: isDarkMode ? '#1e1b4b' : '#f5f3ff', borderColor: isDarkMode ? '#6d28d9' : '#ddd6fe' },
+  suggestionHint: { color: COLORS.textMuted, fontSize: 11, lineHeight: 16, marginTop: -4, marginBottom: 6 },
+  suggestionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: isDarkMode ? '#3730a3' : '#ddd6fe' },
+  suggestionQty: { color: '#7c3aed', fontWeight: '900', fontSize: 13, marginLeft: 8 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 12, paddingHorizontal: 10, marginBottom: 8 },
+  searchInput: { flex: 1, minHeight: 40, paddingLeft: 8, color: COLORS.text },
+  stockRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  stockIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
   stockIconLow: { backgroundColor: '#fee2e2' },
-  stockName: { color: COLORS.text, fontWeight: '800', fontSize: 14 },
-  stockSafe: { color: COLORS.textMuted, fontSize: 11, marginTop: 3 },
+  stockName: { color: COLORS.text, fontWeight: '800', fontSize: 13 },
+  stockSafe: { color: COLORS.textMuted, fontSize: 11, marginTop: 1 },
   stockValue: { color: '#15803d', fontWeight: '900', fontSize: 18 },
   stockUnit: { color: COLORS.textMuted, fontSize: 11 },
-  fieldLabel: { color: COLORS.text, fontWeight: '800', fontSize: 13, marginTop: 10, marginBottom: 8 },
+  fieldLabel: { color: COLORS.text, fontWeight: '800', fontSize: 13, marginTop: 7, marginBottom: 5 },
   itemScroller: { marginBottom: 5 },
   itemChip: { backgroundColor: COLORS.inputBg, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9, marginRight: 8, borderWidth: 1, borderColor: COLORS.border },
   itemChipActive: { backgroundColor: '#1565c0', borderColor: '#1565c0' },
@@ -1183,7 +1321,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   stocktakeButton: { minHeight: 48, borderWidth: 1, borderColor: '#c4b5fd', backgroundColor: '#f5f3ff', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   stocktakeButtonActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
   stocktakeButtonText: { color: '#6d28d9', fontWeight: '800', marginLeft: 7 },
-  input: { borderWidth: 1, borderColor: COLORS.inputBorder, backgroundColor: COLORS.inputBg, color: COLORS.text, borderRadius: 12, paddingHorizontal: 13, minHeight: 48, fontSize: 15 },
+  input: { borderWidth: 1, borderColor: COLORS.inputBorder, backgroundColor: COLORS.inputBg, color: COLORS.text, borderRadius: 12, paddingHorizontal: 12, minHeight: 42, fontSize: 15 },
   helperText: { color: '#7c3aed', fontSize: 12, lineHeight: 18, marginTop: 7 },
   submitButton: { minHeight: 52, backgroundColor: '#ea580c', borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18 },
   submitButtonText: { color: '#fff', fontWeight: '800', fontSize: 15, marginLeft: 7 },
@@ -1205,9 +1343,9 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: 28 },
   emptyTitle: { color: COLORS.text, fontWeight: '800', marginTop: 10, fontSize: 16 },
   emptyText: { color: COLORS.textMuted, textAlign: 'center', marginTop: 5, lineHeight: 20 },
-  addButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1565c0', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 14 },
+  addButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1565c0', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 10 },
   addButtonText: { color: '#fff', fontWeight: '800', fontSize: 12, marginLeft: 3 },
-  catalogRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  catalogRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   catalogName: { color: COLORS.text, fontWeight: '800' },
   catalogMeta: { color: COLORS.textMuted, fontSize: 11, marginTop: 4 },
   catalogStock: { color: '#1565c0', fontWeight: '900' },
@@ -1217,11 +1355,11 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   filterChipActive: { backgroundColor: '#1565c0', borderColor: '#1565c0' },
   filterChipText: { color: COLORS.textMuted, fontWeight: '800', fontSize: 12 },
   filterChipTextActive: { color: '#fff' },
-  logCard: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.inputBg, borderRadius: 15, padding: 13, marginTop: 10 },
+  logCard: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.inputBg, borderRadius: 14, padding: 10, marginTop: 8 },
   logCardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
-  logIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 11 },
-  logTitle: { color: COLORS.text, fontWeight: '900', fontSize: 16 },
-  logMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 4, lineHeight: 17 },
+  logIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  logTitle: { color: COLORS.text, fontWeight: '900', fontSize: 14 },
+  logMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 2, lineHeight: 15 },
   logAmount: { fontWeight: '900', fontSize: 16, marginLeft: 8, textAlign: 'right', maxWidth: 115 },
   logDetailBox: { backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 10, marginTop: 12 },
   logDetailText: { color: COLORS.textMuted, fontSize: 13, lineHeight: 20 },
@@ -1263,8 +1401,6 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   usageDelta: { fontSize: 15, fontWeight: '900', marginTop: 4, textAlign: 'right' },
   usageFooter: { backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 10, marginTop: 10, gap: 4 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  fab: { flexDirection: 'row', alignItems: 'center', gap: 6, position: 'absolute', bottom: 20, right: 20, backgroundColor: '#1565c0', paddingVertical: 12, paddingHorizontal: 18, borderRadius: 30, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, elevation: 6 },
-  fabText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   actionSheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 36, maxHeight: '88%' },
   modalContent: { backgroundColor: COLORS.card, borderRadius: 18, padding: 20, borderWidth: 1, borderColor: COLORS.border },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

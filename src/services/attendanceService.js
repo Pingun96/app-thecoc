@@ -7,6 +7,12 @@ export const formatCoordinate = (latitude, longitude) => (
   `${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}`
 );
 
+const isMissingRelationError = (error) => (
+  error?.code === '42P01'
+  || error?.code === 'PGRST205'
+  || /relation .* does not exist|Could not find the table/i.test(error?.message || '')
+);
+
 export const uploadAttendancePhoto = async ({
   photoUri,
   userId,
@@ -109,4 +115,106 @@ export const checkoutAttendanceRecord = async ({
 
   if (result.error) throw result.error;
   return legacyPayload;
+};
+
+export const reopenAttendanceRecord = async ({ id }) => {
+  const legacyPayload = {
+    check_out: null,
+    hours: 0,
+    check_out_location: null,
+  };
+  const enhancedPayload = {
+    ...legacyPayload,
+    check_out_at: null,
+    check_out_lat: null,
+    check_out_lng: null,
+    check_out_photo_path: null,
+  };
+
+  let result = await supabase
+    .from('attendance_logs')
+    .update(enhancedPayload)
+    .eq('id', id);
+
+  if (result.error && isMissingColumnError(result.error)) {
+    result = await supabase
+      .from('attendance_logs')
+      .update(legacyPayload)
+      .eq('id', id);
+  }
+
+  if (result.error) throw result.error;
+  return legacyPayload;
+};
+
+export const createAttendanceCorrection = async ({
+  attendanceId,
+  userId,
+  storeId,
+  date,
+  action,
+  previousCheckOut,
+  previousCheckOutAt,
+  previousHours,
+  requestedBy,
+  note,
+}) => {
+  const payload = {
+    id: `corr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    attendance_id: attendanceId,
+    user_id: userId,
+    store_id: storeId || null,
+    date,
+    action,
+    previous_check_out: previousCheckOut || null,
+    previous_check_out_at: previousCheckOutAt || null,
+    previous_hours: Number(previousHours || 0),
+    requested_by: requestedBy,
+    note: note || '',
+    status: 'PENDING',
+    created_at: new Date().toISOString(),
+  };
+
+  const result = await supabase
+    .from('attendance_corrections')
+    .insert([payload])
+    .select('*')
+    .maybeSingle();
+
+  if (result.error && isMissingRelationError(result.error)) {
+    console.log('attendance_corrections table is not available yet.');
+    return null;
+  }
+
+  if (result.error) throw result.error;
+  return result.data || payload;
+};
+
+export const reviewAttendanceCorrection = async ({
+  id,
+  status,
+  reviewedBy,
+  reviewNote,
+}) => {
+  const payload = {
+    status,
+    reviewed_by: reviewedBy,
+    reviewed_at: new Date().toISOString(),
+    review_note: reviewNote || '',
+  };
+
+  const result = await supabase
+    .from('attendance_corrections')
+    .update(payload)
+    .eq('id', id)
+    .select('*')
+    .maybeSingle();
+
+  if (result.error && isMissingRelationError(result.error)) {
+    console.log('attendance_corrections table is not available yet.');
+    return null;
+  }
+
+  if (result.error) throw result.error;
+  return result.data || { id, ...payload };
 };

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+    <!-- ===== iOS PWA META TAGS ===== -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="The Cốc" />
+    <meta name="application-name" content="The Cốc" />
+    <meta name="theme-color" content="#208AEF" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icons/thecoc-icon-512.png" />
+    <!-- iPhone 15 Pro Max -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
+    <!-- iPhone 14 Pro -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
+    <!-- iPhone 13/14 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
+    <!-- iPhone SE -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/icons/thecoc-icon-512.png" />
+    <title>The Cốc</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      /* ===== iOS NATIVE FEEL ===== */
+      * { -webkit-tap-highlight-color: transparent; }
+      * { -webkit-overflow-scrolling: touch; }
+      * { touch-action: manipulation; }
+      /* CSS variable để JS đọc safe-area-inset-top đúng cho từng model iPhone */
+      :root {
+        --ios-sat: env(safe-area-inset-top, 44px);
+        --ios-sab: env(safe-area-inset-bottom, 0px);
+      }
+      /* Fix iOS PWA viewport height */
+      html {
+        height: 100%;
+        height: -webkit-fill-available;
+      }
+      body {
+        min-height: 100%;
+        min-height: -webkit-fill-available;
+        -webkit-user-select: none;
+        user-select: none;
+        overscroll-behavior: none;
+        -webkit-font-smoothing: antialiased;
+        overflow: hidden;
+      }
+      input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
+      a, img { -webkit-touch-callout: none; }
+      ::-webkit-scrollbar { display: none; }
+      * { scrollbar-width: none; -ms-overflow-style: none; }
+      /* === */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  <link rel="icon" href="/favicon.ico" />
+  <script>
+    // Fix iOS PWA: màn hình bị đẩy xuống khi reload hoặc mở từ thông báo
+    (function() {
+      // Trick: scroll xuống 1px rồi về 0 → buộc iOS tính lại viewport
+      function fixScroll() {
+        window.scrollTo(0, 1);
+        window.scrollTo(0, 0);
+      }
+      // Chạy ngay khi DOM sẵn sàng
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fixScroll);
+      } else {
+        fixScroll();
+      }
+      // Chạy lại sau khi toàn bộ trang load xong
+      window.addEventListener('load', function() {
+        fixScroll();
+        setTimeout(fixScroll, 300);
+      });
+      // Chạy lại khi quay lại app từ background hoặc từ thông báo
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          fixScroll();
+          setTimeout(fixScroll, 100);
+          setTimeout(fixScroll, 500);
+        }
+      });
+      window.addEventListener('pageshow', function(e) {
+        fixScroll();
+        setTimeout(fixScroll, 100);
+      });
+      window.addEventListener('focus', function() {
+        setTimeout(fixScroll, 50);
+      });
+    })();
+  </script>
+</head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  <script src="/_expo/static/js/web/AppEntry-e8c752a5cc07a4f3af1e552e9f9dad13.js" defer></script>
+</body>
+</html>

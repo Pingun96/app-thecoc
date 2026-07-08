@@ -1,5 +1,5 @@
 import React, { useState, useContext, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl, Dimensions, Modal, Image } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl, Dimensions, Modal, Image } from 'react-native';
 import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
@@ -940,6 +940,7 @@ export default function ShiftScheduleScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.stickyTopBar}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#1976d2" />
@@ -965,6 +966,7 @@ export default function ShiftScheduleScreen({ navigation }) {
         <TouchableOpacity style={[styles.tabBtn, activeTab === 'REGISTER' && styles.tabBtnActive]} onPress={() => setActiveTab('REGISTER')}>
           <Text style={[styles.tabText, activeTab === 'REGISTER' && styles.tabTextActive]}>Đăng Ký</Text>
         </TouchableOpacity>
+      </View>
       </View>
 
       <View style={{flex: 1, paddingHorizontal: 20}}>
@@ -1100,6 +1102,7 @@ export default function ShiftScheduleScreen({ navigation }) {
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
+  stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: 10, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
   headerRow: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 10 },
   backBtn: { padding: 5, marginRight: 10 },
   header: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },

@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -16,12 +16,16 @@ import { supabase } from '../services/supabaseClient';
 import { AppContext } from '../context/AppContext';
 import {
   checkoutAttendanceRecord,
+  createAttendanceCorrection,
   createAttendanceRecord,
+  reopenAttendanceRecord,
   uploadAttendancePhoto,
 } from '../services/attendanceService';
+import { createInAppNotification } from '../services/NotificationService';
 import { normalizeAttendance } from '../services/dataMappers';
 import {
   calculateWorkedHours,
+  combineLocalDateTime,
   formatDate,
   formatDuration,
   getLocalDateKey,
@@ -33,8 +37,11 @@ import {
   getShiftLabel,
   getShiftStatusFromTimes,
   getShiftWindow,
+  timeToMinutes,
 } from '../utils/attendanceRules';
 
+const RESUME_LIMIT_MINUTES = 15;
+const CHECKOUT_REMINDER_WINDOW_MINUTES = 15;
 
 const getDistance = (lat1, lon1, lat2, lon2) => {
   if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
@@ -60,11 +67,28 @@ const getNetworkTime = async () => {
   }
 };
 
+const getRecordSortKey = (record) => (
+  record?.check_out_at
+  || record?.check_in_at
+  || `${record?.date || ''} ${record?.checkOut || record?.check_out || record?.checkIn || record?.check_in || ''}`
+  || String(record?.id || '')
+);
+
+const getRecordDateTime = (record, timeField, timestampField) => {
+  if (record?.[timestampField]) {
+    const parsed = new Date(record[timestampField]);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return combineLocalDateTime(record?.date, record?.[timeField]);
+};
+
 export default function StaffCheckinScreen({ navigation }) {
   const {
     currentUser,
+    staffList,
     attendanceHistory,
     setAttendanceHistory,
+    setAttendanceCorrectionLogs,
     shiftRegistrations,
     storeList,
     refreshData,
@@ -74,6 +98,8 @@ export default function StaffCheckinScreen({ navigation }) {
   const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
   const [actionType, setActionType] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [minuteTick, setMinuteTick] = useState(0);
+  const reminderShownRef = useRef('');
 
   const today = getLocalDateKey();
   const currentRecord = useMemo(
@@ -92,6 +118,51 @@ export default function StaffCheckinScreen({ navigation }) {
     [attendanceHistory, currentUser?.id, today],
   );
 
+  const latestRecord = useMemo(
+    () => [...todayRecords].sort((a, b) => String(getRecordSortKey(b)).localeCompare(String(getRecordSortKey(a))))[0],
+    [todayRecords],
+  );
+
+  const latestClosedRecord = useMemo(
+    () => [...todayRecords]
+      .filter((record) => record.checkOut || record.check_out)
+      .sort((a, b) => String(getRecordSortKey(b)).localeCompare(String(getRecordSortKey(a))))[0],
+    [todayRecords],
+  );
+
+  const latestClosedResumeInfo = useMemo(() => {
+    if (!latestClosedRecord) return null;
+    const closedAt = getRecordDateTime(latestClosedRecord, 'checkOut', 'check_out_at')
+      || getRecordDateTime(latestClosedRecord, 'check_out', 'check_out_at');
+    if (!closedAt || Number.isNaN(closedAt.getTime())) {
+      return { canResume: false, minutesSince: null, remainingMinutes: 0 };
+    }
+    const minutesSince = Math.floor((Date.now() - closedAt.getTime()) / 60000);
+    return {
+      canResume: minutesSince >= 0 && minutesSince <= RESUME_LIMIT_MINUTES,
+      minutesSince,
+      remainingMinutes: Math.max(0, RESUME_LIMIT_MINUTES - minutesSince),
+    };
+  }, [latestClosedRecord]);
+
+  const checkoutReminder = useMemo(() => {
+    if (!currentRecord) return null;
+    const shiftType = getAttendanceShiftType(currentRecord);
+    const window = getShiftWindow(shiftType);
+    if (!window?.end) return null;
+    const nowMinutes = timeToMinutes(getLocalTime(new Date(Date.now() + minuteTick)));
+    const endMinutes = timeToMinutes(window.end);
+    if (nowMinutes == null || endMinutes == null) return null;
+    const minutesToEnd = endMinutes - nowMinutes;
+    if (minutesToEnd > CHECKOUT_REMINDER_WINDOW_MINUTES) return null;
+    return {
+      shiftLabel: getShiftLabel(shiftType),
+      endTime: window.end,
+      minutesToEnd,
+      isOverdue: minutesToEnd < 0,
+    };
+  }, [currentRecord, minuteTick]);
+
   const todayApprovedShifts = useMemo(
     () => shiftRegistrations.filter(
       (record) => String(record.user_id) === String(currentUser?.id)
@@ -104,6 +175,27 @@ export default function StaffCheckinScreen({ navigation }) {
   const getStoreName = (storeId) => (
     storeList.find((store) => String(store.id) === String(storeId))?.name || `Chi nhánh ${storeId || '--'}`
   );
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMinuteTick((value) => value + 1);
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!checkoutReminder || !currentRecord?.id) return;
+    const reminderKey = `${currentRecord.id}_${checkoutReminder.isOverdue ? 'late' : 'soon'}`;
+    if (reminderShownRef.current === reminderKey) return;
+    reminderShownRef.current = reminderKey;
+
+    Alert.alert(
+      checkoutReminder.isOverdue ? 'Quên check-out?' : 'Sắp hết ca',
+      checkoutReminder.isOverdue
+        ? `Ca ${checkoutReminder.shiftLabel} đã qua giờ kết thúc ${checkoutReminder.endTime}. Nếu đã xong việc, hãy Check-out để chốt giờ công.`
+        : `Còn khoảng ${checkoutReminder.minutesToEnd} phút đến giờ kết thúc ${checkoutReminder.shiftLabel}. Nhớ Check-out khi xong ca nhé.`,
+    );
+  }, [checkoutReminder, currentRecord?.id]);
 
 
   const withTimeout = (promise, timeoutMs, timeoutMessage) => Promise.race([
@@ -262,8 +354,28 @@ export default function StaffCheckinScreen({ navigation }) {
       Alert.alert('Đã vào ca', 'Bạn cần kết thúc ca hiện tại trước khi chấm công mới.');
       return;
     }
-    if (type === 'check-out' && !currentRecord) {
-      Alert.alert('Không có ca đang mở', 'Không tìm thấy lượt check-in cần kết thúc.');
+    if (type === 'check-out') {
+      if (!currentRecord) {
+        Alert.alert('Không có ca đang mở', 'Không tìm thấy lượt check-in cần kết thúc.');
+        return;
+      }
+
+      const checkInTime = currentRecord.checkIn || currentRecord.check_in || '--:--';
+      Alert.alert(
+        'Xác nhận Check-out',
+        `Bạn chắc chắn muốn kết thúc ca đang mở từ ${checkInTime}? Nếu bấm nhầm, chỉ có thể dùng “Tiếp tục” trong ${RESUME_LIMIT_MINUTES} phút.`,
+        [
+          { text: 'Hủy', style: 'cancel' },
+          {
+            text: 'Check-out',
+            style: 'destructive',
+            onPress: () => {
+              setActionType(type);
+              takePictureAndSubmit(type);
+            },
+          },
+        ],
+      );
       return;
     }
 
@@ -293,6 +405,111 @@ export default function StaffCheckinScreen({ navigation }) {
 
     setActionType(type);
     takePictureAndSubmit(type);
+  };
+
+  const handleResumeShift = () => {
+    if (!currentUser?.id) {
+      Alert.alert('Phiên đăng nhập không hợp lệ', 'Vui lòng đăng nhập lại.');
+      return;
+    }
+    if (currentRecord) {
+      Alert.alert('Đang trong ca', 'Ca làm hiện tại vẫn đang mở.');
+      return;
+    }
+    if (!latestClosedRecord) {
+      Alert.alert('Chưa có ca để tiếp tục', 'Không tìm thấy lượt check-out hôm nay để mở lại.');
+      return;
+    }
+    if (!latestClosedResumeInfo?.canResume) {
+      Alert.alert(
+        'Đã quá thời gian tự mở lại',
+        `Nút Tiếp tục chỉ dùng trong ${RESUME_LIMIT_MINUTES} phút sau khi bấm nhầm Check-out. Vui lòng báo quản lý xử lý trong Đối chiếu công.`,
+      );
+      return;
+    }
+
+    const checkoutTime = latestClosedRecord.checkOut || latestClosedRecord.check_out || '--:--';
+    const checkinTime = latestClosedRecord.checkIn || latestClosedRecord.check_in || '--:--';
+
+    Alert.alert(
+      'Tiếp tục giờ làm?',
+      `Dùng khi nhân viên bấm nhầm check-out. App sẽ xóa giờ check-out ${checkoutTime} và mở lại ca bắt đầu lúc ${checkinTime}.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Tiếp tục',
+          onPress: async () => {
+            setIsSubmitting(true);
+            try {
+              const savedFields = await reopenAttendanceRecord({ id: latestClosedRecord.id });
+              const correctionLog = await createAttendanceCorrection({
+                attendanceId: latestClosedRecord.id,
+                userId: latestClosedRecord.user_id,
+                storeId: latestClosedRecord.store_id,
+                date: latestClosedRecord.date,
+                action: 'REOPEN_AFTER_MISTAKEN_CHECKOUT',
+                previousCheckOut: latestClosedRecord.checkOut || latestClosedRecord.check_out,
+                previousCheckOutAt: latestClosedRecord.check_out_at,
+                previousHours: latestClosedRecord.hours,
+                requestedBy: currentUser.id,
+                note: 'Nhân viên bấm Tiếp tục giờ làm sau khi check-out nhầm.',
+              });
+              setAttendanceHistory((current) => current.map((record) => (
+                record.id === latestClosedRecord.id
+                  ? normalizeAttendance({
+                      ...record,
+                      ...savedFields,
+                      checkOut: null,
+                      check_out: null,
+                      check_out_at: null,
+                      check_out_lat: null,
+                      check_out_lng: null,
+                      check_out_location: null,
+                      check_out_photo_path: null,
+                      hours: 0,
+                      attendance_status: 'ON_SCHEDULE',
+                    })
+                  : record
+              )));
+              if (correctionLog && setAttendanceCorrectionLogs) {
+                setAttendanceCorrectionLogs((current) => [correctionLog, ...(current || [])]);
+              }
+              const managerTargets = (staffList || [])
+                .filter((staff) => (
+                  staff.role === 'OWNER'
+                  || (staff.role === 'MANAGER' && String(staff.store_id) === String(latestClosedRecord.store_id || currentUser.store_id))
+                  || staff.permissions?.is_primary_manager
+                ))
+                .map((staff) => staff.id)
+                .filter((id) => id && String(id) !== String(currentUser.id));
+
+              managerTargets.slice(0, 8).forEach((userId) => {
+                createInAppNotification({
+                  userId,
+                  title: 'Có chỉnh công cần duyệt',
+                  body: `${currentUser.name || 'Nhân viên'} vừa mở lại ca sau khi check-out nhầm lúc ${checkoutTime}.`,
+                  type: 'attendance_correction',
+                  route: 'AttendanceReview',
+                  storeId: latestClosedRecord.store_id || currentUser.store_id,
+                  actorUserId: currentUser.id,
+                  data: {
+                    route: 'AttendanceReview',
+                    attendance_id: latestClosedRecord.id,
+                    correction_id: correctionLog?.id,
+                  },
+                });
+              });
+              Alert.alert('Đã tiếp tục ca', 'Ca làm đã được mở lại. Khi kết thúc thật, bấm Check-out lại một lần nữa.');
+              if (refreshData) refreshData();
+            } catch (error) {
+              Alert.alert('Không thể tiếp tục ca', error?.message || 'Vui lòng thử lại.');
+            } finally {
+              setIsSubmitting(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const takePictureAndSubmit = async (currentAction) => {
@@ -424,8 +641,6 @@ export default function StaffCheckinScreen({ navigation }) {
       setIsSubmitting(false);
     }
   };
-  const latestRecord = [...todayRecords].sort((a, b) => String(b.id).localeCompare(String(a.id)))[0];
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -478,6 +693,21 @@ export default function StaffCheckinScreen({ navigation }) {
           </Text>
         </View>
 
+        {checkoutReminder ? (
+          <View style={[styles.reminderCard, checkoutReminder.isOverdue && styles.reminderCardDanger]}>
+            <Ionicons
+              name={checkoutReminder.isOverdue ? 'warning-outline' : 'alarm-outline'}
+              size={21}
+              color={checkoutReminder.isOverdue ? '#dc2626' : COLORS.primary}
+            />
+            <Text style={styles.reminderText}>
+              {checkoutReminder.isOverdue
+                ? `Ca ${checkoutReminder.shiftLabel} đã quá giờ ${checkoutReminder.endTime}. Nhớ Check-out để chốt giờ công.`
+                : `Còn ${checkoutReminder.minutesToEnd} phút đến giờ kết thúc ${checkoutReminder.shiftLabel}.`}
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.scheduleCard}>
           <Text style={styles.scheduleTitle}>Lịch đã duyệt hôm nay</Text>
           {todayApprovedShifts.length > 0 ? (
@@ -499,17 +729,41 @@ export default function StaffCheckinScreen({ navigation }) {
         </View>
 
         {!currentRecord ? (
-          <TouchableOpacity
-            style={[styles.primaryButton, styles.checkInButton]}
-            onPress={() => handleAttendancePress('check-in')}
-          >
-            <Ionicons name="log-in-outline" size={23} color="#fff" />
-            <Text style={styles.primaryButtonText}>Check-in vào ca</Text>
-          </TouchableOpacity>
+          <>
+            {latestClosedRecord ? (
+              <View style={styles.resumeCard}>
+                <View style={styles.resumeTextBlock}>
+                  <Text style={styles.resumeTitle}>Bấm nhầm Check-out?</Text>
+                  <Text style={styles.resumeText}>
+                    {latestClosedResumeInfo?.canResume
+                      ? `Mở lại ca đã check-out lúc ${latestClosedRecord.checkOut || latestClosedRecord.check_out || '--:--'} để tiếp tục. Còn ${latestClosedResumeInfo.remainingMinutes} phút.`
+                      : `Đã quá ${RESUME_LIMIT_MINUTES} phút. Báo quản lý duyệt chỉnh trong Đối chiếu công.`}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.resumeButton, isSubmitting && styles.buttonDisabled]}
+                  onPress={handleResumeShift}
+                  disabled={isSubmitting || !latestClosedResumeInfo?.canResume}
+                >
+                  <Ionicons name="play-circle-outline" size={18} color={COLORS.primary} />
+                  <Text style={styles.resumeButtonText}>{latestClosedResumeInfo?.canResume ? 'Tiếp tục' : 'Quá hạn'}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            <TouchableOpacity
+              style={[styles.primaryButton, styles.checkInButton]}
+              onPress={() => handleAttendancePress('check-in')}
+              disabled={isSubmitting}
+            >
+              <Ionicons name="log-in-outline" size={23} color="#fff" />
+              <Text style={styles.primaryButtonText}>Check-in vào ca</Text>
+            </TouchableOpacity>
+          </>
         ) : (
           <TouchableOpacity
-            style={[styles.primaryButton, styles.checkOutButton]}
+            style={[styles.primaryButton, styles.checkOutButton, isSubmitting && styles.buttonDisabled]}
             onPress={() => handleAttendancePress('check-out')}
+            disabled={isSubmitting}
           >
             <Ionicons name="log-out-outline" size={23} color="#fff" />
             <Text style={styles.primaryButtonText}>Check-out kết thúc ca</Text>
@@ -538,7 +792,7 @@ export default function StaffCheckinScreen({ navigation }) {
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   scrollContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 22 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 22, backgroundColor: COLORS.bg, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40, paddingTop: 8, paddingBottom: 8 } : null) },
   backBtn: { padding: 8, marginRight: 8, marginLeft: -8 },
   header: { fontSize: 26, fontWeight: '800', color: COLORS.text },
   headerCaption: { color: COLORS.textMuted, marginTop: 2 },
@@ -584,6 +838,9 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
     alignItems: 'flex-start',
   },
   infoText: { flex: 1, color: COLORS.text, lineHeight: 20, marginLeft: 10 },
+  reminderCard: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: isDarkMode ? '#0f2a44' : '#eff6ff', borderWidth: 1, borderColor: isDarkMode ? '#1d4ed8' : '#bfdbfe', borderRadius: 13, padding: 11, marginTop: 12 },
+  reminderCardDanger: { backgroundColor: isDarkMode ? '#3b1111' : '#fee2e2', borderColor: isDarkMode ? '#7f1d1d' : '#fecaca' },
+  reminderText: { flex: 1, color: COLORS.text, fontSize: 12, lineHeight: 17, fontWeight: '800' },
   scheduleCard: { backgroundColor: COLORS.card, borderRadius: 16, padding: 16, marginTop: 16, borderWidth: 1, borderColor: COLORS.border },
   scheduleTitle: { color: COLORS.text, fontSize: 16, fontWeight: '900', marginBottom: 10 },
   scheduleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: COLORS.border },
@@ -607,6 +864,12 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   checkInButton: { backgroundColor: '#16a34a' },
   checkOutButton: { backgroundColor: '#dc2626' },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '800', marginLeft: 9 },
+  resumeCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: isDarkMode ? '#052e16' : '#ecfdf5', borderWidth: 1, borderColor: isDarkMode ? '#166534' : '#bbf7d0', borderRadius: 14, padding: 12, marginTop: 18 },
+  resumeTextBlock: { flex: 1, minWidth: 0 },
+  resumeTitle: { color: COLORS.text, fontWeight: '900', marginBottom: 3 },
+  resumeText: { color: COLORS.textMuted, fontSize: 12, lineHeight: 17 },
+  resumeButton: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: COLORS.card, borderWidth: 1, borderColor: isDarkMode ? '#166534' : '#86efac', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 8 },
+  resumeButtonText: { color: COLORS.primary, fontWeight: '900', fontSize: 12 },
   note: { color: COLORS.textMuted, textAlign: 'center', marginTop: 14, fontSize: 12 },
   cameraContainer: { flex: 1, backgroundColor: '#000' },
   cameraTop: {

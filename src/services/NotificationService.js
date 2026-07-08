@@ -684,16 +684,18 @@ export const getManagersToNotify = async (storeId) => {
     return [];
   }
 
+  const targetStoreId = storeId == null ? null : String(storeId);
+
   return (result.data || [])
     .filter((user) => {
-      const viewableStores = user.permissions?.viewable_stores || [];
+      const viewableStores = (user.permissions?.viewable_stores || []).map(String);
       return user.role === 'OWNER'
         || user.is_primary_manager
         || (
           user.role === 'MANAGER'
           && (
-            user.store_id === storeId
-            || viewableStores.includes(storeId)
+            String(user.store_id) === targetStoreId
+            || viewableStores.includes(targetStoreId)
             || viewableStores.includes('ALL')
           )
         );

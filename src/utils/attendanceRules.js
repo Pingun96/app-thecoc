@@ -100,6 +100,7 @@ const buildPayrollImpact = (type, minutes = 0) => {
   if (type === 'late') return `Đi trễ ${formatMinutes(minutes)}. Cần áp dụng quy định trừ công/phạt nếu có.`;
   if (type === 'early_leave') return `Về sớm ${formatMinutes(minutes)}. Cần áp dụng quy định trừ công/phạt nếu có.`;
   if (type === 'overtime') return `Tăng ca ${formatMinutes(minutes)}. Cần duyệt nếu được cộng giờ/thưởng.`;
+  if (type === 'attendance_correction') return 'Nhân viên đã mở lại ca sau khi check-out nhầm. Quản lý cần duyệt để lưu vết trước khi chốt lương.';
   return 'Cần kiểm tra trước khi chốt lương.';
 };
 
@@ -142,6 +143,7 @@ export const findBestShiftForCheckIn = ({
 
 export const buildAttendanceReview = ({
   attendanceHistory = [],
+  attendanceCorrectionLogs = [],
   shiftRegistrations = [],
   staffList = [],
   storeList = [],
@@ -163,6 +165,30 @@ export const buildAttendanceReview = ({
   const getStore = (id) => storeList.find((store) => String(store.id) === String(id));
 
   const rows = [];
+
+  attendanceCorrectionLogs
+    .filter((correction) => (
+      correction.date === date
+      && correction.status === 'PENDING'
+      && (storeId === 'ALL' || String(correction.store_id) === String(storeId))
+    ))
+    .forEach((correction) => {
+      const record = records.find((item) => String(item.id) === String(correction.attendance_id));
+      rows.push({
+        id: `correction_${correction.id}`,
+        type: 'attendance_correction',
+        category: 'approval',
+        severity: 'warning',
+        title: 'Chờ duyệt chỉnh công',
+        payrollImpact: buildPayrollImpact('attendance_correction'),
+        impactMinutes: 0,
+        staff: getStaff(correction.user_id),
+        store: getStore(correction.store_id),
+        correction,
+        record,
+        shiftType: getAttendanceShiftType(record) || inferShiftTypeFromTime(record?.checkIn || record?.check_in || correction.previous_check_out),
+      });
+    });
 
   approvedShifts.forEach((shift) => {
     const matchedRecord = records.find((record) => {
