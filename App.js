@@ -176,6 +176,24 @@ function MainTabs() {
     attendanceHistory = [],
   } = useContext(AppContext);
 
+  // Đọc bottom safe area thực tế từ iOS (home indicator height: ~34px)
+  const [webSafeBottom, setWebSafeBottom] = React.useState(34);
+  React.useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const read = () => {
+        const val = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--sab')
+        );
+        if (!isNaN(val) && val > 0) setWebSafeBottom(val);
+      };
+      read();
+      setTimeout(read, 500);
+    }
+  }, []);
+
+  const tabBarH = Platform.OS === 'web' ? 56 + webSafeBottom : Platform.OS === 'ios' ? 84 : 62;
+  const tabBarPB = Platform.OS === 'web' ? webSafeBottom + 2 : Platform.OS === 'ios' ? 22 : 7;
+
   const today = getLocalDateKey();
   const hasOpenAttendance = Boolean(
     currentUser?.id && attendanceHistory.some((record) => {
@@ -206,13 +224,15 @@ function MainTabs() {
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
-        safeAreaInsets: Platform.OS === 'web' ? { top: 0, right: 0, bottom: 0, left: 0 } : undefined,
+        tabBarSafeAreaInsets: Platform.OS === 'web' ? { bottom: 0 } : undefined,
         tabBarStyle: [
           styles.tabBar,
           {
             backgroundColor: COLORS.card,
             borderTopColor: COLORS.border,
             shadowOpacity: isDarkMode ? 0.35 : 0.12,
+            height: tabBarH,
+            paddingBottom: tabBarPB,
           },
         ],
         tabBarLabelStyle: styles.tabBarLabel,
@@ -721,9 +741,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabBar: {
-    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 116 : 62,
+    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 90 : 62,
     paddingTop: 5,
-    paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 38 : 7,
+    paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 6 : 7,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 8,
     shadowColor: '#000',

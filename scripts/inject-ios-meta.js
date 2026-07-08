@@ -37,6 +37,11 @@ const iosCss = `
       a, img { -webkit-touch-callout: none; }
       ::-webkit-scrollbar { display: none; }
       * { scrollbar-width: none; -ms-overflow-style: none; }
+      /* CSS vars để JS đọc safe area từ iOS */
+      :root {
+        --sat: env(safe-area-inset-top, 0px);
+        --sab: env(safe-area-inset-bottom, 0px);
+      }
       #root { background-color: #f9fafb; }`;
 
 // 1. Fix viewport - thêm viewport-fit=cover
