@@ -14,7 +14,7 @@ const { width } = Dimensions.get('window');
 const APP_GRID_COLUMNS = 4;
 const APP_GRID_MAX_WIDTH = 520;
 const APP_GRID_GAP = 10;
-const WEB_HEADER_TOP_PADDING = 22;
+const WEB_HEADER_TOP_PADDING = 15;
 
 const useWebSafeAreaTop = () => {
   const [safeTop, setSafeTop] = useState(0);
