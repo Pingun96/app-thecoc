@@ -74,7 +74,16 @@ const CustomTabBarButton = ({
   };
 
   return (
-    <View style={[style, { alignItems: 'center', overflow: 'visible', ...(Platform.OS === 'web' ? { height: 82, justifyContent: 'flex-start' } : null) }]}>
+    <View style={[
+      style,
+      {
+        alignItems: 'center',
+        overflow: 'visible',
+        ...(Platform.OS === 'web'
+          ? { height: '100%', justifyContent: 'flex-start', paddingBottom: 0 }
+          : null),
+      },
+    ]}>
       {/* Notch background behind the button */}
       <View style={[styles.floatingButtonNotch, {
         backgroundColor: tabBarColor,
@@ -125,7 +134,7 @@ const CustomTabBarButton = ({
         <Text style={[styles.floatingButtonLabel, {
           color: buttonColor,
           position: 'absolute',
-          ...(Platform.OS === 'web' ? { top: 55 } : { bottom: -2 }),
+          ...(Platform.OS === 'web' ? { top: 54 } : { bottom: -2 }),
           left: -30,
           right: -30,
           textAlign: 'center',
@@ -176,8 +185,34 @@ function MainTabs() {
     attendanceHistory = [],
   } = useContext(AppContext);
 
-  const tabBarH = Platform.OS === 'web' ? 82 : Platform.OS === 'ios' ? 84 : 62;
-  const tabBarPB = Platform.OS === 'web' ? 8 : Platform.OS === 'ios' ? 22 : 7;
+  const [webSafeBottom, setWebSafeBottom] = React.useState(0);
+
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+
+    const readSafeBottom = () => {
+      const raw = window
+        .getComputedStyle(document.documentElement)
+        .getPropertyValue('--sab')
+        .trim();
+      const parsed = Number.parseFloat(raw || '0');
+      setWebSafeBottom(Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 28) : 0);
+    };
+
+    readSafeBottom();
+    window.addEventListener('resize', readSafeBottom);
+    window.addEventListener('orientationchange', readSafeBottom);
+    window.visualViewport?.addEventListener('resize', readSafeBottom);
+
+    return () => {
+      window.removeEventListener('resize', readSafeBottom);
+      window.removeEventListener('orientationchange', readSafeBottom);
+      window.visualViewport?.removeEventListener('resize', readSafeBottom);
+    };
+  }, []);
+
+  const tabBarH = Platform.OS === 'web' ? 86 + webSafeBottom : Platform.OS === 'ios' ? 84 : 62;
+  const tabBarPB = Platform.OS === 'web' ? 8 + webSafeBottom : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();
   const hasOpenAttendance = Boolean(
@@ -728,8 +763,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabBar: {
-    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 82 : 62,
-    paddingTop: 5,
+    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 86 : 62,
+    paddingTop: Platform.OS === 'web' ? 6 : 5,
     paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 6 : 7,
     overflow: 'visible',
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -745,9 +780,9 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? { marginBottom: 0, lineHeight: 14 } : null),
   },
   tabBarItemWeb: {
-    height: 74,
+    height: 78,
     paddingTop: 8,
-    paddingBottom: 8,
+    paddingBottom: 0,
     overflow: 'visible',
   },
   tabBarIconWeb: {
