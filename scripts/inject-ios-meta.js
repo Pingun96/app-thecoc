@@ -13,7 +13,7 @@ const iosMetaTags = `
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="The Cốc" />
     <meta name="application-name" content="The Cốc" />
-    <meta name="theme-color" content="#E2F4EA" />
+    <meta name="theme-color" content="#208AEF" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="/manifest.webmanifest" />

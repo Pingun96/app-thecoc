@@ -55,7 +55,7 @@
     <!-- ===== CSS CRITICAL - iOS native feel ===== -->
     <style id="expo-reset">
       /* Full height */
-      html, body { height: 100%; margin: 0; padding: 0; background: #F3F7F5; }
+      html, body { height: 100%; margin: 0; padding: 0; }
 
       /* Prevent body scroll (React Native ScrollView handles scroll) */
       body { overflow: hidden; }
@@ -83,6 +83,8 @@
 
       /* Safe area insets cho iPhone notch / Dynamic Island / Home Indicator */
       #root {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
         padding-left: env(safe-area-inset-left);
         padding-right: env(safe-area-inset-right);
       }
