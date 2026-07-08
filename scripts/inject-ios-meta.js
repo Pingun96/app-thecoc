@@ -5,8 +5,6 @@ const path = require('path');
 const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
 
-// Không cần fix đường dẫn assets nữa vì Cloudflare host ở thư mục gốc (/)
-
 const iosMetaTags = `
     <!-- ===== iOS PWA META TAGS ===== -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -28,6 +26,8 @@ const iosMetaTags = `
     <!-- iPhone SE -->
     <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/icons/thecoc-icon-512.png" />`;
 
+// CSS: chỉ dùng env(safe-area-inset-top) cho #root để đẩy nội dung xuống đúng
+// KHÔNG dùng padding-bottom vì tab bar tự lo bottom
 const iosCss = `
       /* ===== iOS NATIVE FEEL ===== */
       * { -webkit-tap-highlight-color: transparent; }
@@ -36,7 +36,14 @@ const iosCss = `
       input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
       a, img { -webkit-touch-callout: none; }
       ::-webkit-scrollbar { display: none; }
-      * { scrollbar-width: none; -ms-overflow-style: none; }`;
+      * { scrollbar-width: none; -ms-overflow-style: none; }
+      /* Đẩy toàn bộ app xuống đúng safe area trên - tự động theo từng iPhone */
+      #root {
+        padding-top: env(safe-area-inset-top);
+        box-sizing: border-box;
+        height: 100dvh !important;
+        background-color: #f9fafb;
+      }`;
 
 // 1. Fix viewport - thêm viewport-fit=cover
 html = html.replace(
@@ -62,13 +69,10 @@ html = html.replace(
   `/* These styles make the root element full-height */${iosCss}\n      /* === */`
 );
 
-
 fs.writeFileSync(indexPath, html, 'utf8');
-console.log('✅ iOS meta tags + layout-shift fix injected into dist/index.html');
+console.log('✅ iOS meta tags injected into dist/index.html');
 
 // 6. Fix node_modules block on Cloudflare Pages
-// Cloudflare Pages ignores 'node_modules' folders in the output. Expo web outputs fonts to dist/assets/node_modules/...
-// We need to rename 'node_modules' to 'modules' and patch the JS bundles.
 const assetsNodeModulesPath = path.join(__dirname, '..', 'dist', 'assets', 'node_modules');
 const assetsModulesPath = path.join(__dirname, '..', 'dist', 'assets', 'modules');
 
@@ -76,7 +80,6 @@ if (fs.existsSync(assetsNodeModulesPath)) {
   fs.renameSync(assetsNodeModulesPath, assetsModulesPath);
   console.log('✅ Renamed dist/assets/node_modules to dist/assets/modules');
 
-  // Patch JS files in dist/_expo/static/js/web
   const jsDir = path.join(__dirname, '..', 'dist', '_expo', 'static', 'js', 'web');
   if (fs.existsSync(jsDir)) {
     const files = fs.readdirSync(jsDir);
@@ -93,4 +96,3 @@ if (fs.existsSync(assetsNodeModulesPath)) {
     }
   }
 }
-
