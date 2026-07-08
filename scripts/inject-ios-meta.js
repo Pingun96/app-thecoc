@@ -27,20 +27,39 @@ const iosMetaTags = `
     <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/icons/thecoc-icon-512.png" />`;
 
 const iosCss = `
-      /* ===== iOS NATIVE FEEL ===== */
-      * { -webkit-tap-highlight-color: transparent; }
-      * { touch-action: manipulation; }
-      body { -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
-      input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
+      /* ===== iOS NATIVE FEEL + SMOOTH SCROLL ===== */
+      * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+      /* CHỈ dùng manipulation trên interactive elements, KHÔNG dùng trên * */
+      /* (touch-action: manipulation trên * gây giật scroll trên iOS) */
+      button, a, [role="button"], label, select { touch-action: manipulation; }
+      body {
+        -webkit-user-select: none;
+        user-select: none;
+        overscroll-behavior-y: none;
+        -webkit-font-smoothing: antialiased;
+        -webkit-text-size-adjust: 100%;
+      }
+      input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; touch-action: auto; }
       a, img { -webkit-touch-callout: none; }
       ::-webkit-scrollbar { display: none; }
       * { scrollbar-width: none; -ms-overflow-style: none; }
+      /* Kích hoạt GPU acceleration + momentum scrolling mượt trên iOS */
+      #root {
+        background-color: #f9fafb;
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+      }
+      /* Scrollable views của React Native Web - dùng native momentum scroll */
+      [style*="overflow-y"][style*="scroll"],
+      [style*="overflow: scroll"],
+      [style*="overflow:scroll"] {
+        -webkit-overflow-scrolling: touch !important;
+      }
       /* CSS vars để JS đọc đúng safe area từ iOS - cần viewport-fit=cover */
       :root {
         --sat: env(safe-area-inset-top, 0px);
         --sab: env(safe-area-inset-bottom, 0px);
-      }
-      #root { background-color: #f9fafb; }`;
+      }`;
 
 // 1. Fix viewport: PHẢI có viewport-fit=cover để iOS báo đúng safe area
 html = html.replace(
