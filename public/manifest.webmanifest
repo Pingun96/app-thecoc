@@ -7,18 +7,11 @@
   "start_url": ".?source=pwa",
   "scope": ".",
   "display": "standalone",
-  "display_override": [
-    "standalone",
-    "fullscreen",
-    "browser"
-  ],
+  "display_override": ["standalone", "fullscreen", "browser"],
   "orientation": "portrait",
-  "background_color": "#6B3F24",
-  "theme_color": "#6B3F24",
-  "categories": [
-    "business",
-    "productivity"
-  ],
+  "background_color": "#0f172a",
+  "theme_color": "#208AEF",
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "icons/thecoc-icon-512.png",

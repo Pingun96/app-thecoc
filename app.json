@@ -26,7 +26,7 @@
         "USE_FINGERPRINT"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#6B3F24",
+        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -46,7 +46,7 @@
       [
         "expo-notifications",
         {
-          "color": "#6B3F24",
+          "color": "#208AEF",
           "defaultChannel": "thecoc-default",
           "enableBackgroundRemoteNotifications": false
         }
@@ -54,7 +54,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#6B3F24",
+          "backgroundColor": "#208AEF",
           "android": {
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
