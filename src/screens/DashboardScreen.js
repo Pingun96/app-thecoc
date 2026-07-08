@@ -16,8 +16,39 @@ const APP_GRID_MAX_WIDTH = 520;
 const APP_GRID_GAP = 10;
 const WEB_HEADER_TOP_PADDING = 34;
 
+const useWebSafeAreaTop = () => {
+  const [safeTop, setSafeTop] = useState(0);
+
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+
+    const readSafeTop = () => {
+      const raw = window
+        .getComputedStyle(document.documentElement)
+        .getPropertyValue('--sat')
+        .trim();
+      const parsed = Number.parseFloat(raw || '0');
+      setSafeTop(Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 60) : 0);
+    };
+
+    readSafeTop();
+    window.addEventListener('resize', readSafeTop);
+    window.addEventListener('orientationchange', readSafeTop);
+    window.visualViewport?.addEventListener('resize', readSafeTop);
+
+    return () => {
+      window.removeEventListener('resize', readSafeTop);
+      window.removeEventListener('orientationchange', readSafeTop);
+      window.visualViewport?.removeEventListener('resize', readSafeTop);
+    };
+  }, []);
+
+  return safeTop;
+};
+
 export default function DashboardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const webSafeTop = useWebSafeAreaTop();
   const {
     currentUser,
     setCurrentUser,
@@ -71,7 +102,7 @@ export default function DashboardScreen({ navigation }) {
   };
   const theme = getThemeStyles();
   const headerTopPadding = Platform.OS === 'web'
-    ? Math.max(insets.top + 10, WEB_HEADER_TOP_PADDING)
+    ? Math.max(webSafeTop + 10, WEB_HEADER_TOP_PADDING)
     : Math.max(insets.top + 10, 20);
 
   const styles = React.useMemo(() => getStyles(COLORS, isDarkMode, theme), [COLORS, isDarkMode, theme]);

@@ -28,6 +28,10 @@ const upsertStyle = () => {
   const style = document.createElement('style');
   style.id = id;
   style.textContent = `
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+    }
     html, body, #root {
       min-height: 100%;
       width: 100%;
