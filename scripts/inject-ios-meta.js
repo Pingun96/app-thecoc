@@ -8,7 +8,7 @@ let html = fs.readFileSync(indexPath, 'utf8');
 const iosMetaTags = `
     <!-- ===== iOS PWA META TAGS ===== -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="The Cốc" />
     <meta name="application-name" content="The Cốc" />
     <meta name="theme-color" content="#F3F7F5" />
@@ -38,16 +38,13 @@ const iosCss = `
       ::-webkit-scrollbar { display: none; }
       * { scrollbar-width: none; -ms-overflow-style: none; }
       /* CSS vars để JS đọc safe area từ iOS */
-      :root {
-        --sat: env(safe-area-inset-top, 0px);
-        --sab: env(safe-area-inset-bottom, 0px);
-      }
+      :root { --sat: 0px; --sab: 0px; }
       #root { background-color: #f9fafb; }`;
 
-// 1. Fix viewport - thêm viewport-fit=cover
+// 1. Use stable viewport for iOS PWA (no edge-to-edge safe-area hacks)
 html = html.replace(
-  'width=device-width, initial-scale=1, shrink-to-fit=no',
-  'width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover'
+  /<meta name="viewport" content="[^"]*" \/>/,
+  '<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no" />'
 );
 
 // 2. Fix title
@@ -58,8 +55,8 @@ html = html.replace('<html lang="en">', '<html lang="vi">');
 
 // 4. Inject iOS meta tags sau viewport
 html = html.replace(
-  'shrink-to-fit=no, viewport-fit=cover" />',
-  `shrink-to-fit=no, viewport-fit=cover" />${iosMetaTags}`
+  'shrink-to-fit=no, user-scalable=no" />',
+  `shrink-to-fit=no, user-scalable=no" />${iosMetaTags}`
 );
 
 // 5. Inject iOS CSS vào style#expo-reset

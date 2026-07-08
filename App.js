@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
 import React, { useState, useEffect, useCallback, useContext, useMemo, useRef } from 'react';
-import { Alert, Platform, View, Text, StyleSheet, TouchableOpacity, Pressable, AppState, Animated } from 'react-native';
+import { Alert, Platform, View, StyleSheet, AppState } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -43,108 +43,6 @@ import { setupPwaExperience } from './src/services/pwaService';
 import { sendAttendanceExceptionReminders } from './src/services/attendanceReminderService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Floating Check-in Button Component
-const CustomTabBarButton = ({
-  children,
-  onPress,
-  style,
-  buttonColor = '#10B981',
-  shadowColor = '#10B981',
-  tabBarColor = '#fff',
-  label = '',
-}) => {
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.88,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 6,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 20,
-      bounciness: 10,
-    }).start();
-  };
-
-  return (
-    <View style={[
-      style,
-      {
-        alignItems: 'center',
-        overflow: 'visible',
-        ...(Platform.OS === 'web'
-          ? { height: '100%', justifyContent: 'flex-start', paddingBottom: 0 }
-          : null),
-      },
-    ]}>
-      {/* Notch background behind the button */}
-      <View style={[styles.floatingButtonNotch, {
-        backgroundColor: tabBarColor,
-        borderColor: `${buttonColor}1F`,
-        shadowColor: buttonColor,
-      }]} />
-
-      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-        <Pressable
-          onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          style={[styles.floatingButtonContainer, {
-            shadowColor,
-            shadowOpacity: 0.55,
-            shadowOffset: { width: 0, height: 8 },
-            shadowRadius: 16,
-            elevation: 12,
-          }]}
-          android_ripple={{ color: 'rgba(255,255,255,0.3)', borderless: true, radius: 38 }}
-        >
-          {/* Outer glow ring */}
-          <View style={[styles.floatingButtonRing, {
-            borderColor: buttonColor,
-            opacity: 0.25,
-          }]} />
-          {/* Main circle */}
-          <View style={[
-            styles.floatingButton,
-            {
-              backgroundColor: buttonColor,
-              borderColor: buttonColor,
-            },
-          ]}>
-            {/* Shine highlight */}
-            <View style={styles.floatingButtonShine} />
-            {/* Inner glow */}
-            <View style={[styles.floatingButtonInnerGlow, { backgroundColor: 'rgba(255,255,255,0.15)' }]} />
-            <View style={styles.floatingButtonIcon}>
-              {children}
-            </View>
-          </View>
-        </Pressable>
-      </Animated.View>
-
-      {/* Label below the button - absolute positioned to avoid offset */}
-      {label ? (
-        <Text style={[styles.floatingButtonLabel, {
-          color: buttonColor,
-          position: 'absolute',
-          ...(Platform.OS === 'web' ? { top: 55 } : { bottom: -2 }),
-          left: -30,
-          right: -30,
-          textAlign: 'center',
-        }]}>{label}</Text>
-      ) : null}
-    </View>
-  );
-};
-
-
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 const navigationRef = createNavigationContainerRef();
@@ -185,7 +83,7 @@ function MainTabs() {
     attendanceHistory = [],
   } = useContext(AppContext);
 
-  const tabBarH = Platform.OS === 'web' ? 86 : Platform.OS === 'ios' ? 84 : 62;
+  const tabBarH = Platform.OS === 'web' ? 72 : Platform.OS === 'ios' ? 84 : 62;
   const tabBarPB = Platform.OS === 'web' ? 8 : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();
@@ -209,12 +107,18 @@ function MainTabs() {
         headerShown: false,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
+          let iconColor = color;
+          let iconSize = size;
           if (route.name === 'HomeTab') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'StaffCheckin') {
+            iconName = checkActionIcon;
+            iconColor = checkActionColor;
+            iconSize = 28;
           } else if (route.name === 'ScheduleTab') {
             iconName = focused ? 'calendar' : 'calendar-outline';
           }
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={iconSize} color={iconColor} />;
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
@@ -242,20 +146,7 @@ function MainTabs() {
         component={StaffCheckinScreen}
         options={{
           title: checkActionLabel,
-          tabBarLabel: () => null,
           tabBarAccessibilityLabel: checkActionLabel,
-          tabBarIcon: () => (
-            <Ionicons name={checkActionIcon} size={30} color="#fff" />
-          ),
-          tabBarButton: (props) => (
-            <CustomTabBarButton
-              {...props}
-              buttonColor={checkActionColor}
-              shadowColor={checkActionColor}
-              tabBarColor={COLORS.card}
-              label={checkActionLabel}
-            />
-          )
         }}
       />
 
@@ -737,7 +628,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabBar: {
-    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 86 : 62,
+    height: Platform.OS === 'ios' ? 84 : Platform.OS === 'web' ? 72 : 62,
     paddingTop: Platform.OS === 'web' ? 6 : 5,
     paddingBottom: Platform.OS === 'ios' ? 22 : Platform.OS === 'web' ? 6 : 7,
     overflow: 'visible',
@@ -755,80 +646,11 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? { marginBottom: 0, lineHeight: 14 } : null),
   },
   tabBarItemWeb: {
-    height: 78,
-    paddingTop: 8,
-    paddingBottom: 0,
-    overflow: 'visible',
+    height: 58,
+    paddingTop: 6,
+    paddingBottom: 6,
   },
   tabBarIconWeb: {
     marginTop: 0,
-  },
-  floatingButtonContainer: {
-    top: Platform.OS === 'web' ? -18 : -24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: Platform.OS === 'web' ? 66 : 70,
-    height: Platform.OS === 'web' ? 66 : 70,
-    borderRadius: Platform.OS === 'web' ? 33 : 35,
-    overflow: 'visible',
-  },
-  floatingButtonNotch: {
-    position: 'absolute',
-    top: Platform.OS === 'web' ? -21 : -27,
-    alignSelf: 'center',
-    width: Platform.OS === 'web' ? 72 : 76,
-    height: Platform.OS === 'web' ? 72 : 76,
-    borderRadius: Platform.OS === 'web' ? 36 : 38,
-    borderWidth: 1,
-    opacity: 0.96,
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    zIndex: -1,
-  },
-  floatingButtonRing: {
-    position: 'absolute',
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 3,
-    top: -1,
-  },
-  floatingButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  floatingButtonInnerGlow: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
-    right: 6,
-    height: 22,
-    borderRadius: 11,
-  },
-  floatingButtonIcon: {
-    zIndex: 3,
-  },
-  floatingButtonShine: {
-    position: 'absolute',
-    top: 8,
-    left: 14,
-    width: 20,
-    height: 7,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    transform: [{ rotate: '-18deg' }],
-  },
-  floatingButtonLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-    marginTop: Platform.OS === 'ios' ? 6 : 4,
-    textTransform: 'uppercase',
   },
 });

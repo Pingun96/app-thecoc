@@ -28,10 +28,7 @@ const upsertStyle = () => {
   const style = document.createElement('style');
   style.id = id;
   style.textContent = `
-    :root {
-      --sat: env(safe-area-inset-top, 0px);
-      --sab: env(safe-area-inset-bottom, 0px);
-    }
+    :root { --sat: 0px; --sab: 0px; }
     html, body, #root {
       min-height: 100%;
       width: 100%;
@@ -65,7 +62,7 @@ export const setupPwaExperience = () => {
 
   upsertMeta('meta[name="viewport"]', {
     name: 'viewport',
-    content: 'width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no',
+    content: 'width=device-width, initial-scale=1, user-scalable=no',
   });
   upsertMeta('meta[name="theme-color"]', { name: 'theme-color', content: '#F3F7F5' });
   upsertMeta('meta[name="mobile-web-app-capable"]', { name: 'mobile-web-app-capable', content: 'yes' });
@@ -73,7 +70,7 @@ export const setupPwaExperience = () => {
   upsertMeta('meta[name="apple-mobile-web-app-title"]', { name: 'apple-mobile-web-app-title', content: 'The Cốc' });
   upsertMeta('meta[name="apple-mobile-web-app-status-bar-style"]', {
     name: 'apple-mobile-web-app-status-bar-style',
-    content: 'black-translucent',
+    content: 'default',
   });
   upsertMeta('meta[name="format-detection"]', { name: 'format-detection', content: 'telephone=no' });
 
