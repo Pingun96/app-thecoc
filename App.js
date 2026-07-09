@@ -160,30 +160,24 @@ function MainTabs() {
     attendanceHistory = [],
   } = useContext(AppContext);
 
-  // Đọc bottom safe area thực tế bằng DOM trick (hoạt động trên iOS PWA)
-  const [webSafeBottom, setWebSafeBottom] = React.useState(0);
+  // Inject CSS để đảm bảo tab bar luôn đúng trên mọi thiết bị iOS PWA
   React.useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const read = () => {
-        const el = document.createElement('div');
-        el.style.cssText = 'position:fixed;bottom:0;left:0;width:1px;height:1px;padding-bottom:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none;';
-        document.body.appendChild(el);
-        const val = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-        document.body.removeChild(el);
-        setWebSafeBottom(Number.isFinite(val) ? val : 0);
-      };
-      read();
-      const t = setTimeout(read, 400);
-      window.addEventListener('resize', read);
-      window.addEventListener('orientationchange', read);
-      return () => { clearTimeout(t); window.removeEventListener('resize', read); window.removeEventListener('orientationchange', read); };
+      const styleId = 'thecoc-tabbar-safe-area';
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+          /* Tab bar safe area fix for iOS PWA */
+          [data-testid="tab-bar"], .css-view-175oi2r[style*="position: fixed"][style*="bottom: 0"] {
+            padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+            height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
     }
-    return undefined;
   }, []);
-
-  const TAB_INNER_H = 56;
-  const tabBarH = Platform.OS === 'web' ? TAB_INNER_H + webSafeBottom : Platform.OS === 'ios' ? 84 : 62;
-  const tabBarPB = Platform.OS === 'web' ? webSafeBottom + 2 : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();
   const hasOpenAttendance = Boolean(
@@ -221,8 +215,9 @@ function MainTabs() {
             backgroundColor: COLORS.card,
             borderTopColor: COLORS.border,
             shadowOpacity: isDarkMode ? 0.35 : 0.12,
-            height: tabBarH,
-            paddingBottom: tabBarPB,
+            // Dùng CSS env() trực tiếp - React Native Web pass thẳng vào browser CSS
+            height: Platform.OS === 'web' ? 'calc(56px + env(safe-area-inset-bottom, 0px))' : Platform.OS === 'ios' ? 84 : 62,
+            paddingBottom: Platform.OS === 'web' ? 'env(safe-area-inset-bottom, 0px)' : Platform.OS === 'ios' ? 22 : 7,
           },
         ],
         tabBarLabelStyle: styles.tabBarLabel,

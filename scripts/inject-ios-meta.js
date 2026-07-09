@@ -69,7 +69,12 @@ const iosCss = `
         input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
         a, img { -webkit-touch-callout: none; }
         ::-webkit-scrollbar { display: none; }
-        * { scrollbar-width: none; -ms-overflow-style: none; }`;
+        * { scrollbar-width: none; -ms-overflow-style: none; }
+        /* ===== TAB BAR: đảm bảo không bị home indicator che trên iOS PWA ===== */
+        div[style*="position: fixed"][style*="bottom: 0px"][style*="left: 0px"][style*="right: 0px"] {
+          padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+          box-sizing: content-box !important;
+        }`;
 
 // 1. Fix viewport - thêm viewport-fit=cover
 html = html.replace(
