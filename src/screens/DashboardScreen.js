@@ -35,6 +35,25 @@ export default function DashboardScreen({ navigation }) {
   } = useContext(AppContext);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  // Đọc safe-area-inset-top thật từ CSS env() vì useSafeAreaInsets trả 0 trên iOS PWA
+  const [safeAreaTop, setSafeAreaTop] = useState(insets.top || 0);
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const readSAT = () => {
+        const val = parseInt(
+          getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0',
+          10
+        );
+        setSafeAreaTop(val > 0 ? val : (insets.top || 0));
+      };
+      readSAT();
+      // Đọc lại sau 500ms để chắc chắn CSS đã load
+      const t = setTimeout(readSAT, 500);
+      return () => clearTimeout(t);
+    } else {
+      setSafeAreaTop(insets.top || 0);
+    }
+  }, [insets.top]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -274,7 +293,7 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* HEADER */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 10, 20), backgroundColor: theme.headerBg, borderWidth: theme.borderWidth, borderColor: theme.borderColor, borderBottomWidth: theme.borderWidth > 0 ? theme.borderWidth : 0, borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}>
+      <View style={[styles.headerContainer, { paddingTop: Math.max(safeAreaTop + 10, 20), backgroundColor: theme.headerBg, borderWidth: theme.borderWidth, borderColor: theme.borderColor, borderBottomWidth: theme.borderWidth > 0 ? theme.borderWidth : 0, borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}>
         <TouchableOpacity style={styles.headerProfile} onPress={() => { setNewAvatar(currentUser?.avatar_url || ''); setShowProfileModal(true); }}>
           <Image
             source={{ uri: currentUser?.avatar_url || (currentUser?.role === 'STAFF' ? 'https://i.pravatar.cc/100?img=33' : 'https://i.pravatar.cc/100?img=12') }}
