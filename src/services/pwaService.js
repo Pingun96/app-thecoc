@@ -65,16 +65,6 @@ const upsertStyle = () => {
       html, body, #root {
         min-height: 100dvh;
       }
-      *,
-      *::before,
-      *::after {
-        box-shadow: none !important;
-        text-shadow: none !important;
-        filter: none !important;
-        -webkit-filter: none !important;
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-      }
     }
     input, textarea, select {
       font-size: 16px !important;
