@@ -82,11 +82,9 @@
       body { overscroll-behavior: none; }
 
       /* Safe area insets cho iPhone notch / Dynamic Island / Home Indicator */
-      #root {
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
+      :root {
+        --sat: env(safe-area-inset-top, 0px);
+        --sab: env(safe-area-inset-bottom, 0px);
       }
 
       /* Font rendering mượt hơn trên iOS */
