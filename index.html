@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="The Cốc" />
     <meta name="application-name" content="The Cốc" />
-    <meta name="theme-color" content="#208AEF" />
+    <meta name="theme-color" content="#F3F7F5" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -17,9 +17,9 @@
     <link rel="apple-touch-icon" sizes="512x512" href="/icons/thecoc-icon-512.png" />
     <!-- iPhone 15 Pro Max -->
     <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
-    <!-- iPhone 14 Pro -->
+    <!-- iPhone 14 Pro / 15 Pro -->
     <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
-    <!-- iPhone 13/14 -->
+    <!-- iPhone 13 / 14 -->
     <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
     <!-- iPhone SE -->
     <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/icons/thecoc-icon-512.png" />
@@ -38,13 +38,39 @@
       /* These styles make the root element full-height */
       /* ===== iOS NATIVE FEEL ===== */
       * { -webkit-tap-highlight-color: transparent; }
-      * { -webkit-overflow-scrolling: touch; }
-      * { touch-action: manipulation; }
-      body { -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
-      input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
+      html { min-height: 100%; width: 100%; margin: 0; padding: 0; overflow-x: hidden; }
+      body {
+        min-height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+      html, body, #root {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        background: #F3F7F5;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      body { -webkit-user-select: none; user-select: none; }
+      #root, #root * { -webkit-overflow-scrolling: touch; }
+      a, button, [role="button"] { touch-action: manipulation; }
+      input, textarea, select { -webkit-user-select: auto; user-select: auto; font-family: inherit; font-size: 16px !important; touch-action: auto; }
       a, img { -webkit-touch-callout: none; }
       ::-webkit-scrollbar { display: none; }
       * { scrollbar-width: none; -ms-overflow-style: none; }
+      #root {
+        width: 100%;
+        min-height: 100dvh;
+        box-sizing: border-box;
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+      #root > * { min-height: 0; }
       /* === */
       #root {
         display: flex;
@@ -61,6 +87,6 @@
     </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
-  <script src="/_expo/static/js/web/AppEntry-4eae8a5a8cbd3f53a816cd1580781500.js" defer></script>
+  <script src="/_expo/static/js/web/AppEntry-654fa78ebd4d6ccb255bd6386af487eb.js" defer></script>
 </body>
 </html>
