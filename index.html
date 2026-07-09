@@ -77,6 +77,11 @@
         a, img { -webkit-touch-callout: none; }
         ::-webkit-scrollbar { display: none; }
         * { scrollbar-width: none; -ms-overflow-style: none; }
+        /* ===== TAB BAR: đảm bảo không bị home indicator che trên iOS PWA ===== */
+        div[style*="position: fixed"][style*="bottom: 0px"][style*="left: 0px"][style*="right: 0px"] {
+          padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+          box-sizing: content-box !important;
+        }
       /* === */
       #root {
         display: flex;
@@ -93,6 +98,6 @@
     </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
-  <script src="/expo-static/static/js/web/AppEntry-43edaf0e91f20aeae460727e1b5377a7.js" defer></script>
+  <script src="/expo-static/static/js/web/AppEntry-aae94ffdd6d3665757dcc3f7852d57e0.js" defer></script>
 </body>
 </html>
