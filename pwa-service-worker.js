@@ -1,6 +1,6 @@
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-const CACHE_NAME = 'thecoc-pwa-v2.6.0';
+const CACHE_NAME = 'thecoc-pwa-v2.6.4';
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const withBase = (path) => `${BASE_PATH}${path}`;
 const APP_SHELL = [
@@ -31,6 +31,31 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+const isFreshAsset = (url) => (
+  url.pathname.includes('/expo-static/static/js/')
+  || url.pathname.includes('/expo-static/static/css/')
+  || /\.(?:js|css|html|json|webmanifest)$/i.test(url.pathname)
+);
+
+const putCache = async (key, response) => {
+  if (response && response.status === 200) {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(key, response.clone());
+  }
+};
+
+const fetchFresh = async (request, cacheKey = request) => {
+  const response = await fetch(request, { cache: 'reload' });
+  await putCache(cacheKey, response);
+  return response;
+};
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
@@ -39,12 +64,7 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(withBase('/'), copy));
-          return response;
-        })
+      fetchFresh(request, withBase('/'))
         .catch(async () => (
           (await caches.match(withBase('/'))) || caches.match(withBase('/offline.html'))
         ))
@@ -52,13 +72,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  if (isFreshAsset(url)) {
+    event.respondWith(
+      fetchFresh(request).catch(() => caches.match(request))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then((cached) => (
       cached || fetch(request).then((response) => {
-        if (response && response.status === 200) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        }
+        putCache(request, response);
         return response;
       })
     ))
