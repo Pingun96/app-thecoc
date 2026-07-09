@@ -274,15 +274,15 @@ export default function App() {
         { key: 'stores', query: supabase.from('stores').select('*'), critical: true },
         { key: 'users', query: supabase.from('users').select('*'), critical: true },
         { key: 'inventory_items', query: supabase.from('inventory_items').select('*') },
-        { key: 'inventory_logs', query: supabase.from('inventory_logs').select('*').order('created_at', { ascending: false }).limit(800) },
-        { key: 'inventory_tickets', query: supabase.from('inventory_tickets').select('*').order('created_at', { ascending: false }).limit(300) },
-        { key: 'shifts', query: supabase.from('shifts').select('*').order('id', { ascending: false }).limit(300) },
-        { key: 'attendance_logs', query: supabase.from('attendance_logs').select('*').gte('date', recentDateStart).order('date', { ascending: false }).limit(1500) },
-        { key: 'attendance_corrections', query: supabase.from('attendance_corrections').select('*').gte('date', recentDateStart).order('date', { ascending: false }).limit(800) },
-        { key: 'shift_registrations', query: supabase.from('shift_registrations').select('*').gte('date', scheduleDateStart).lte('date', scheduleDateEnd).order('date', { ascending: true }).limit(1000) },
-        { key: 'payroll_adjustments', query: supabase.from('payroll_adjustments').select('*').gte('month', previousMonthKey).limit(500) },
-        { key: 'payroll_approvals', query: supabase.from('payroll_approvals').select('*').gte('month', previousMonthKey).limit(500) },
-        { key: 'shift_swaps', query: supabase.from('shift_swaps').select('*').order('created_at', { ascending: false }).limit(200) },
+        { key: 'inventory_logs', query: supabase.from('inventory_logs').select('*').order('created_at', { ascending: false }).limit(500) },
+        { key: 'inventory_tickets', query: supabase.from('inventory_tickets').select('*').order('created_at', { ascending: false }).limit(200) },
+        { key: 'shifts', query: supabase.from('shifts').select('*').order('id', { ascending: false }).limit(220) },
+        { key: 'attendance_logs', query: supabase.from('attendance_logs').select('*').gte('date', recentDateStart).order('date', { ascending: false }).limit(1000) },
+        { key: 'attendance_corrections', query: supabase.from('attendance_corrections').select('*').gte('date', recentDateStart).order('date', { ascending: false }).limit(400) },
+        { key: 'shift_registrations', query: supabase.from('shift_registrations').select('*').gte('date', scheduleDateStart).lte('date', scheduleDateEnd).order('date', { ascending: true }).limit(700) },
+        { key: 'payroll_adjustments', query: supabase.from('payroll_adjustments').select('*').gte('month', previousMonthKey).limit(300) },
+        { key: 'payroll_approvals', query: supabase.from('payroll_approvals').select('*').gte('month', previousMonthKey).limit(300) },
+        { key: 'shift_swaps', query: supabase.from('shift_swaps').select('*').order('created_at', { ascending: false }).limit(120) },
       ];
       const tableResults = await Promise.all(tables.map(async (table) => {
         const result = await table.query;
@@ -332,7 +332,7 @@ export default function App() {
     realtimeRefreshTimerRef.current = setTimeout(() => {
       realtimeRefreshTimerRef.current = null;
       refreshData();
-    }, 2500);
+    }, Platform.OS === 'web' ? 9000 : 2500);
   }, [refreshData]);
 
   useEffect(() => {
@@ -373,7 +373,7 @@ export default function App() {
   // ===== APPSTATE: Tự refresh data khi mở lại app từ background =====
   useEffect(() => {
     let lastActiveTime = Date.now();
-    const REFRESH_THRESHOLD_MS = 30 * 1000; // 30 giây
+    const REFRESH_THRESHOLD_MS = Platform.OS === 'web' ? 2 * 60 * 1000 : 30 * 1000;
 
     const handleAppStateChange = (nextState) => {
       if (nextState === 'active') {
