@@ -29,14 +29,20 @@ const iosMetaTags = `
     <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/icons/thecoc-icon-512.png" />`;
 
 const iosCss = `
-      /* ===== iOS NATIVE FEEL ===== */
-      * { -webkit-tap-highlight-color: transparent; }
-      * { touch-action: manipulation; }
-      body { -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
-      input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
-      a, img { -webkit-touch-callout: none; }
-      ::-webkit-scrollbar { display: none; }
-      * { scrollbar-width: none; -ms-overflow-style: none; }`;
+        /* ===== iOS NATIVE FEEL ===== */
+        * { -webkit-tap-highlight-color: transparent; }
+        * { touch-action: manipulation; }
+        body { -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+        input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
+        a, img { -webkit-touch-callout: none; }
+        ::-webkit-scrollbar { display: none; }
+        * { scrollbar-width: none; -ms-overflow-style: none; }
+        #root {
+          padding-top: env(safe-area-inset-top);
+          padding-bottom: env(safe-area-inset-bottom);
+          padding-left: env(safe-area-inset-left);
+          padding-right: env(safe-area-inset-right);
+        }`;
 
 // 1. Fix viewport - thêm viewport-fit=cover
 html = html.replace(
