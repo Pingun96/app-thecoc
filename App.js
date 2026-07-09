@@ -552,7 +552,7 @@ export default function App() {
   }, [currentUser]);
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={null}>
     <AppContext.Provider value={{
       staffList, setStaffList,
       storeList, setStoreList,
