@@ -601,7 +601,7 @@ export default function App() {
 const styles = StyleSheet.create({
   webContainer: {
     flex: 1,
-    height: Platform.OS === 'web' ? '100vh' : '100%',
+    height: '100%',
     backgroundColor: '#fff',
   },
   webWrapper: {
