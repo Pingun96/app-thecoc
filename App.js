@@ -303,9 +303,6 @@ export default function App() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [dataError, setDataError] = useState('');
 
-  const tabBarH = Platform.OS === 'web' ? 82 : Platform.OS === 'ios' ? 84 : 62;
-  const tabBarPB = Platform.OS === 'web' ? 8 : Platform.OS === 'ios' ? 22 : 7;
-
   useEffect(() => {
     AsyncStorage.getItem('thecocThemeMode').then((savedMode) => {
       if (['light', 'dark', 'system'].includes(savedMode)) {
