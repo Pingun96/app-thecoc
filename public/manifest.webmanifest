@@ -9,7 +9,7 @@
   "display": "standalone",
   "display_override": ["standalone", "fullscreen", "browser"],
   "orientation": "portrait",
-  "background_color": "#0f172a",
+  "background_color": "#FFFFFF",
   "theme_color": "#208AEF",
   "categories": ["business", "productivity"],
   "icons": [

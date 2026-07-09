@@ -28,18 +28,39 @@ const upsertStyle = () => {
   const style = document.createElement('style');
   style.id = id;
   style.textContent = `
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+    }
     html, body, #root {
+      height: 100%;
       min-height: 100%;
       width: 100%;
-      background: #0f172a;
+      margin: 0;
+      padding: 0;
+      background: #FFFFFF;
       overscroll-behavior: none;
       -webkit-tap-highlight-color: transparent;
       -webkit-touch-callout: none;
       touch-action: manipulation;
     }
+    @supports (height: 100dvh) {
+      html, body, #root {
+        height: 100dvh;
+        min-height: 100dvh;
+      }
+    }
     body {
-      margin: 0;
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      overflow: hidden;
+      position: fixed;
+      inset: 0;
+    }
+    #root {
+      display: flex;
+      overflow: hidden;
+      isolation: isolate;
     }
     input, textarea, select {
       font-size: 16px !important;
@@ -83,8 +104,34 @@ export const setupPwaExperience = () => {
   });
 
   if ('serviceWorker' in navigator) {
+    const SW_RELOAD_KEY = 'thecoc-sw-reload-v2.6.4';
+    const skipWaiting = (worker) => worker?.postMessage?.({ type: 'SKIP_WAITING' });
+    const reloadOnceForNewWorker = () => {
+      try {
+        if (window.sessionStorage?.getItem(SW_RELOAD_KEY) === '1') return;
+        window.sessionStorage?.setItem(SW_RELOAD_KEY, '1');
+      } catch (error) {
+        console.log('Cannot mark service worker reload:', error?.message || error);
+      }
+      window.location.reload();
+    };
+
+    navigator.serviceWorker.addEventListener('controllerchange', reloadOnceForNewWorker);
     navigator.serviceWorker
       .register(assetPath('/pwa-service-worker.js'), { scope: `${basePath || ''}/` })
+      .then((registration) => {
+        skipWaiting(registration.waiting);
+        registration.update?.();
+        registration.addEventListener('updatefound', () => {
+          const worker = registration.installing;
+          if (!worker) return;
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+              skipWaiting(worker);
+            }
+          });
+        });
+      })
       .catch((error) => console.log('Cannot register PWA service worker:', error?.message || error));
   }
 

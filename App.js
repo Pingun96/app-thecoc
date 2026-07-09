@@ -160,22 +160,29 @@ function MainTabs() {
     attendanceHistory = [],
   } = useContext(AppContext);
 
-  // Đọc bottom safe area thực tế từ iOS (home indicator height: ~34px)
-  const [webSafeBottom, setWebSafeBottom] = React.useState(34);
+  // Đọc bottom safe area thực tế bằng DOM trick (hoạt động trên iOS PWA)
+  const [webSafeBottom, setWebSafeBottom] = React.useState(0);
   React.useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
       const read = () => {
-        const val = parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue('--sab')
-        );
-        if (!isNaN(val) && val > 0) setWebSafeBottom(val);
+        const el = document.createElement('div');
+        el.style.cssText = 'position:fixed;bottom:0;left:0;width:1px;height:1px;padding-bottom:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none;';
+        document.body.appendChild(el);
+        const val = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+        document.body.removeChild(el);
+        setWebSafeBottom(Number.isFinite(val) ? val : 0);
       };
       read();
-      setTimeout(read, 500);
+      const t = setTimeout(read, 400);
+      window.addEventListener('resize', read);
+      window.addEventListener('orientationchange', read);
+      return () => { clearTimeout(t); window.removeEventListener('resize', read); window.removeEventListener('orientationchange', read); };
     }
+    return undefined;
   }, []);
 
-  const tabBarH = Platform.OS === 'web' ? 56 + webSafeBottom : Platform.OS === 'ios' ? 84 : 62;
+  const TAB_INNER_H = 56;
+  const tabBarH = Platform.OS === 'web' ? TAB_INNER_H + webSafeBottom : Platform.OS === 'ios' ? 84 : 62;
   const tabBarPB = Platform.OS === 'web' ? webSafeBottom + 2 : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();

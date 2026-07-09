@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocalDateKey, isDateInCurrentMonth } from '../utils/dateTime';
 import { supabase } from '../services/supabaseClient';
 import SkeletonLoader from '../components/SkeletonLoader';
+import { getBusinessStores } from '../utils/warehouse';
 
 const { width } = Dimensions.get('window');
 const APP_GRID_COLUMNS = 4;
@@ -115,7 +116,30 @@ export default function DashboardScreen({ navigation }) {
     if (Platform.OS === 'web') {
       setIsCheckingUpdate(true);
       if (typeof window !== 'undefined') {
-        window.location.reload();
+        try {
+          if (window.caches?.keys) {
+            const keys = await window.caches.keys();
+            await Promise.all(
+              keys
+                .filter((key) => key.startsWith('thecoc-pwa-'))
+                .map((key) => window.caches.delete(key))
+            );
+          }
+
+          if (typeof navigator !== 'undefined' && navigator.serviceWorker?.getRegistrations) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map(async (registration) => {
+              registration.waiting?.postMessage?.({ type: 'SKIP_WAITING' });
+              await registration.update?.();
+            }));
+          }
+        } catch (error) {
+          console.log('Cannot clear PWA cache:', error?.message || error);
+        } finally {
+          const url = new URL(window.location.href);
+          url.searchParams.set('v', Date.now().toString());
+          window.location.replace(url.toString());
+        }
       }
       return;
     }
@@ -174,6 +198,7 @@ export default function DashboardScreen({ navigation }) {
 
   const isOwner = currentUser?.role === 'OWNER';
   const viewableStores = currentUser?.permissions?.viewable_stores || [];
+  const businessStores = React.useMemo(() => getBusinessStores(storeList), [storeList]);
 
   // Hiển thị thanh chọn store nếu là OWNER hoặc được cấp quyền xem nhiều hơn 1 chi nhánh
   const canShowStoreSelector = isOwner || viewableStores.length > 1;
@@ -208,6 +233,10 @@ export default function DashboardScreen({ navigation }) {
 
     const permissions = currentUser?.permissions || {};
     const hasExplicitPermissions = Object.keys(permissions).length > 0;
+
+    if (featureKey === 'central_warehouse') {
+      return permissions.central_warehouse === true;
+    }
 
     // Tương thích tài khoản quản lý cũ chưa có object permissions.
     if (currentUser?.role === 'MANAGER' && !hasExplicitPermissions) return true;
@@ -246,6 +275,7 @@ export default function DashboardScreen({ navigation }) {
     const compactTitleMap = {
       cashier: 'Giao ca',
       inventory: 'Kho hàng',
+      central_warehouse: 'Kho tổng',
       payroll: 'Bảng lương',
       finance: 'Tài chính',
     };
@@ -257,6 +287,7 @@ export default function DashboardScreen({ navigation }) {
     const iconColorMap = {
       cashier: '#16a34a',
       inventory: '#f97316',
+      central_warehouse: '#7c3aed',
       payroll: '#d97706',
       finance: '#7c3aed',
       hr: routeName === 'AttendanceReview' ? '#0d9488' : '#2563eb',
@@ -273,9 +304,9 @@ export default function DashboardScreen({ navigation }) {
       >
         <View style={[styles.gridIconBox, { backgroundColor: allowed ? bgColor : '#e5e7eb' }]}>
           {iconLib === 'Ionicons' ? (
-            <Ionicons name={iconName} size={28} color={safeIconColor} />
+            <Ionicons name={iconName} size={width <= 360 ? 34 : 36} color={safeIconColor} />
           ) : (
-            <MaterialCommunityIcons name={iconName} size={28} color={safeIconColor} />
+            <MaterialCommunityIcons name={iconName} size={width <= 360 ? 34 : 36} color={safeIconColor} />
           )}
         </View>
         <Text style={[styles.gridItemTitle, !allowed && {color: '#9ca3af'}]} numberOfLines={2}>
@@ -361,7 +392,7 @@ export default function DashboardScreen({ navigation }) {
             )}
 
             {/* CÁC CHI NHÁNH ĐƯỢC PHÉP XEM */}
-            {storeList.filter(s => isOwner || viewableStores.includes(s.id)).map(store => (
+            {businessStores.filter(s => isOwner || viewableStores.includes(s.id)).map(store => (
               <TouchableOpacity
                 key={store.id}
                 style={[styles.storeChip, selectedStoreId === store.id && styles.storeChipActive]}
@@ -426,6 +457,7 @@ export default function DashboardScreen({ navigation }) {
         <View style={styles.gridContainer}>
           {renderGridItem('Giao Ca & Doanh Thu', 'Quản lý Két & Chốt Ca', 'cash-register', 'Material', '#e8f5e9', 'cashier', 'Shifts', 'Shifts')}
           {renderGridItem('Kho Hàng', 'Tồn kho & Yêu cầu', 'warehouse', 'Material', '#fff3e0', 'inventory', 'Inventory', 'Inventory')}
+          {renderGridItem('Kho Tổng', 'Duyệt xuất hàng', 'package-variant-closed', 'Material', '#ede9fe', 'central_warehouse', 'CentralWarehouse', 'CentralWarehouse')}
           {renderGridItem(currentUser?.role === 'STAFF' ? 'Chấm Công' : 'Nhân Sự', currentUser?.role === 'STAFF' ? 'Định vị GPS / Camera' : 'Hồ sơ & Phân quyền', currentUser?.role === 'STAFF' ? "scan-circle" : "id-card", 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
           {currentUser?.role !== 'STAFF' && renderGridItem('Đối Chiếu Công', 'Lịch làm vs chấm công', 'clipboard-check-outline', 'Material', '#dcfce7', 'hr', 'AttendanceReview', 'AttendanceReview')}
           {renderGridItem('Bảng Lương', 'Bảng lương chi tiết', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'Payroll', 'Payroll')}
@@ -533,8 +565,8 @@ const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
   },
   gridItemDisabled: { opacity: 0.62 },
   gridIconBox: {
-    width: 58,
-    height: 58,
+    width: width <= 360 ? 56 : 62,
+    height: width <= 360 ? 56 : 62,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',

@@ -30,18 +30,46 @@ const iosMetaTags = `
 
 const iosCss = `
         /* ===== iOS NATIVE FEEL ===== */
-        * { -webkit-tap-highlight-color: transparent; }
-        * { touch-action: manipulation; }
-        body { -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
-        input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
-        a, img { -webkit-touch-callout: none; }
-        ::-webkit-scrollbar { display: none; }
-        * { scrollbar-width: none; -ms-overflow-style: none; }
-        /* CSS vars để JS đọc safe area từ iOS */
         :root {
           --sat: env(safe-area-inset-top, 0px);
           --sab: env(safe-area-inset-bottom, 0px);
-        }`;
+          --sar: env(safe-area-inset-right, 0px);
+          --sal: env(safe-area-inset-left, 0px);
+        }
+        * { -webkit-tap-highlight-color: transparent; }
+        * { touch-action: manipulation; }
+        html, body, #root {
+          width: 100%;
+          height: 100%;
+          min-height: 100%;
+          margin: 0;
+          padding: 0;
+          background: #FFFFFF;
+        }
+        @supports (height: 100dvh) {
+          html, body, #root {
+            height: 100dvh;
+            min-height: 100dvh;
+          }
+        }
+        body {
+          position: fixed;
+          inset: 0;
+          overflow: hidden;
+          -webkit-user-select: none;
+          user-select: none;
+          overscroll-behavior: none;
+          -webkit-font-smoothing: antialiased;
+        }
+        #root {
+          display: flex;
+          overflow: hidden;
+          isolation: isolate;
+        }
+        input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
+        a, img { -webkit-touch-callout: none; }
+        ::-webkit-scrollbar { display: none; }
+        * { scrollbar-width: none; -ms-overflow-style: none; }`;
 
 // 1. Fix viewport - thêm viewport-fit=cover
 html = html.replace(
@@ -97,5 +125,19 @@ if (fs.existsSync(assetsNodeModulesPath)) {
       }
     }
   }
+}
+
+// 7. Cloudflare Pages can behave badly with framework-generated underscored folders.
+// Move the Expo bundle out of /_expo and patch index.html to the stable public path.
+const expoUnderscorePath = path.join(__dirname, '..', 'dist', '_expo');
+const expoStaticPath = path.join(__dirname, '..', 'dist', 'expo-static');
+if (fs.existsSync(expoUnderscorePath)) {
+  if (fs.existsSync(expoStaticPath)) {
+    fs.rmSync(expoStaticPath, { recursive: true, force: true });
+  }
+  fs.renameSync(expoUnderscorePath, expoStaticPath);
+  html = fs.readFileSync(indexPath, 'utf8').replace(/\/_expo\//g, '/expo-static/');
+  fs.writeFileSync(indexPath, html, 'utf8');
+  console.log('✅ Moved dist/_expo to dist/expo-static and patched script path');
 }
 
