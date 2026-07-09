@@ -24,13 +24,13 @@ import DateRangePickerModal from '../components/DateRangePickerModal';
 const screenWidth = Dimensions.get('window').width;
 const IS_COMPACT_WEB = Platform.OS === 'web' && screenWidth <= 430;
 
-// Lấy ngày theo giờ Việt Nam (UTC+7)
+// Láº¥y ngÃ y theo giá» Viá»‡t Nam (UTC+7)
 function getVNDateStr(date = new Date()) {
   const vnTime = new Date(date.getTime() + 7 * 60 * 60 * 1000);
   return vnTime.toISOString().split('T')[0];
 }
 
-// Định dạng ngày yyyy-mm-dd -> dd/MM/yyyy để hiển thị
+// Äá»‹nh dáº¡ng ngÃ y yyyy-mm-dd -> dd/MM/yyyy Ä‘á»ƒ hiá»ƒn thá»‹
 function formatDate(dateStr) {
   if (!dateStr || dateStr.length < 10) return dateStr;
   const [y, m, d] = dateStr.split('-');
@@ -58,7 +58,7 @@ function CustomBarChart({ data, labels, COLORS }) {
   const barWidth = Math.max(18, Math.min(36, (screenWidth - 80) / data.length - 4));
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }} decelerationRate="fast" scrollEventThrottle={16}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: CHART_HEIGHT + 36 }}>
         {data.map((val, idx) => {
           const barH = Math.max(4, Math.round((val / maxVal) * CHART_HEIGHT));
@@ -99,7 +99,7 @@ function CustomPieBars({ data, COLORS }) {
                 <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: '600' }}>{item.name}</Text>
               </View>
               <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>
-                {pct.toFixed(1)}% · {(item.population / 1000000).toFixed(1)}tr đ
+                {pct.toFixed(1)}% Â· {(item.population / 1000000).toFixed(1)}tr Ä‘
               </Text>
             </View>
             <View style={{ height: 6, backgroundColor: COLORS.border, borderRadius: 3, overflow: 'hidden' }}>
@@ -169,7 +169,7 @@ function CalendarPicker({ startDate, endDate, onChange, COLORS }) {
           <Ionicons name="chevron-back" size={20} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: 15, fontWeight: 'bold', color: COLORS.text }}>
-          {`Tháng ${month + 1} / ${year}`}
+          {`ThÃ¡ng ${month + 1} / ${year}`}
         </Text>
         <TouchableOpacity onPress={handleNextMonth} style={{ padding: 6 }}>
           <Ionicons name="chevron-forward" size={20} color={COLORS.text} />
@@ -235,7 +235,7 @@ function DateRangeModal({ visible, onClose, onApply, COLORS }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // Đồng bộ lại khi Modal hiển thị
+  // Äá»“ng bá»™ láº¡i khi Modal hiá»ƒn thá»‹
   useEffect(() => {
     if (visible) {
       setStartDate('');
@@ -250,7 +250,7 @@ function DateRangeModal({ visible, onClose, onApply, COLORS }) {
         style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.modalBg }}
       >
         <View style={{ backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Chọn khoảng thời gian</Text>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Chá»n khoáº£ng thá»i gian</Text>
 
           {/* Calendar picker */}
           <CalendarPicker
@@ -267,21 +267,21 @@ function DateRangeModal({ visible, onClose, onApply, COLORS }) {
           <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.bg, borderRadius: 12, padding: 10, marginBottom: 12 }}>
             <Ionicons name="calendar-outline" size={16} color={COLORS.primary} style={{ marginRight: 6 }} />
             <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text }}>
-              {startDate ? formatDate(startDate) : 'Từ ngày'}
+              {startDate ? formatDate(startDate) : 'Tá»« ngÃ y'}
             </Text>
-            <Text style={{ marginHorizontal: 8, color: COLORS.textMuted }}>→</Text>
+            <Text style={{ marginHorizontal: 8, color: COLORS.textMuted }}>â†’</Text>
             <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text }}>
-              {endDate ? formatDate(endDate) : 'Đến ngày'}
+              {endDate ? formatDate(endDate) : 'Äáº¿n ngÃ y'}
             </Text>
           </View>
 
           {/* Shortcut buttons */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} decelerationRate="fast" scrollEventThrottle={16}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             {[
-              { label: 'Hôm qua', start: (() => { const d = new Date(); d.setDate(d.getDate() - 1); return getVNDateStr(d); })(), end: (() => { const d = new Date(); d.setDate(d.getDate() - 1); return getVNDateStr(d); })() },
-              { label: 'Tuần này', start: (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); return getVNDateStr(d); })() },
-              { label: 'Tháng này', start: getVNDateStr(new Date()).slice(0, 8) + '01' },
-              { label: 'Tháng trước', start: (() => { const d = new Date(); d.setMonth(d.getMonth() - 1, 1); return getVNDateStr(d); })(), end: (() => { const d = new Date(); d.setDate(0); return getVNDateStr(d); })() },
+              { label: 'HÃ´m qua', start: (() => { const d = new Date(); d.setDate(d.getDate() - 1); return getVNDateStr(d); })(), end: (() => { const d = new Date(); d.setDate(d.getDate() - 1); return getVNDateStr(d); })() },
+              { label: 'Tuáº§n nÃ y', start: (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); return getVNDateStr(d); })() },
+              { label: 'ThÃ¡ng nÃ y', start: getVNDateStr(new Date()).slice(0, 8) + '01' },
+              { label: 'ThÃ¡ng trÆ°á»›c', start: (() => { const d = new Date(); d.setMonth(d.getMonth() - 1, 1); return getVNDateStr(d); })(), end: (() => { const d = new Date(); d.setDate(0); return getVNDateStr(d); })() },
             ].map((s, i) => (
               <TouchableOpacity key={i} onPress={() => { setStartDate(s.start); setEndDate(s.end || today); }}
                 style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: COLORS.border, borderRadius: 16, marginRight: 8 }}>
@@ -292,13 +292,13 @@ function DateRangeModal({ visible, onClose, onApply, COLORS }) {
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <TouchableOpacity onPress={onClose} style={{ flex: 1, marginRight: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' }}>
-              <Text style={{ color: COLORS.textMuted, fontWeight: '600' }}>Huỷ</Text>
+              <Text style={{ color: COLORS.textMuted, fontWeight: '600' }}>Huá»·</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               onPress={() => onApply(startDate || null, endDate || startDate || null)}
               style={{ flex: 1, padding: 12, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: 'center' }}
             >
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Áp dụng</Text>
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Ãp dá»¥ng</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -381,16 +381,16 @@ export default function FinanceScreen({ navigation }) {
     setShowDateModal(false);
   };
 
-  // Tính toán
+  // TÃ­nh toÃ¡n
   const totalRevenue = revenues.reduce((sum, i) => sum + Number(i.total_amount), 0);
   const totalOrders = revenues.reduce((sum, i) => sum + Number(i.order_count), 0);
   const aov = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
 
   const storeName = storeIdToView === 'ALL'
-    ? 'Tất cả chi nhánh'
-    : storeList.find((s) => String(s.id) === String(storeIdToView))?.name || 'Chi nhánh';
+    ? 'Táº¥t cáº£ chi nhÃ¡nh'
+    : storeList.find((s) => String(s.id) === String(storeIdToView))?.name || 'Chi nhÃ¡nh';
 
-  // Dữ liệu biểu đồ
+  // Dá»¯ liá»‡u biá»ƒu Ä‘á»“
   const sortedRevenues = [...revenues].sort((a, b) => a.date.localeCompare(b.date));
   const grouped = {};
   sortedRevenues.forEach(r => {
@@ -410,13 +410,13 @@ export default function FinanceScreen({ navigation }) {
     let ci = 0;
     Object.keys(storeRev).forEach(sId => {
       if (storeRev[sId] > 0) {
-        const sName = storeList.find(s => String(s.id) === String(sId))?.name || `Quán ${sId}`;
+        const sName = storeList.find(s => String(s.id) === String(sId))?.name || `QuÃ¡n ${sId}`;
         pieData.push({ name: sName, population: storeRev[sId], color: colors[ci++ % colors.length] });
       }
     });
   }
 
-  const todayStr = getVNDateStr(); // Dùng giờ VN để so sánh
+  const todayStr = getVNDateStr(); // DÃ¹ng giá» VN Ä‘á»ƒ so sÃ¡nh
 
   const latestSyncTime = useMemo(() => {
     if (!revenues || revenues.length === 0) return null;
@@ -452,7 +452,7 @@ export default function FinanceScreen({ navigation }) {
   );
 
   const periodLabel = period === 'custom'
-    ? `${formatDate(customRange.start) || '...'} → ${formatDate(customRange.end) || '...'}`
+    ? `${formatDate(customRange.start) || '...'} â†’ ${formatDate(customRange.end) || '...'}`
     : null;
 
   const handleExportFinance = async () => {
@@ -460,19 +460,19 @@ export default function FinanceScreen({ navigation }) {
       const exportData = revenues.map(item => {
         const store = storeList.find(s => String(s.id) === String(item.store_id));
         return {
-          'Ngày': item.date,
-          'Chi Nhánh': store?.name || `Quán ${item.store_id}`,
-          'Doanh Thu Cửa Hàng': item.store_revenue,
+          'NgÃ y': item.date,
+          'Chi NhÃ¡nh': store?.name || `QuÃ¡n ${item.store_id}`,
+          'Doanh Thu Cá»­a HÃ ng': item.store_revenue,
           'Doanh Thu App (Ocha/Gofood/...)': item.app_revenue,
-          'Tổng Doanh Thu': item.total_revenue
+          'Tá»•ng Doanh Thu': item.total_revenue
         };
       });
       
       const fileName = `Bao_Cao_Tai_Chinh_${periodLabel ? periodLabel.replace(/\s+/g, '_') : 'Hom_Nay'}`;
-      await exportToExcel(exportData, fileName, 'Tài Chính');
-      Alert.alert('Thành công', 'Đã xuất file Excel Tài chính!');
+      await exportToExcel(exportData, fileName, 'TÃ i ChÃ­nh');
+      Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ xuáº¥t file Excel TÃ i chÃ­nh!');
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể xuất báo cáo: ' + error.message);
+      Alert.alert('Lá»—i', 'KhÃ´ng thá»ƒ xuáº¥t bÃ¡o cÃ¡o: ' + error.message);
     }
   };
 
@@ -483,7 +483,7 @@ export default function FinanceScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.header}>Tài chính & Doanh thu</Text>
+          <Text style={styles.header}>TÃ i chÃ­nh & Doanh thu</Text>
           <Text style={styles.headerCaption}>{storeName}</Text>
         </View>
         <TouchableOpacity onPress={handleExportFinance} style={{ padding: 5 }}>
@@ -493,9 +493,9 @@ export default function FinanceScreen({ navigation }) {
 
       {/* Branch Selector */}
       {isOwner && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} style={{ flexGrow: 0, height: 50 }} decelerationRate="fast" scrollEventThrottle={16}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} style={{ flexGrow: 0, height: 50 }}>
           <TouchableOpacity style={[styles.filterBtn, storeIdToView === 'ALL' && styles.filterBtnActive]} onPress={() => setStoreIdToView('ALL')}>
-            <Text style={[styles.filterBtnText, storeIdToView === 'ALL' && styles.filterBtnTextActive]}>Tất cả</Text>
+            <Text style={[styles.filterBtnText, storeIdToView === 'ALL' && styles.filterBtnTextActive]}>Táº¥t cáº£</Text>
           </TouchableOpacity>
           {storeList.map(s => (
             <TouchableOpacity key={s.id} style={[styles.filterBtn, storeIdToView === s.id && styles.filterBtnActive]} onPress={() => setStoreIdToView(s.id)}>
@@ -506,8 +506,8 @@ export default function FinanceScreen({ navigation }) {
       )}
 
       {/* Period Selector */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRow} style={{ flexGrow: 0, height: 45 }} decelerationRate="fast" scrollEventThrottle={16}>
-        {[['today', 'Hôm nay'], ['yesterday', 'Hôm qua'], ['week', 'Tuần này'], ['month', 'Tháng này'], ['7', '7 ngày'], ['30', '30 ngày']].map(([val, label]) => (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRow} style={{ flexGrow: 0, height: 45 }}>
+        {[['today', 'HÃ´m nay'], ['yesterday', 'HÃ´m qua'], ['week', 'Tuáº§n nÃ y'], ['month', 'ThÃ¡ng nÃ y'], ['7', '7 ngÃ y'], ['30', '30 ngÃ y']].map(([val, label]) => (
           <TouchableOpacity key={val} style={[styles.periodBtn, period === val && styles.periodBtnActive]} onPress={() => setPeriod(val)}>
             <Text style={[styles.periodText, period === val && styles.periodTextActive]}>{label}</Text>
           </TouchableOpacity>
@@ -516,7 +516,7 @@ export default function FinanceScreen({ navigation }) {
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="calendar-outline" size={13} color={period === 'custom' ? COLORS.primary : COLORS.textMuted} style={{ marginRight: 4 }} />
             <Text style={[styles.periodText, period === 'custom' && styles.periodTextActive]}>
-              {period === 'custom' ? periodLabel : 'Tùy chọn'}
+              {period === 'custom' ? periodLabel : 'TÃ¹y chá»n'}
             </Text>
           </View>
         </TouchableOpacity>
@@ -525,48 +525,48 @@ export default function FinanceScreen({ navigation }) {
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={COLORS.primary} /></View>
       ) : (
-        <ScrollView style={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />} decelerationRate="fast" scrollEventThrottle={16}>
+        <ScrollView style={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}>
           <View style={styles.mainCard}>
-            <Text style={styles.mainCardLabel}>Tổng doanh thu Ocha</Text>
-            <Text style={styles.mainCardValue}>{totalRevenue.toLocaleString('vi-VN')} đ</Text>
+            <Text style={styles.mainCardLabel}>Tá»•ng doanh thu Ocha</Text>
+            <Text style={styles.mainCardValue}>{totalRevenue.toLocaleString('vi-VN')} Ä‘</Text>
             {latestSyncTime && (
-              <Text style={styles.mainCardSync}>Cập nhật lúc: {latestSyncTime}</Text>
+              <Text style={styles.mainCardSync}>Cáº­p nháº­t lÃºc: {latestSyncTime}</Text>
             )}
           </View>
 
           <View style={styles.metricsGrid}>
-            {renderMetric('Đơn hàng', totalOrders.toLocaleString(), 'receipt-outline')}
-            {renderMetric('Giá trị/Đơn', aov.toLocaleString() + ' đ', 'cash-outline')}
+            {renderMetric('ÄÆ¡n hÃ ng', totalOrders.toLocaleString(), 'receipt-outline')}
+            {renderMetric('GiÃ¡ trá»‹/ÄÆ¡n', aov.toLocaleString() + ' Ä‘', 'cash-outline')}
           </View>
 
           <View style={styles.chartCard}>
             <View style={styles.chartTitleRow}>
-              <Text style={styles.sectionTitle}>Xu hướng doanh thu</Text>
+              <Text style={styles.sectionTitle}>Xu hÆ°á»›ng doanh thu</Text>
               <View style={styles.chartTotalBadge}>
-                <Text style={styles.chartTotalText}>{totalRevenue.toLocaleString('vi-VN')} đ</Text>
-                <Text style={styles.chartTotalSub}>{chartKeys.length} ngày</Text>
+                <Text style={styles.chartTotalText}>{totalRevenue.toLocaleString('vi-VN')} Ä‘</Text>
+                <Text style={styles.chartTotalSub}>{chartKeys.length} ngÃ y</Text>
               </View>
             </View>
             {chartData.length > 0
               ? <CustomBarChart data={chartData} labels={chartLabels} COLORS={COLORS} />
-              : <Text style={styles.emptyText}>Chưa có dữ liệu biểu đồ</Text>
+              : <Text style={styles.emptyText}>ChÆ°a cÃ³ dá»¯ liá»‡u biá»ƒu Ä‘á»“</Text>
             }
           </View>
 
           {storeIdToView === 'ALL' && pieData.length > 0 && (
             <View style={styles.chartCard}>
-              <Text style={[styles.sectionTitle, { paddingHorizontal: 20, marginBottom: 15 }]}>Tỷ trọng chi nhánh</Text>
+              <Text style={[styles.sectionTitle, { paddingHorizontal: 20, marginBottom: 15 }]}>Tá»· trá»ng chi nhÃ¡nh</Text>
               <CustomPieBars data={pieData} COLORS={COLORS} />
             </View>
           )}
 
           <View style={styles.listCard}>
-            <Text style={[styles.sectionTitle, { paddingHorizontal: 20, marginBottom: 15 }]}>Lịch sử chi tiết</Text>
+            <Text style={[styles.sectionTitle, { paddingHorizontal: 20, marginBottom: 15 }]}>Lá»‹ch sá»­ chi tiáº¿t</Text>
             {revenues.length === 0 ? (
-              <Text style={styles.emptyText}>Không có dữ liệu</Text>
+              <Text style={styles.emptyText}>KhÃ´ng cÃ³ dá»¯ liá»‡u</Text>
             ) : (
               [...revenues].sort((a, b) => b.date.localeCompare(a.date)).map((item, idx) => {
-                const sName = storeList.find((s) => String(s.id) === String(item.store_id))?.name || `Quán ${item.store_id}`;
+                const sName = storeList.find((s) => String(s.id) === String(item.store_id))?.name || `QuÃ¡n ${item.store_id}`;
                 const isToday = item.date === todayStr;
                 return (
                   <View key={item.id} style={[styles.row, idx === revenues.length - 1 && { borderBottomWidth: 0 }, isToday && styles.rowToday]}>
@@ -575,15 +575,15 @@ export default function FinanceScreen({ navigation }) {
                         <Text style={[styles.rowDate, isToday && { color: COLORS.primary }]}>{formatDate(item.date)}</Text>
                         {isToday && (
                           <View style={[styles.todayBadge, { marginLeft: 8 }]}>
-                            <Text style={styles.todayBadgeText}>Hôm nay</Text>
+                            <Text style={styles.todayBadgeText}>HÃ´m nay</Text>
                           </View>
                         )}
                       </View>
                       {storeIdToView === 'ALL' && <Text style={styles.rowMeta}>{sName}</Text>}
                     </View>
                     <View style={styles.rowRight}>
-                      <Text style={[styles.rowAmount, isToday && { color: COLORS.primary }]}>{Number(item.total_amount).toLocaleString('vi-VN')} đ</Text>
-                      <Text style={styles.rowMetaRight}>{item.order_count} đơn</Text>
+                      <Text style={[styles.rowAmount, isToday && { color: COLORS.primary }]}>{Number(item.total_amount).toLocaleString('vi-VN')} Ä‘</Text>
+                      <Text style={styles.rowMetaRight}>{item.order_count} Ä‘Æ¡n</Text>
                     </View>
                   </View>
                 );
@@ -602,7 +602,7 @@ export default function FinanceScreen({ navigation }) {
         initialEndDate={customRange.end}
         COLORS={COLORS}
         isDarkMode={isDarkMode}
-        title="Chọn ngày xem báo cáo"
+        title="Chá»n ngÃ y xem bÃ¡o cÃ¡o"
       />
     </SafeAreaView>
   );

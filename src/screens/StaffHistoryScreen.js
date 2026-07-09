@@ -16,7 +16,7 @@ import {
   isDateInCurrentMonth,
 } from '../utils/dateTime';
 
-const formatCurrency = (value) => `${Math.round(Number(value) || 0).toLocaleString('vi-VN')} đ`;
+const formatCurrency = (value) => `${Math.round(Number(value) || 0).toLocaleString('vi-VN')} Ä‘`;
 
 export default function StaffHistoryScreen({ navigation }) {
   const { currentUser, attendanceHistory, COLORS, isDarkMode } = useContext(AppContext);
@@ -45,9 +45,9 @@ export default function StaffHistoryScreen({ navigation }) {
   const isAfternoon = currentHour >= 12 && currentHour < 18;
   const isEvening = currentHour >= 18;
 
-  // Sáng: nền xanh lá nhạt, chữ xanh đậm.
-  // Chiều: nền vàng nhạt có viền, chữ cam đậm.
-  // Tối: nền tím đậm, chữ trắng.
+  // SÃ¡ng: ná»n xanh lÃ¡ nháº¡t, chá»¯ xanh Ä‘áº­m.
+  // Chiá»u: ná»n vÃ ng nháº¡t cÃ³ viá»n, chá»¯ cam Ä‘áº­m.
+  // Tá»‘i: ná»n tÃ­m Ä‘áº­m, chá»¯ tráº¯ng.
   const themeStyles = {
     cardBg: isMorning ? '#dcfce7' : isAfternoon ? '#fef9c3' : '#1e1b4b',
     cardBorder: isAfternoon ? '#fde047' : 'transparent',
@@ -64,28 +64,28 @@ export default function StaffHistoryScreen({ navigation }) {
           <Text style={styles.dateText}>{formatDate(item.date)}</Text>
           <View style={[styles.badge, isOpen ? styles.openBadge : styles.closedBadge]}>
             <Text style={[styles.badgeText, isOpen ? styles.openBadgeText : styles.closedBadgeText]}>
-              {isOpen ? 'ĐANG TRONG CA' : 'HOÀN THÀNH'}
+              {isOpen ? 'ÄANG TRONG CA' : 'HOÃ€N THÃ€NH'}
             </Text>
           </View>
         </View>
         <View style={styles.timeRow}>
           <View style={styles.timeBlock}>
-            <Text style={styles.timeLabel}>Vào ca</Text>
+            <Text style={styles.timeLabel}>VÃ o ca</Text>
             <Text style={styles.timeValue}>{item.checkIn || item.check_in || '--:--'}</Text>
           </View>
           <Ionicons name="arrow-forward" size={18} color="#94a3b8" />
           <View style={[styles.timeBlock, styles.timeBlockRight]}>
-            <Text style={styles.timeLabel}>Kết thúc</Text>
+            <Text style={styles.timeLabel}>Káº¿t thÃºc</Text>
             <Text style={styles.timeValue}>{item.checkOut || item.check_out || '--:--'}</Text>
           </View>
         </View>
         <View style={styles.cardFooter}>
           <Text style={styles.locationText} numberOfLines={1}>
             <Ionicons name="location-outline" size={13} />{' '}
-            {item.check_in_location || 'Chưa có vị trí'}
+            {item.check_in_location || 'ChÆ°a cÃ³ vá»‹ trÃ­'}
           </Text>
           <Text style={styles.hoursText}>
-            {isOpen ? 'Đang tính giờ' : formatDuration(item.hours)}
+            {isOpen ? 'Äang tÃ­nh giá»' : formatDuration(item.hours)}
           </Text>
         </View>
       </View>
@@ -99,32 +99,32 @@ export default function StaffHistoryScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="#1565c0" />
         </TouchableOpacity>
         <View>
-          <Text style={styles.header}>Công & lương</Text>
-          <Text style={styles.headerCaption}>Dữ liệu cá nhân của tháng hiện tại</Text>
+          <Text style={styles.header}>CÃ´ng & lÆ°Æ¡ng</Text>
+          <Text style={styles.headerCaption}>Dá»¯ liá»‡u cÃ¡ nhÃ¢n cá»§a thÃ¡ng hiá»‡n táº¡i</Text>
         </View>
       </View>
 
       <View style={[styles.salaryCard, { backgroundColor: themeStyles.cardBg, borderColor: themeStyles.cardBorder, borderWidth: isAfternoon ? 2 : 0 }]}>
-        <Text style={[styles.salaryEyebrow, { color: themeStyles.subTextColor }]}>LƯƠNG TẠM TÍNH THÁNG NÀY</Text>
+        <Text style={[styles.salaryEyebrow, { color: themeStyles.subTextColor }]}>LÆ¯Æ NG Táº M TÃNH THÃNG NÃ€Y</Text>
         <Text style={[styles.salaryTotal, { color: themeStyles.textColor }]}>{formatCurrency(estimatedSalary)}</Text>
         <View style={[styles.salaryDivider, { backgroundColor: themeStyles.dividerBg }]} />
         <View style={styles.salaryStats}>
           <View style={styles.salaryStat}>
-            <Text style={[styles.salaryStatLabel, { color: themeStyles.subTextColor }]}>Tổng giờ</Text>
-            <Text style={[styles.salaryStatValue, { color: themeStyles.textColor }]}>{totalHours.toFixed(2)} giờ</Text>
+            <Text style={[styles.salaryStatLabel, { color: themeStyles.subTextColor }]}>Tá»•ng giá»</Text>
+            <Text style={[styles.salaryStatValue, { color: themeStyles.textColor }]}>{totalHours.toFixed(2)} giá»</Text>
           </View>
           <View style={styles.salaryStat}>
-            <Text style={[styles.salaryStatLabel, { color: themeStyles.subTextColor }]}>Đơn giá</Text>
+            <Text style={[styles.salaryStatLabel, { color: themeStyles.subTextColor }]}>ÄÆ¡n giÃ¡</Text>
             <Text style={[styles.salaryStatValue, { color: themeStyles.textColor }]}>{formatCurrency(hourlyWage)}/h</Text>
           </View>
           <View style={[styles.salaryStat, styles.salaryStatLast]}>
-            <Text style={[styles.salaryStatLabel, { color: themeStyles.subTextColor }]}>Số ca</Text>
+            <Text style={[styles.salaryStatLabel, { color: themeStyles.subTextColor }]}>Sá»‘ ca</Text>
             <Text style={[styles.salaryStatValue, { color: themeStyles.textColor }]}>{monthlyHistory.length}</Text>
           </View>
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Lịch sử chấm công</Text>
+      <Text style={styles.sectionTitle}>Lá»‹ch sá»­ cháº¥m cÃ´ng</Text>
 
       <FlatList
         style={styles.flexRoot}
@@ -136,8 +136,8 @@ export default function StaffHistoryScreen({ navigation }) {
         ListEmptyComponent={(
           <View style={styles.emptyState}>
             <Ionicons name="calendar-outline" size={42} color="#94a3b8" />
-            <Text style={styles.emptyTitle}>Chưa có dữ liệu chấm công</Text>
-            <Text style={styles.emptyText}>Các lượt vào ca và kết thúc ca sẽ xuất hiện tại đây.</Text>
+            <Text style={styles.emptyTitle}>ChÆ°a cÃ³ dá»¯ liá»‡u cháº¥m cÃ´ng</Text>
+            <Text style={styles.emptyText}>CÃ¡c lÆ°á»£t vÃ o ca vÃ  káº¿t thÃºc ca sáº½ xuáº¥t hiá»‡n táº¡i Ä‘Ã¢y.</Text>
           </View>
         )}
       />

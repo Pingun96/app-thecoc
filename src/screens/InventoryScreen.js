@@ -38,10 +38,10 @@ import {
 const IS_COMPACT_WEB = Platform.OS === 'web' && Dimensions.get('window').width <= 430;
 
 const ACTIONS = {
-  IMPORT: { label: 'Nhập kho', shortLabel: 'NHẬP', color: '#16a34a', sign: '+' },
-  EXPORT: { label: 'Xuất kho', shortLabel: 'XUẤT', color: '#dc2626', sign: '-' },
-  ADJUST_UP: { label: 'Kiểm kê tăng', shortLabel: 'ĐIỀU CHỈNH +', color: '#7c3aed', sign: '+' },
-  ADJUST_DOWN: { label: 'Hao hụt', shortLabel: 'ĐIỀU CHỈNH -', color: '#db2777', sign: '-' },
+  IMPORT: { label: 'Nháº­p kho', shortLabel: 'NHáº¬P', color: '#16a34a', sign: '+' },
+  EXPORT: { label: 'Xuáº¥t kho', shortLabel: 'XUáº¤T', color: '#dc2626', sign: '-' },
+  ADJUST_UP: { label: 'Kiá»ƒm kÃª tÄƒng', shortLabel: 'ÄIá»€U CHá»ˆNH +', color: '#7c3aed', sign: '+' },
+  ADJUST_DOWN: { label: 'Hao há»¥t', shortLabel: 'ÄIá»€U CHá»ˆNH -', color: '#db2777', sign: '-' },
 };
 
 const formatQuantity = (value) => Number(value || 0).toLocaleString('vi-VN', {
@@ -132,21 +132,21 @@ const getRequestStatus = (status, ticket = {}) => {
   const isWarehouseTransfer = ticket.type === 'TRANSFER' && ticket.source_is_warehouse;
   if (status === 'PENDING_SOURCE') {
     return {
-      label: isWarehouseTransfer ? 'Chờ kho tổng xác nhận' : 'Chờ nơi xuất duyệt',
+      label: isWarehouseTransfer ? 'Chá» kho tá»•ng xÃ¡c nháº­n' : 'Chá» nÆ¡i xuáº¥t duyá»‡t',
       color: '#b45309',
       bg: '#fef3c7',
     };
   }
   if (status === 'PENDING_DEST') {
     return {
-      label: isWarehouseTransfer ? 'Đang giao về cửa hàng' : 'Chờ nơi nhận duyệt',
+      label: isWarehouseTransfer ? 'Äang giao vá» cá»­a hÃ ng' : 'Chá» nÆ¡i nháº­n duyá»‡t',
       color: '#1d4ed8',
       bg: '#dbeafe',
     };
   }
-  if (status === 'APPROVED') return { label: 'Đã duyệt', color: '#15803d', bg: '#dcfce7' };
-  if (status === 'REJECTED') return { label: 'Đã từ chối', color: '#b91c1c', bg: '#fee2e2' };
-  return { label: status || 'Không rõ', color: '#475569', bg: '#e2e8f0' };
+  if (status === 'APPROVED') return { label: 'ÄÃ£ duyá»‡t', color: '#15803d', bg: '#dcfce7' };
+  if (status === 'REJECTED') return { label: 'ÄÃ£ tá»« chá»‘i', color: '#b91c1c', bg: '#fee2e2' };
+  return { label: status || 'KhÃ´ng rÃµ', color: '#475569', bg: '#e2e8f0' };
 };
 
 export default function InventoryScreen({ navigation }) {
@@ -179,7 +179,7 @@ export default function InventoryScreen({ navigation }) {
   if (isOwner && selectedStoreId === 'ALL') storeIdToView = 'ALL';
 
   const storeName = storeIdToView === 'ALL'
-    ? 'Tất cả chi nhánh'
+    ? 'Táº¥t cáº£ chi nhÃ¡nh'
     : getStoreName(businessStores, storeIdToView);
 
   const myItems = useMemo(
@@ -276,12 +276,12 @@ export default function InventoryScreen({ navigation }) {
       setOfflineTickets([]);
       await AsyncStorage.removeItem('@offline_inventory_tickets');
       await refreshData?.();
-      Alert.alert('Đồng bộ thành công', `Đã tải lên ${successCount} phiếu kiểm kho ngoại tuyến.`);
+      Alert.alert('Äá»“ng bá»™ thÃ nh cÃ´ng', `ÄÃ£ táº£i lÃªn ${successCount} phiáº¿u kiá»ƒm kho ngoáº¡i tuyáº¿n.`);
     } catch (err) {
       const remaining = offlineTickets.slice(successCount);
       setOfflineTickets(remaining);
       await AsyncStorage.setItem('@offline_inventory_tickets', JSON.stringify(remaining));
-      Alert.alert('Đồng bộ gián đoạn', 'Một số phiếu chưa thể gửi do lỗi mạng. Vui lòng thử lại sau.');
+      Alert.alert('Äá»“ng bá»™ giÃ¡n Ä‘oáº¡n', 'Má»™t sá»‘ phiáº¿u chÆ°a thá»ƒ gá»­i do lá»—i máº¡ng. Vui lÃ²ng thá»­ láº¡i sau.');
     } finally {
       setBusyKey('');
     }
@@ -354,7 +354,7 @@ export default function InventoryScreen({ navigation }) {
         severity,
         shiftTime,
         shiftLabel: latestShift?.closed_at || latestShift?.opened_at || '',
-        reporterName: latestShift?.closed_by_name || latestShift?.opened_by_name || 'Không rõ',
+        reporterName: latestShift?.closed_by_name || latestShift?.opened_by_name || 'KhÃ´ng rÃµ',
         shiftStatus: latestShift?.status || '',
       };
     }).sort((a, b) => {
@@ -522,21 +522,21 @@ export default function InventoryScreen({ navigation }) {
     try {
       await operation();
     } catch (error) {
-      console.error('Lỗi quản lý kho:', error);
-      Alert.alert('Không thể hoàn tất', error?.message || 'Đã có lỗi khi lưu dữ liệu kho.');
+      console.error('Lá»—i quáº£n lÃ½ kho:', error);
+      Alert.alert('KhÃ´ng thá»ƒ hoÃ n táº¥t', error?.message || 'ÄÃ£ cÃ³ lá»—i khi lÆ°u dá»¯ liá»‡u kho.');
     } finally {
       setBusyKey('');
     }
   };
 
   const handleAddToCart = () => {
-    if (!selectedStock) return Alert.alert('Lỗi', 'Vui lòng chọn nguyên liệu');
+    if (!selectedStock) return Alert.alert('Lá»—i', 'Vui lÃ²ng chá»n nguyÃªn liá»‡u');
     if (actionType === 'TRANSFER' && !centralWarehouseId) {
-      return Alert.alert('Chưa có Kho tổng', 'Vui lòng tạo một kho tên "Kho Tổng" hoặc bật is_warehouse cho kho tổng trong dữ liệu.');
+      return Alert.alert('ChÆ°a cÃ³ Kho tá»•ng', 'Vui lÃ²ng táº¡o má»™t kho tÃªn "Kho Tá»•ng" hoáº·c báº­t is_warehouse cho kho tá»•ng trong dá»¯ liá»‡u.');
     }
     const numericAmount = Number(String(amount).replace(',', '.'));
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-      return Alert.alert('Lỗi', 'Số lượng phải lớn hơn 0.');
+      return Alert.alert('Lá»—i', 'Sá»‘ lÆ°á»£ng pháº£i lá»›n hÆ¡n 0.');
     }
     
     const existingIndex = cartItems.findIndex(i => i.itemId === selectedStock.id);
@@ -561,15 +561,15 @@ export default function InventoryScreen({ navigation }) {
 
   const handleCreateSuggestedTransfer = () => {
     if (!centralWarehouseId) {
-      Alert.alert('Chưa có Kho tổng', 'Vui lòng tạo một kho tên "Kho Tổng" hoặc bật is_warehouse cho kho tổng trong dữ liệu.');
+      Alert.alert('ChÆ°a cÃ³ Kho tá»•ng', 'Vui lÃ²ng táº¡o má»™t kho tÃªn "Kho Tá»•ng" hoáº·c báº­t is_warehouse cho kho tá»•ng trong dá»¯ liá»‡u.');
       return;
     }
     if (storeIdToView === 'ALL') {
-      Alert.alert('Chọn chi nhánh', 'Vui lòng chọn một chi nhánh cụ thể trước khi tạo đề xuất nhập.');
+      Alert.alert('Chá»n chi nhÃ¡nh', 'Vui lÃ²ng chá»n má»™t chi nhÃ¡nh cá»¥ thá»ƒ trÆ°á»›c khi táº¡o Ä‘á» xuáº¥t nháº­p.');
       return;
     }
     if (suggestedImportRows.length === 0) {
-      Alert.alert('Chưa có gợi ý', 'Các mặt hàng hiện chưa thấp hơn mức tồn an toàn hoặc chưa có mặt hàng trùng tên trong Kho tổng.');
+      Alert.alert('ChÆ°a cÃ³ gá»£i Ã½', 'CÃ¡c máº·t hÃ ng hiá»‡n chÆ°a tháº¥p hÆ¡n má»©c tá»“n an toÃ n hoáº·c chÆ°a cÃ³ máº·t hÃ ng trÃ¹ng tÃªn trong Kho tá»•ng.');
       return;
     }
 
@@ -599,15 +599,15 @@ export default function InventoryScreen({ navigation }) {
   };
 
   const handleSubmitAction = () => runOperation('submit-action', async () => {
-    if (cartItems.length === 0) throw new Error('Giỏ hàng trống. Vui lòng thêm ít nhất 1 mặt hàng.');
-    if (storeIdToView === 'ALL') throw new Error('Vui lòng chọn một chi nhánh cụ thể.');
-    if (isCentralWarehouseStore({ id: storeIdToView, name: storeName })) throw new Error('Kho tổng dùng màn riêng để duyệt và xuất hàng.');
-    if (actionType === 'TRANSFER' && !centralWarehouseId) throw new Error('Chưa tìm thấy Kho tổng trong hệ thống.');
+    if (cartItems.length === 0) throw new Error('Giá» hÃ ng trá»‘ng. Vui lÃ²ng thÃªm Ã­t nháº¥t 1 máº·t hÃ ng.');
+    if (storeIdToView === 'ALL') throw new Error('Vui lÃ²ng chá»n má»™t chi nhÃ¡nh cá»¥ thá»ƒ.');
+    if (isCentralWarehouseStore({ id: storeIdToView, name: storeName })) throw new Error('Kho tá»•ng dÃ¹ng mÃ n riÃªng Ä‘á»ƒ duyá»‡t vÃ  xuáº¥t hÃ ng.');
+    if (actionType === 'TRANSFER' && !centralWarehouseId) throw new Error('ChÆ°a tÃ¬m tháº¥y Kho tá»•ng trong há»‡ thá»‘ng.');
 
     if (actionType === 'EXPORT' || actionType === 'TRANSFER') {
       for (const item of cartItems) {
         if (item.amount > item.currentStock) {
-          throw new Error(`Không thể xuất ${item.name}. Tồn kho hiện tại chỉ còn ${formatQuantity(item.currentStock)} ${item.unit}.`);
+          throw new Error(`KhÃ´ng thá»ƒ xuáº¥t ${item.name}. Tá»“n kho hiá»‡n táº¡i chá»‰ cÃ²n ${formatQuantity(item.currentStock)} ${item.unit}.`);
         }
       }
     }
@@ -623,7 +623,7 @@ export default function InventoryScreen({ navigation }) {
       items: cartItems,
       status: initialStatus,
       requested_by: currentUser?.id,
-      requested_by_name: currentUser?.name || 'Nhân viên',
+      requested_by_name: currentUser?.name || 'NhÃ¢n viÃªn',
       created_at: new Date().toISOString()
     };
 
@@ -631,18 +631,18 @@ export default function InventoryScreen({ navigation }) {
       await createInventoryTicket(ticket);
       if (isOwner && actionType !== 'TRANSFER') {
          await approveInventoryTicket(ticket, currentUser.id, storeIdToView);
-         Alert.alert('Thành công', 'Phiếu đã được tạo và tự động duyệt vì bạn là Chủ Cửa Hàng.');
+         Alert.alert('ThÃ nh cÃ´ng', 'Phiáº¿u Ä‘Ã£ Ä‘Æ°á»£c táº¡o vÃ  tá»± Ä‘á»™ng duyá»‡t vÃ¬ báº¡n lÃ  Chá»§ Cá»­a HÃ ng.');
       } else if (actionType === 'TRANSFER') {
-         Alert.alert('Đã gửi đề xuất', 'Đơn đề xuất nhập hàng đã gửi sang Kho tổng để xác nhận xuất.');
+         Alert.alert('ÄÃ£ gá»­i Ä‘á» xuáº¥t', 'ÄÆ¡n Ä‘á» xuáº¥t nháº­p hÃ ng Ä‘Ã£ gá»­i sang Kho tá»•ng Ä‘á»ƒ xÃ¡c nháº­n xuáº¥t.');
       } else {
-         Alert.alert('Đã gửi phiếu', 'Yêu cầu đã được gửi đến quản lý để phê duyệt.');
+         Alert.alert('ÄÃ£ gá»­i phiáº¿u', 'YÃªu cáº§u Ä‘Ã£ Ä‘Æ°á»£c gá»­i Ä‘áº¿n quáº£n lÃ½ Ä‘á»ƒ phÃª duyá»‡t.');
       }
     } catch (e) {
       if (e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('fetch')) {
         const newOffline = [...offlineTickets, ticket];
         setOfflineTickets(newOffline);
         await AsyncStorage.setItem('@offline_inventory_tickets', JSON.stringify(newOffline));
-        Alert.alert('Lưu ngoại tuyến', 'Mất kết nối mạng. Phiếu đã được lưu tạm, vui lòng đồng bộ khi có mạng.');
+        Alert.alert('LÆ°u ngoáº¡i tuyáº¿n', 'Máº¥t káº¿t ná»‘i máº¡ng. Phiáº¿u Ä‘Ã£ Ä‘Æ°á»£c lÆ°u táº¡m, vui lÃ²ng Ä‘á»“ng bá»™ khi cÃ³ máº¡ng.');
       } else {
         throw e;
       }
@@ -658,7 +658,7 @@ export default function InventoryScreen({ navigation }) {
       setInventoryTickets((current) => current.map((item) => (
         item.id === ticket.id ? { ...item, status: 'REJECTED' } : item
       )));
-      Alert.alert('Đã từ chối', 'Phiếu yêu cầu đã bị hủy.');
+      Alert.alert('ÄÃ£ tá»« chá»‘i', 'Phiáº¿u yÃªu cáº§u Ä‘Ã£ bá»‹ há»§y.');
       return;
     }
 
@@ -666,7 +666,7 @@ export default function InventoryScreen({ navigation }) {
     
     // We should refresh data because we might have generated new logs or items
     await refreshData?.();
-    Alert.alert('Thành công', 'Đã duyệt phiếu. Kho đã được cập nhật!');
+    Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ duyá»‡t phiáº¿u. Kho Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t!');
   });
 
   const handleCreateItem = () => runOperation('create-item', async () => {
@@ -674,17 +674,17 @@ export default function InventoryScreen({ navigation }) {
     const cleanUnit = newItemUnit.trim();
     const safeLevel = Number(String(newItemSafeLevel).replace(',', '.'));
 
-    if (!cleanName || !cleanUnit) throw new Error('Vui lòng nhập tên và đơn vị tính.');
+    if (!cleanName || !cleanUnit) throw new Error('Vui lÃ²ng nháº­p tÃªn vÃ  Ä‘Æ¡n vá»‹ tÃ­nh.');
     if (!Number.isFinite(safeLevel) || safeLevel < 0) {
-      throw new Error('Mức tồn an toàn phải là số từ 0 trở lên.');
+      throw new Error('Má»©c tá»“n an toÃ n pháº£i lÃ  sá»‘ tá»« 0 trá»Ÿ lÃªn.');
     }
     if (storeIdToView === 'ALL' || !storeIdToView) {
-      throw new Error('Vui lòng chọn một chi nhánh cụ thể trước khi thêm nguyên liệu.');
+      throw new Error('Vui lÃ²ng chá»n má»™t chi nhÃ¡nh cá»¥ thá»ƒ trÆ°á»›c khi thÃªm nguyÃªn liá»‡u.');
     }
     const duplicated = myItems.some(
       (item) => item.name.trim().toLowerCase() === cleanName.toLowerCase(),
     );
-    if (duplicated) throw new Error('Nguyên liệu này đã tồn tại trong chi nhánh.');
+    if (duplicated) throw new Error('NguyÃªn liá»‡u nÃ y Ä‘Ã£ tá»“n táº¡i trong chi nhÃ¡nh.');
 
     const item = {
       id: makeId('item'),
@@ -699,22 +699,22 @@ export default function InventoryScreen({ navigation }) {
     setNewItemUnit('kg');
     setNewItemSafeLevel('5');
     setShowCreateModal(false);
-    Alert.alert('Đã thêm nguyên liệu', `${cleanName} đã được thêm vào ${storeName}.`);
+    Alert.alert('ÄÃ£ thÃªm nguyÃªn liá»‡u', `${cleanName} Ä‘Ã£ Ä‘Æ°á»£c thÃªm vÃ o ${storeName}.`);
   });
 
   const handleDeleteItem = (item) => {
     Alert.alert(
-      'Xác nhận xoá',
-      `Bạn có chắc chắn muốn xoá nguyên liệu "${item.name}" không? Toàn bộ dữ liệu tồn kho hiện tại sẽ bị xoá và không thể phục hồi.`,
+      'XÃ¡c nháº­n xoÃ¡',
+      `Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xoÃ¡ nguyÃªn liá»‡u "${item.name}" khÃ´ng? ToÃ n bá»™ dá»¯ liá»‡u tá»“n kho hiá»‡n táº¡i sáº½ bá»‹ xoÃ¡ vÃ  khÃ´ng thá»ƒ phá»¥c há»“i.`,
       [
-        { text: 'Huỷ', style: 'cancel' },
+        { text: 'Huá»·', style: 'cancel' },
         {
-          text: 'Xoá',
+          text: 'XoÃ¡',
           style: 'destructive',
           onPress: () => runOperation(`delete-item-${item.id}`, async () => {
             await deleteInventoryItem(item.id);
             setInventoryItems((current) => current.filter(i => i.id !== item.id));
-            Alert.alert('Thành công', 'Đã xoá nguyên liệu.');
+            Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ xoÃ¡ nguyÃªn liá»‡u.');
           })
         }
       ]
@@ -737,9 +737,9 @@ export default function InventoryScreen({ navigation }) {
     const displayTicket = { ...ticket, source_is_warehouse: sourceIsWarehouse };
     let actionLabel = ticket.type;
     let actionColor = '#475569';
-    if (ticket.type === 'IMPORT') { actionLabel = 'Nhập kho'; actionColor = '#16a34a'; }
-    if (ticket.type === 'EXPORT') { actionLabel = 'Xuất kho'; actionColor = '#dc2626'; }
-    if (ticket.type === 'TRANSFER') { actionLabel = sourceIsWarehouse ? 'Đề xuất nhập từ Kho tổng' : 'Chuyển kho'; actionColor = '#7c3aed'; }
+    if (ticket.type === 'IMPORT') { actionLabel = 'Nháº­p kho'; actionColor = '#16a34a'; }
+    if (ticket.type === 'EXPORT') { actionLabel = 'Xuáº¥t kho'; actionColor = '#dc2626'; }
+    if (ticket.type === 'TRANSFER') { actionLabel = sourceIsWarehouse ? 'Äá» xuáº¥t nháº­p tá»« Kho tá»•ng' : 'Chuyá»ƒn kho'; actionColor = '#7c3aed'; }
 
     const isBusy = busyKey === `review-${ticket.id}`;
     
@@ -750,7 +750,7 @@ export default function InventoryScreen({ navigation }) {
             <Text style={[styles.requestType, { color: actionColor }]}>{actionLabel}</Text>
             {ticket.type === 'TRANSFER' && (
               <Text style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                Từ: {getStoreName(storeList, ticket.source_store_id, 'Kho')} ➔ Đến: {getStoreName(storeList, ticket.destination_store_id)}
+                Tá»«: {getStoreName(storeList, ticket.source_store_id, 'Kho')} âž” Äáº¿n: {getStoreName(storeList, ticket.destination_store_id)}
               </Text>
             )}
           </View>
@@ -760,14 +760,14 @@ export default function InventoryScreen({ navigation }) {
         <View style={{ marginTop: 10, backgroundColor: '#f8fafc', padding: 8, borderRadius: 8 }}>
           {(ticket.items || []).map((it, idx) => (
             <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Text style={{ color: '#334155', fontWeight: '600' }}>• {it.name}</Text>
+              <Text style={{ color: '#334155', fontWeight: '600' }}>â€¢ {it.name}</Text>
               <Text style={{ color: '#0f172a', fontWeight: '700' }}>{formatQuantity(it.amount)} {it.unit}</Text>
             </View>
           ))}
         </View>
 
         <Text style={styles.requestMeta}>
-          Người tạo: {ticket.requested_by_name || 'Không rõ'} • {formatTimestamp(ticket.created_at)}
+          NgÆ°á»i táº¡o: {ticket.requested_by_name || 'KhÃ´ng rÃµ'} â€¢ {formatTimestamp(ticket.created_at)}
         </Text>
         
         {reviewable && (
@@ -777,7 +777,7 @@ export default function InventoryScreen({ navigation }) {
               onPress={() => handleReview(ticket, 'REJECT')}
               disabled={isBusy}
             >
-              <Text style={styles.reviewButtonText}>Từ chối</Text>
+              <Text style={styles.reviewButtonText}>Tá»« chá»‘i</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.reviewButton, styles.approveButton]}
@@ -786,7 +786,7 @@ export default function InventoryScreen({ navigation }) {
             >
               {isBusy
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.reviewButtonText}>Duyệt phiếu</Text>}
+                : <Text style={styles.reviewButtonText}>Duyá»‡t phiáº¿u</Text>}
             </TouchableOpacity>
           </View>
         )}
@@ -795,11 +795,11 @@ export default function InventoryScreen({ navigation }) {
   };
 
   const tabs = isStaff
-    ? [{ key: 'KHO', label: '📦 Kho' }, { key: 'DUYET_LS', label: '📋 Lịch sử' }]
+    ? [{ key: 'KHO', label: 'ðŸ“¦ Kho' }, { key: 'DUYET_LS', label: 'ðŸ“‹ Lá»‹ch sá»­' }]
     : [
-        { key: 'KHO', label: '📦 Kho' },
-        { key: 'DUYET_LS', label: `✅ Duyệt${pendingRequests.length ? ` (${pendingRequests.length})` : ''} & LS` },
-        { key: 'ITEMS', label: '🗂 Danh mục' },
+        { key: 'KHO', label: 'ðŸ“¦ Kho' },
+        { key: 'DUYET_LS', label: `âœ… Duyá»‡t${pendingRequests.length ? ` (${pendingRequests.length})` : ''} & LS` },
+        { key: 'ITEMS', label: 'ðŸ—‚ Danh má»¥c' },
       ];
 
   return (
@@ -814,14 +814,14 @@ export default function InventoryScreen({ navigation }) {
             <Ionicons name="arrow-back" size={24} color="#1565c0" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.header}>Quản lý kho</Text>
+            <Text style={styles.header}>Quáº£n lÃ½ kho</Text>
             <Text style={styles.headerCaption}>{storeName}</Text>
           </View>
           <View style={styles.headerActions}>
             {!isStaff && (
               <TouchableOpacity onPress={openActionModal} style={styles.createTicketButton}>
                 <Ionicons name="add-circle-outline" size={18} color="#fff" />
-                <Text style={styles.createTicketText}>Phiếu</Text>
+                <Text style={styles.createTicketText}>Phiáº¿u</Text>
               </TouchableOpacity>
             )}
             {!isStaff && (
@@ -856,23 +856,23 @@ export default function InventoryScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scrollContent}
         >
-          {/* ===== TAB KHO: TỒN KHO + THAO TÁC ===== */}
+          {/* ===== TAB KHO: Tá»’N KHO + THAO TÃC ===== */}
           {activeTab === 'KHO' && (
             <>
-              {/* Tóm tắt nhanh */}
+              {/* TÃ³m táº¯t nhanh */}
               {!isStaff && (
                 <View style={styles.summaryRow}>
                   <View style={[styles.summaryCard, lowStockCount > 0 && styles.summaryWarning]}>
                     <Text style={[styles.summaryValue, lowStockCount > 0 && { color: '#b91c1c' }]}>{lowStockCount}</Text>
-                    <Text style={styles.summaryLabel}>⚠️ Sắp hết</Text>
+                    <Text style={styles.summaryLabel}>âš ï¸ Sáº¯p háº¿t</Text>
                   </View>
                   <View style={styles.summaryCard}>
                     <Text style={styles.summaryValue}>{stockData.length}</Text>
-                    <Text style={styles.summaryLabel}>Mặt hàng</Text>
+                    <Text style={styles.summaryLabel}>Máº·t hÃ ng</Text>
                   </View>
                   <View style={styles.summaryCard}>
                     <Text style={styles.summaryValue}>{pendingRequests.length}</Text>
-                    <Text style={styles.summaryLabel}>Chờ duyệt</Text>
+                    <Text style={styles.summaryLabel}>Chá» duyá»‡t</Text>
                   </View>
                 </View>
               )}
@@ -881,9 +881,9 @@ export default function InventoryScreen({ navigation }) {
                 <View style={[styles.section, styles.suggestionBox]}>
                   <View style={styles.sectionHeader}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.sectionTitle}>Gợi ý nhập từ Kho tổng</Text>
+                      <Text style={styles.sectionTitle}>Gá»£i Ã½ nháº­p tá»« Kho tá»•ng</Text>
                       <Text style={styles.suggestionHint}>
-                        Dựa trên tồn an toàn của cửa hàng và tồn khả dụng tại Kho tổng.
+                        Dá»±a trÃªn tá»“n an toÃ n cá»§a cá»­a hÃ ng vÃ  tá»“n kháº£ dá»¥ng táº¡i Kho tá»•ng.
                       </Text>
                     </View>
                     <TouchableOpacity
@@ -892,20 +892,20 @@ export default function InventoryScreen({ navigation }) {
                       disabled={suggestedImportRows.length === 0}
                     >
                       <Ionicons name="paper-plane-outline" size={16} color="#fff" />
-                      <Text style={styles.addButtonText}>Tạo đề xuất</Text>
+                      <Text style={styles.addButtonText}>Táº¡o Ä‘á» xuáº¥t</Text>
                     </TouchableOpacity>
                   </View>
 
                   {!centralWarehouseId ? (
-                    <Text style={styles.emptyText}>Chưa cấu hình Kho tổng. Tạo kho tên Kho Tổng hoặc bật is_warehouse trong bảng stores.</Text>
+                    <Text style={styles.emptyText}>ChÆ°a cáº¥u hÃ¬nh Kho tá»•ng. Táº¡o kho tÃªn Kho Tá»•ng hoáº·c báº­t is_warehouse trong báº£ng stores.</Text>
                   ) : suggestedImportRows.length === 0 ? (
-                    <Text style={styles.emptyText}>Chưa có mặt hàng nào cần đề xuất nhập.</Text>
+                    <Text style={styles.emptyText}>ChÆ°a cÃ³ máº·t hÃ ng nÃ o cáº§n Ä‘á» xuáº¥t nháº­p.</Text>
                   ) : suggestedImportRows.slice(0, 4).map((item) => (
                     <View key={item.id} style={styles.suggestionRow}>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.stockName}>{item.name}</Text>
                         <Text style={styles.stockSafe}>
-                          Cửa hàng còn {formatQuantity(item.currentStock)} / an toàn {formatQuantity(item.safeLevel)} {item.unit}
+                          Cá»­a hÃ ng cÃ²n {formatQuantity(item.currentStock)} / an toÃ n {formatQuantity(item.safeLevel)} {item.unit}
                         </Text>
                       </View>
                       <Text style={styles.suggestionQty}>+{formatQuantity(item.suggestedAmount)} {item.unit}</Text>
@@ -914,14 +914,14 @@ export default function InventoryScreen({ navigation }) {
                 </View>
               )}
 
-              {/* Tồn kho */}
+              {/* Tá»“n kho */}
               {!isStaff && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Tồn kho</Text>
+                  <Text style={styles.sectionTitle}>Tá»“n kho</Text>
                   {offlineTickets.length > 0 && (
                     <TouchableOpacity onPress={syncOfflineTickets} style={[styles.addButton, { marginBottom: 12, backgroundColor: '#ea580c' }]}>
                       <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-                      <Text style={styles.addButtonText}>Đồng bộ {offlineTickets.length} phiếu offline</Text>
+                      <Text style={styles.addButtonText}>Äá»“ng bá»™ {offlineTickets.length} phiáº¿u offline</Text>
                     </TouchableOpacity>
                   )}
                   <View style={styles.searchBox}>
@@ -929,13 +929,13 @@ export default function InventoryScreen({ navigation }) {
                     <TextInput
                       value={searchText}
                       onChangeText={setSearchText}
-                      placeholder="Tìm nguyên liệu..."
+                      placeholder="TÃ¬m nguyÃªn liá»‡u..."
                       placeholderTextColor="#94a3b8"
                       style={styles.searchInput}
                     />
                   </View>
                   {filteredStock.length === 0 ? (
-                    <Text style={styles.emptyText}>Chưa có nguyên liệu phù hợp.</Text>
+                    <Text style={styles.emptyText}>ChÆ°a cÃ³ nguyÃªn liá»‡u phÃ¹ há»£p.</Text>
                   ) : filteredStock.map((item) => (
                     <View key={item.id} style={styles.stockRow}>
                       <View style={[styles.stockIcon, item.isLowStock && styles.stockIconLow]}>
@@ -947,7 +947,7 @@ export default function InventoryScreen({ navigation }) {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.stockName}>{item.name}</Text>
-                        <Text style={styles.stockSafe}>An toàn ≥ {formatQuantity(item.safeLevel)} {item.unit}</Text>
+                        <Text style={styles.stockSafe}>An toÃ n â‰¥ {formatQuantity(item.safeLevel)} {item.unit}</Text>
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
                         <Text style={[styles.stockValue, item.isLowStock && { color: '#dc2626' }]}>
@@ -962,29 +962,29 @@ export default function InventoryScreen({ navigation }) {
             </>
           )}
 
-          {/* ===== TAB DUYỆT & LỊCH SỬ ===== */}
+          {/* ===== TAB DUYá»†T & Lá»ŠCH Sá»¬ ===== */}
           {activeTab === 'DUYET_LS' && (
             <>
-              {/* Phiếu chờ duyệt */}
+              {/* Phiáº¿u chá» duyá»‡t */}
               {!isStaff && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Phiếu chờ duyệt{pendingRequests.length > 0 ? ` (${pendingRequests.length})` : ''}</Text>
+                  <Text style={styles.sectionTitle}>Phiáº¿u chá» duyá»‡t{pendingRequests.length > 0 ? ` (${pendingRequests.length})` : ''}</Text>
                   {pendingRequests.length === 0
                     ? (
                       <View style={styles.emptyState}>
                         <Ionicons name="checkmark-done-circle-outline" size={36} color="#16a34a" />
-                        <Text style={styles.emptyTitle}>Không có phiếu tồn đọng</Text>
+                        <Text style={styles.emptyTitle}>KhÃ´ng cÃ³ phiáº¿u tá»“n Ä‘á»ng</Text>
                       </View>
                     )
                     : pendingRequests.map((request) => renderRequestCard(request, true))}
                 </View>
               )}
 
-              {/* Lịch sử giao dịch */}
+              {/* Lá»‹ch sá»­ giao dá»‹ch */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Lịch sử Nhập/Xuất</Text>
-                  <Text style={styles.historyCount}>{filteredHistoryLogs.length} giao dịch</Text>
+                  <Text style={styles.sectionTitle}>Lá»‹ch sá»­ Nháº­p/Xuáº¥t</Text>
+                  <Text style={styles.historyCount}>{filteredHistoryLogs.length} giao dá»‹ch</Text>
                 </View>
 
                 <View style={styles.searchBox}>
@@ -992,7 +992,7 @@ export default function InventoryScreen({ navigation }) {
                   <TextInput
                     value={historySearchText}
                     onChangeText={setHistorySearchText}
-                    placeholder="Tìm theo món, người tạo..."
+                    placeholder="TÃ¬m theo mÃ³n, ngÆ°á»i táº¡o..."
                     placeholderTextColor="#94a3b8"
                     style={styles.searchInput}
                   />
@@ -1000,9 +1000,9 @@ export default function InventoryScreen({ navigation }) {
 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
                   {[
-                    { key: 'ALL', label: 'Tất cả' },
-                    { key: 'IMPORT', label: 'Nhập' },
-                    { key: 'EXPORT', label: 'Xuất' },
+                    { key: 'ALL', label: 'Táº¥t cáº£' },
+                    { key: 'IMPORT', label: 'Nháº­p' },
+                    { key: 'EXPORT', label: 'Xuáº¥t' },
                     { key: 'ADJUST_UP', label: '+' },
                     { key: 'ADJUST_DOWN', label: '-' },
                   ].map((filter) => (
@@ -1021,12 +1021,12 @@ export default function InventoryScreen({ navigation }) {
                 {filteredHistoryLogs.length === 0 ? (
                   <View style={styles.emptyState}>
                     <Ionicons name="file-tray-outline" size={36} color={COLORS.textMuted} />
-                    <Text style={styles.emptyTitle}>Chưa có lịch sử</Text>
+                    <Text style={styles.emptyTitle}>ChÆ°a cÃ³ lá»‹ch sá»­</Text>
                   </View>
                 ) : filteredHistoryLogs.map((log) => {
                   const item = getLogItem(log);
                   const action = ACTIONS[log.type] || ACTIONS.IMPORT;
-                  const creatorName = staffList.find(s => s.id === log.created_by)?.name || 'Hệ thống';
+                  const creatorName = staffList.find(s => s.id === log.created_by)?.name || 'Há»‡ thá»‘ng';
                   const approverName = staffList.find(s => s.id === log.approved_by)?.name || '';
 
                   return (
@@ -1036,10 +1036,10 @@ export default function InventoryScreen({ navigation }) {
                           <Ionicons name={action.sign === '+' ? 'add' : 'remove'} size={20} color={action.color} />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.logTitle}>{item?.name || 'Không rõ'}</Text>
-                          <Text style={styles.logMeta}>{action.label} • {formatTimestamp(log.created_at || log.date)}</Text>
-                          <Text style={styles.logMeta}>👤 {creatorName}{approverName ? ` • ✅ ${approverName}` : ''}</Text>
-                          {log.note ? <Text style={styles.logNote}>📝 {log.note}</Text> : null}
+                          <Text style={styles.logTitle}>{item?.name || 'KhÃ´ng rÃµ'}</Text>
+                          <Text style={styles.logMeta}>{action.label} â€¢ {formatTimestamp(log.created_at || log.date)}</Text>
+                          <Text style={styles.logMeta}>ðŸ‘¤ {creatorName}{approverName ? ` â€¢ âœ… ${approverName}` : ''}</Text>
+                          {log.note ? <Text style={styles.logNote}>ðŸ“ {log.note}</Text> : null}
                         </View>
                         <Text style={[styles.logAmount, { color: action.color }]}>
                           {action.sign}{formatQuantity(log.amount)} {item?.unit || ''}
@@ -1052,25 +1052,25 @@ export default function InventoryScreen({ navigation }) {
             </>
           )}
 
-          {/* ===== TAB DANH MỤC ===== */}
+          {/* ===== TAB DANH Má»¤C ===== */}
           {activeTab === 'ITEMS' && !isStaff && (
             <>
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Danh mục nguyên liệu</Text>
+                  <Text style={styles.sectionTitle}>Danh má»¥c nguyÃªn liá»‡u</Text>
                   <TouchableOpacity style={styles.addButton} onPress={() => setShowCreateModal(true)}>
                     <Ionicons name="add" size={18} color="#fff" />
-                    <Text style={styles.addButtonText}>Thêm</Text>
+                    <Text style={styles.addButtonText}>ThÃªm</Text>
                   </TouchableOpacity>
                 </View>
                 {myItems.length === 0
-                  ? <Text style={styles.emptyText}>Chưa có nguyên liệu.</Text>
+                  ? <Text style={styles.emptyText}>ChÆ°a cÃ³ nguyÃªn liá»‡u.</Text>
                   : myItems.map((item) => (
                     <View key={item.id} style={styles.catalogRow}>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.catalogName}>{item.name}</Text>
                         <Text style={styles.catalogMeta}>
-                          {item.unit} • An toàn: {formatQuantity(item.safeLevel)}
+                          {item.unit} â€¢ An toÃ n: {formatQuantity(item.safeLevel)}
                         </Text>
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
@@ -1090,13 +1090,13 @@ export default function InventoryScreen({ navigation }) {
           )}
         </ScrollView>
 
-        {/* ===== MODAL TẠO PHIẾU KHO ===== */}
+        {/* ===== MODAL Táº O PHIáº¾U KHO ===== */}
         <Modal visible={showActionModal} transparent animationType="slide">
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
             <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
               <View style={[styles.actionSheet, { backgroundColor: COLORS.card }]}>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Tạo phiếu kho</Text>
+                  <Text style={styles.modalTitle}>Táº¡o phiáº¿u kho</Text>
                   <TouchableOpacity onPress={() => setShowActionModal(false)}>
                     <Ionicons name="close" size={24} color="#475569" />
                   </TouchableOpacity>
@@ -1104,9 +1104,9 @@ export default function InventoryScreen({ navigation }) {
 
                 <View style={styles.actionGrid}>
                   {[
-                    { key: 'TRANSFER', label: 'Đề xuất nhập', color: '#7c3aed' },
-                    { key: 'IMPORT', label: 'Nhập tay', color: '#16a34a' },
-                    { key: 'EXPORT', label: 'Xuất hủy', color: '#dc2626' },
+                    { key: 'TRANSFER', label: 'Äá» xuáº¥t nháº­p', color: '#7c3aed' },
+                    { key: 'IMPORT', label: 'Nháº­p tay', color: '#16a34a' },
+                    { key: 'EXPORT', label: 'Xuáº¥t há»§y', color: '#dc2626' },
                   ].map((action) => (
                     <TouchableOpacity
                       key={action.key}
@@ -1124,13 +1124,13 @@ export default function InventoryScreen({ navigation }) {
                 </View>
                 <View style={{ height: 1, backgroundColor: COLORS.border, marginVertical: 10 }} />
 
-                <Text style={styles.fieldLabel}>Chọn nguyên liệu</Text>
+                <Text style={styles.fieldLabel}>Chá»n nguyÃªn liá»‡u</Text>
                 <TouchableOpacity
                   style={styles.dropdownButton}
                   onPress={() => setIsItemDropdownOpen(!isItemDropdownOpen)}
                 >
                   <Text style={styles.dropdownButtonText}>
-                    {selectedStock ? selectedStock.name : (actionType === 'TRANSFER' ? 'Chọn hàng từ Kho tổng...' : 'Vui lòng chọn...')}
+                    {selectedStock ? selectedStock.name : (actionType === 'TRANSFER' ? 'Chá»n hÃ ng tá»« Kho tá»•ng...' : 'Vui lÃ²ng chá»n...')}
                   </Text>
                   <Ionicons name={isItemDropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color="#475569" />
                 </TouchableOpacity>
@@ -1155,7 +1155,7 @@ export default function InventoryScreen({ navigation }) {
 
                 {selectedStock && (
                   <View style={styles.currentStockBox}>
-                    <Text style={styles.currentStockLabel}>{actionType === 'TRANSFER' ? 'Tồn Kho tổng khả dụng' : 'Tồn khả dụng'}</Text>
+                    <Text style={styles.currentStockLabel}>{actionType === 'TRANSFER' ? 'Tá»“n Kho tá»•ng kháº£ dá»¥ng' : 'Tá»“n kháº£ dá»¥ng'}</Text>
                     <Text style={styles.currentStockValue}>
                       {formatQuantity(selectedStock.currentStock)} {selectedStock.unit}
                     </Text>
@@ -1167,7 +1167,7 @@ export default function InventoryScreen({ navigation }) {
                     <TextInput
                       style={styles.input}
                       keyboardType="decimal-pad"
-                      placeholder="Số lượng..."
+                      placeholder="Sá»‘ lÆ°á»£ng..."
                       placeholderTextColor="#94a3b8"
                       value={amount}
                       onChangeText={setAmount}
@@ -1180,7 +1180,7 @@ export default function InventoryScreen({ navigation }) {
 
                 {cartItems.length > 0 && (
                   <View style={{ marginTop: 12 }}>
-                    <Text style={[styles.fieldLabel, { marginBottom: 6 }]}>Đã chọn ({cartItems.length} mặt hàng)</Text>
+                    <Text style={[styles.fieldLabel, { marginBottom: 6 }]}>ÄÃ£ chá»n ({cartItems.length} máº·t hÃ ng)</Text>
                     {cartItems.map((item, idx) => (
                       <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.inputBg, padding: 9, borderRadius: 8, marginBottom: 5, borderWidth: 1, borderColor: COLORS.border }}>
                         <View>
@@ -1202,7 +1202,7 @@ export default function InventoryScreen({ navigation }) {
                         : (
                           <>
                             <Ionicons name="paper-plane-outline" size={19} color="#fff" />
-                            <Text style={styles.submitButtonText}>{actionType === 'TRANSFER' ? 'Gửi đề xuất nhập' : 'Tạo Phiếu Kho'}</Text>
+                            <Text style={styles.submitButtonText}>{actionType === 'TRANSFER' ? 'Gá»­i Ä‘á» xuáº¥t nháº­p' : 'Táº¡o Phiáº¿u Kho'}</Text>
                           </>
                         )}
                     </TouchableOpacity>
@@ -1218,27 +1218,27 @@ export default function InventoryScreen({ navigation }) {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Thêm nguyên liệu</Text>
+                <Text style={styles.modalTitle}>ThÃªm nguyÃªn liá»‡u</Text>
                 <TouchableOpacity onPress={() => setShowCreateModal(false)}>
                   <Ionicons name="close" size={25} color="#475569" />
                 </TouchableOpacity>
               </View>
               <Text style={styles.modalStore}>{storeName}</Text>
-              <Text style={styles.fieldLabel}>Tên nguyên liệu</Text>
+              <Text style={styles.fieldLabel}>TÃªn nguyÃªn liá»‡u</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Ví dụ: Bột matcha"
+                placeholder="VÃ­ dá»¥: Bá»™t matcha"
                 placeholderTextColor="#94a3b8"
                 value={newItemName}
                 onChangeText={setNewItemName}
               />
               <View style={styles.modalFieldRow}>
                 <View style={styles.modalField}>
-                  <Text style={styles.fieldLabel}>Đơn vị</Text>
+                  <Text style={styles.fieldLabel}>ÄÆ¡n vá»‹</Text>
                   <TextInput style={styles.input} value={newItemUnit} onChangeText={setNewItemUnit} />
                 </View>
                 <View style={styles.modalField}>
-                  <Text style={styles.fieldLabel}>Tồn an toàn</Text>
+                  <Text style={styles.fieldLabel}>Tá»“n an toÃ n</Text>
                   <TextInput
                     style={styles.input}
                     keyboardType="decimal-pad"
@@ -1254,7 +1254,7 @@ export default function InventoryScreen({ navigation }) {
               >
                 {busyKey === 'create-item'
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.submitButtonText}>Thêm vào danh mục</Text>}
+                  : <Text style={styles.submitButtonText}>ThÃªm vÃ o danh má»¥c</Text>}
               </TouchableOpacity>
             </View>
           </View>

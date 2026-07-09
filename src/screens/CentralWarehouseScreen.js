@@ -115,10 +115,10 @@ export default function CentralWarehouseScreen({ navigation }) {
 
   const stockById = useMemo(() => Object.fromEntries(stockRows.map((item) => [item.id, item])), [stockRows]);
   const tabs = useMemo(() => [
-    { key: 'PENDING', label: 'Chờ duyệt', count: pendingRequests.length },
-    { key: 'TRANSIT', label: 'Đang giao', count: inTransitRequests.length },
-    { key: 'STOCK', label: 'Tồn kho', count: stockRows.length },
-    { key: 'HISTORY', label: 'Lịch sử', count: completedRequests.length },
+    { key: 'PENDING', label: 'Chá» duyá»‡t', count: pendingRequests.length },
+    { key: 'TRANSIT', label: 'Äang giao', count: inTransitRequests.length },
+    { key: 'STOCK', label: 'Tá»“n kho', count: stockRows.length },
+    { key: 'HISTORY', label: 'Lá»‹ch sá»­', count: completedRequests.length },
   ], [completedRequests.length, inTransitRequests.length, pendingRequests.length, stockRows.length]);
 
   const resetStockForm = () => {
@@ -157,10 +157,10 @@ export default function CentralWarehouseScreen({ navigation }) {
         ? Math.max(...numericIds) + 1
         : makeId('store');
       const attempts = [
-        { name: 'Kho Tổng', is_warehouse: true },
-        { id: fallbackId, name: 'Kho Tổng', is_warehouse: true },
-        { name: 'Kho Tổng' },
-        { id: fallbackId, name: 'Kho Tổng' },
+        { name: 'Kho Tá»•ng', is_warehouse: true },
+        { id: fallbackId, name: 'Kho Tá»•ng', is_warehouse: true },
+        { name: 'Kho Tá»•ng' },
+        { id: fallbackId, name: 'Kho Tá»•ng' },
       ];
       let data = null;
       let lastError = null;
@@ -187,9 +187,9 @@ export default function CentralWarehouseScreen({ navigation }) {
         });
       }
       await refreshData?.();
-      Alert.alert('Đã tạo Kho tổng', 'Bạn có thể bắt đầu thêm mặt hàng và nhập tồn cho Kho tổng.');
+      Alert.alert('ÄÃ£ táº¡o Kho tá»•ng', 'Báº¡n cÃ³ thá»ƒ báº¯t Ä‘áº§u thÃªm máº·t hÃ ng vÃ  nháº­p tá»“n cho Kho tá»•ng.');
     } catch (error) {
-      Alert.alert('Không thể tạo Kho tổng', error?.message || 'Vui lòng kiểm tra lại quyền hoặc cấu trúc bảng stores.');
+      Alert.alert('KhÃ´ng thá»ƒ táº¡o Kho tá»•ng', error?.message || 'Vui lÃ²ng kiá»ƒm tra láº¡i quyá»n hoáº·c cáº¥u trÃºc báº£ng stores.');
     } finally {
       setBusyKey('');
     }
@@ -202,19 +202,19 @@ export default function CentralWarehouseScreen({ navigation }) {
     const amount = parseQuantityInput(stockForm.amount);
 
     if (!warehouseId) {
-      Alert.alert('Chưa có Kho tổng', 'Vui lòng tạo Kho tổng trước khi nhập tồn.');
+      Alert.alert('ChÆ°a cÃ³ Kho tá»•ng', 'Vui lÃ²ng táº¡o Kho tá»•ng trÆ°á»›c khi nháº­p tá»“n.');
       return;
     }
     if (!cleanName || !cleanUnit) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên mặt hàng và đơn vị tính.');
+      Alert.alert('Thiáº¿u thÃ´ng tin', 'Vui lÃ²ng nháº­p tÃªn máº·t hÃ ng vÃ  Ä‘Æ¡n vá»‹ tÃ­nh.');
       return;
     }
     if (!Number.isFinite(safeLevel) || safeLevel < 0) {
-      Alert.alert('Sai mức an toàn', 'Mức tồn an toàn phải là số từ 0 trở lên.');
+      Alert.alert('Sai má»©c an toÃ n', 'Má»©c tá»“n an toÃ n pháº£i lÃ  sá»‘ tá»« 0 trá»Ÿ lÃªn.');
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      Alert.alert('Sai số lượng', 'Số lượng nhập tồn phải lớn hơn 0.');
+      Alert.alert('Sai sá»‘ lÆ°á»£ng', 'Sá»‘ lÆ°á»£ng nháº­p tá»“n pháº£i lá»›n hÆ¡n 0.');
       return;
     }
 
@@ -258,7 +258,7 @@ export default function CentralWarehouseScreen({ navigation }) {
         store_id: warehouseId,
         created_by: currentUser?.id,
         approved_by: currentUser?.id,
-        note: selectedStockItem ? 'Nhập thêm tồn Kho tổng' : 'Nhập tồn Kho tổng',
+        note: selectedStockItem ? 'Nháº­p thÃªm tá»“n Kho tá»•ng' : 'Nháº­p tá»“n Kho tá»•ng',
       };
       const { error: logError } = await supabase.from('inventory_logs').insert([logPayload]);
       if (logError) throw logError;
@@ -266,9 +266,9 @@ export default function CentralWarehouseScreen({ navigation }) {
       setInventoryLogs((current) => [...current, normalizeInventoryLog(logPayload)]);
       closeStockModal();
       await refreshData?.();
-      Alert.alert('Đã nhập tồn', `${cleanName}: +${formatQuantity(amount)} ${cleanUnit}`);
+      Alert.alert('ÄÃ£ nháº­p tá»“n', `${cleanName}: +${formatQuantity(amount)} ${cleanUnit}`);
     } catch (error) {
-      Alert.alert('Không thể nhập tồn', error?.message || 'Đã có lỗi khi lưu tồn Kho tổng.');
+      Alert.alert('KhÃ´ng thá»ƒ nháº­p tá»“n', error?.message || 'ÄÃ£ cÃ³ lá»—i khi lÆ°u tá»“n Kho tá»•ng.');
     } finally {
       setBusyKey('');
     }
@@ -282,14 +282,14 @@ export default function CentralWarehouseScreen({ navigation }) {
         setInventoryTickets((current) => current.map((item) => (
           item.id === ticket.id ? { ...item, status: 'REJECTED' } : item
         )));
-        Alert.alert('Đã từ chối', 'Đơn đề xuất đã bị hủy.');
+        Alert.alert('ÄÃ£ tá»« chá»‘i', 'ÄÆ¡n Ä‘á» xuáº¥t Ä‘Ã£ bá»‹ há»§y.');
       } else {
         await approveInventoryTicket(ticket, currentUser?.id, warehouseId);
         await refreshData?.();
-        Alert.alert('Đã xác nhận xuất', 'Kho tổng đã ghi xuất hàng. Đơn đang chờ cửa hàng xác nhận nhận hàng.');
+        Alert.alert('ÄÃ£ xÃ¡c nháº­n xuáº¥t', 'Kho tá»•ng Ä‘Ã£ ghi xuáº¥t hÃ ng. ÄÆ¡n Ä‘ang chá» cá»­a hÃ ng xÃ¡c nháº­n nháº­n hÃ ng.');
       }
     } catch (error) {
-      Alert.alert('Không thể xử lý', error?.message || 'Đã có lỗi khi duyệt đơn.');
+      Alert.alert('KhÃ´ng thá»ƒ xá»­ lÃ½', error?.message || 'ÄÃ£ cÃ³ lá»—i khi duyá»‡t Ä‘Æ¡n.');
     } finally {
       setBusyKey('');
     }
@@ -301,15 +301,15 @@ export default function CentralWarehouseScreen({ navigation }) {
       <View key={ticket.id} style={styles.ticketCard}>
         <View style={styles.ticketHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.ticketTitle}>Đề xuất nhập hàng</Text>
+            <Text style={styles.ticketTitle}>Äá» xuáº¥t nháº­p hÃ ng</Text>
             <Text style={styles.ticketMeta}>
-              Về: {getStoreName(storeList, ticket.destination_store_id)} • {formatTimestamp(ticket.created_at)}
+              Vá»: {getStoreName(storeList, ticket.destination_store_id)} â€¢ {formatTimestamp(ticket.created_at)}
             </Text>
-            <Text style={styles.ticketMeta}>Người tạo: {ticket.requested_by_name || 'Không rõ'}</Text>
+            <Text style={styles.ticketMeta}>NgÆ°á»i táº¡o: {ticket.requested_by_name || 'KhÃ´ng rÃµ'}</Text>
           </View>
           <View style={[styles.statusBadge, ticket.status === 'PENDING_SOURCE' ? styles.statusPending : ticket.status === 'PENDING_DEST' ? styles.statusTransit : styles.statusDone]}>
             <Text style={styles.statusText}>
-              {ticket.status === 'PENDING_SOURCE' ? 'Chờ xác nhận' : ticket.status === 'PENDING_DEST' ? 'Đang giao' : ticket.status === 'APPROVED' ? 'Hoàn tất' : 'Đã hủy'}
+              {ticket.status === 'PENDING_SOURCE' ? 'Chá» xÃ¡c nháº­n' : ticket.status === 'PENDING_DEST' ? 'Äang giao' : ticket.status === 'APPROVED' ? 'HoÃ n táº¥t' : 'ÄÃ£ há»§y'}
             </Text>
           </View>
         </View>
@@ -321,7 +321,7 @@ export default function CentralWarehouseScreen({ navigation }) {
               <View key={`${item.itemId}_${index}`} style={styles.itemRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemMeta}>Kho tổng còn {formatQuantity(stock?.currentStock)} {item.unit}</Text>
+                  <Text style={styles.itemMeta}>Kho tá»•ng cÃ²n {formatQuantity(stock?.currentStock)} {item.unit}</Text>
                 </View>
                 <Text style={styles.itemAmount}>{formatQuantity(item.amount)} {item.unit}</Text>
               </View>
@@ -336,14 +336,14 @@ export default function CentralWarehouseScreen({ navigation }) {
               onPress={() => handleReview(ticket, 'REJECT')}
               disabled={isBusy}
             >
-              <Text style={styles.reviewText}>Từ chối</Text>
+              <Text style={styles.reviewText}>Tá»« chá»‘i</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.reviewButton, styles.approveButton]}
               onPress={() => handleReview(ticket, 'APPROVE')}
               disabled={isBusy}
             >
-              {isBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.reviewText}>Xác nhận xuất</Text>}
+              {isBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.reviewText}>XÃ¡c nháº­n xuáº¥t</Text>}
             </TouchableOpacity>
           </View>
         )}
@@ -356,10 +356,10 @@ export default function CentralWarehouseScreen({ navigation }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyScreen}>
           <Ionicons name="lock-closed-outline" size={42} color="#ef4444" />
-          <Text style={styles.emptyTitle}>Bạn chưa có quyền Kho tổng</Text>
-          <Text style={styles.emptyText}>Chủ quán hoặc người có quyền phân quyền cần bật quyền Kho tổng cho tài khoản này.</Text>
+          <Text style={styles.emptyTitle}>Báº¡n chÆ°a cÃ³ quyá»n Kho tá»•ng</Text>
+          <Text style={styles.emptyText}>Chá»§ quÃ¡n hoáº·c ngÆ°á»i cÃ³ quyá»n phÃ¢n quyá»n cáº§n báº­t quyá»n Kho tá»•ng cho tÃ i khoáº£n nÃ y.</Text>
           <TouchableOpacity style={styles.backAction} onPress={() => navigation.goBack()}>
-            <Text style={styles.backActionText}>Quay lại</Text>
+            <Text style={styles.backActionText}>Quay láº¡i</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -374,8 +374,8 @@ export default function CentralWarehouseScreen({ navigation }) {
             <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.header}>Kho tổng</Text>
-            <Text style={styles.headerCaption}>{warehouse?.name || 'Chưa cấu hình kho tổng'}</Text>
+            <Text style={styles.header}>Kho tá»•ng</Text>
+            <Text style={styles.headerCaption}>{warehouse?.name || 'ChÆ°a cáº¥u hÃ¬nh kho tá»•ng'}</Text>
           </View>
           <TouchableOpacity onPress={() => refreshData?.()} style={styles.refreshButton}>
             <Ionicons name="refresh" size={20} color={COLORS.primary} />
@@ -383,7 +383,7 @@ export default function CentralWarehouseScreen({ navigation }) {
           {warehouseId && (
             <TouchableOpacity onPress={() => openStockModal()} style={styles.addStockButton}>
               <Ionicons name="add" size={19} color="#fff" />
-              <Text style={styles.addStockText}>Nhập tồn</Text>
+              <Text style={styles.addStockText}>Nháº­p tá»“n</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -418,8 +418,8 @@ export default function CentralWarehouseScreen({ navigation }) {
         {!warehouseId ? (
           <View style={styles.emptyScreen}>
             <MaterialCommunityIcons name="package-variant-closed" size={50} color="#7c3aed" />
-            <Text style={styles.emptyTitle}>Chưa có Kho tổng</Text>
-            <Text style={styles.emptyText}>Tạo Kho tổng để quản lý hàng trung tâm, duyệt đơn đề xuất và nhập tồn minh bạch.</Text>
+            <Text style={styles.emptyTitle}>ChÆ°a cÃ³ Kho tá»•ng</Text>
+            <Text style={styles.emptyText}>Táº¡o Kho tá»•ng Ä‘á»ƒ quáº£n lÃ½ hÃ ng trung tÃ¢m, duyá»‡t Ä‘Æ¡n Ä‘á» xuáº¥t vÃ  nháº­p tá»“n minh báº¡ch.</Text>
             <TouchableOpacity
               style={[styles.primaryAction, busyKey === 'create-warehouse' && styles.disabledButton]}
               onPress={handleCreateWarehouse}
@@ -427,7 +427,7 @@ export default function CentralWarehouseScreen({ navigation }) {
             >
               {busyKey === 'create-warehouse'
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.primaryActionText}>Tạo Kho tổng</Text>}
+                : <Text style={styles.primaryActionText}>Táº¡o Kho tá»•ng</Text>}
             </TouchableOpacity>
           </View>
         ) : (
@@ -435,45 +435,45 @@ export default function CentralWarehouseScreen({ navigation }) {
             <View style={styles.summaryRow}>
               <View style={styles.summaryCard}>
                 <Text style={styles.summaryValue}>{stockRows.length}</Text>
-                <Text style={styles.summaryLabel}>Mặt hàng</Text>
+                <Text style={styles.summaryLabel}>Máº·t hÃ ng</Text>
               </View>
               <View style={styles.summaryCard}>
                 <Text style={styles.summaryValue}>{pendingRequests.length}</Text>
-                <Text style={styles.summaryLabel}>Chờ xác nhận</Text>
+                <Text style={styles.summaryLabel}>Chá» xÃ¡c nháº­n</Text>
               </View>
               <View style={styles.summaryCard}>
                 <Text style={styles.summaryValue}>{inTransitRequests.length}</Text>
-                <Text style={styles.summaryLabel}>Đang giao</Text>
+                <Text style={styles.summaryLabel}>Äang giao</Text>
               </View>
             </View>
 
             {activeTab === 'PENDING' && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Đơn cửa hàng đề xuất</Text>
+                <Text style={styles.sectionTitle}>ÄÆ¡n cá»­a hÃ ng Ä‘á» xuáº¥t</Text>
                 {pendingRequests.length === 0 ? (
-                  <Text style={styles.emptyText}>Không có đơn nào đang chờ Kho tổng xác nhận.</Text>
+                  <Text style={styles.emptyText}>KhÃ´ng cÃ³ Ä‘Æ¡n nÃ o Ä‘ang chá» Kho tá»•ng xÃ¡c nháº­n.</Text>
                 ) : pendingRequests.map((ticket) => renderTicket(ticket, true))}
               </View>
             )}
 
             {activeTab === 'TRANSIT' && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Đang chờ cửa hàng nhận</Text>
+                <Text style={styles.sectionTitle}>Äang chá» cá»­a hÃ ng nháº­n</Text>
                 {inTransitRequests.length === 0 ? (
-                  <Text style={styles.emptyText}>Không có đơn đang giao.</Text>
+                  <Text style={styles.emptyText}>KhÃ´ng cÃ³ Ä‘Æ¡n Ä‘ang giao.</Text>
                 ) : inTransitRequests.map((ticket) => renderTicket(ticket))}
               </View>
             )}
 
             {activeTab === 'STOCK' && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Tồn Kho tổng</Text>
+                <Text style={styles.sectionTitle}>Tá»“n Kho tá»•ng</Text>
                 {stockRows.length === 0 ? (
                   <View style={styles.emptyStockBox}>
-                    <Text style={styles.emptyText}>Kho tổng chưa có mặt hàng. Nhập tồn ban đầu để cửa hàng có thể đề xuất lấy hàng.</Text>
+                    <Text style={styles.emptyText}>Kho tá»•ng chÆ°a cÃ³ máº·t hÃ ng. Nháº­p tá»“n ban Ä‘áº§u Ä‘á»ƒ cá»­a hÃ ng cÃ³ thá»ƒ Ä‘á» xuáº¥t láº¥y hÃ ng.</Text>
                     <TouchableOpacity style={styles.secondaryAction} onPress={() => openStockModal()}>
                       <Ionicons name="add-circle-outline" size={18} color="#7c3aed" />
-                      <Text style={styles.secondaryActionText}>Thêm hàng Kho tổng</Text>
+                      <Text style={styles.secondaryActionText}>ThÃªm hÃ ng Kho tá»•ng</Text>
                     </TouchableOpacity>
                   </View>
                 ) : stockRows.map((item) => (
@@ -483,7 +483,7 @@ export default function CentralWarehouseScreen({ navigation }) {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.itemName}>{item.name}</Text>
-                      <Text style={styles.itemMeta}>An toàn ≥ {formatQuantity(item.safeLevel)} {item.unit}</Text>
+                      <Text style={styles.itemMeta}>An toÃ n â‰¥ {formatQuantity(item.safeLevel)} {item.unit}</Text>
                     </View>
                     <Text style={styles.stockValue}>{formatQuantity(item.currentStock)} {item.unit}</Text>
                     <TouchableOpacity style={styles.inlineStockButton} onPress={() => openStockModal(item)}>
@@ -497,10 +497,10 @@ export default function CentralWarehouseScreen({ navigation }) {
             {activeTab === 'HISTORY' && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
-                  Lịch sử gần đây{completedRequests.length > doneRequests.length ? ' (20 gần nhất)' : ''}
+                  Lá»‹ch sá»­ gáº§n Ä‘Ã¢y{completedRequests.length > doneRequests.length ? ' (20 gáº§n nháº¥t)' : ''}
                 </Text>
                 {doneRequests.length === 0 ? (
-                  <Text style={styles.emptyText}>Chưa có đơn hoàn tất hoặc bị hủy.</Text>
+                  <Text style={styles.emptyText}>ChÆ°a cÃ³ Ä‘Æ¡n hoÃ n táº¥t hoáº·c bá»‹ há»§y.</Text>
                 ) : doneRequests.map((ticket) => renderTicket(ticket))}
               </View>
             )}
@@ -521,37 +521,37 @@ export default function CentralWarehouseScreen({ navigation }) {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>{selectedStockItem ? 'Nhập thêm tồn' : 'Thêm hàng Kho tổng'}</Text>
-                <Text style={styles.modalCaption}>Số lượng sẽ được ghi log nhập kho ngay.</Text>
+                <Text style={styles.modalTitle}>{selectedStockItem ? 'Nháº­p thÃªm tá»“n' : 'ThÃªm hÃ ng Kho tá»•ng'}</Text>
+                <Text style={styles.modalCaption}>Sá»‘ lÆ°á»£ng sáº½ Ä‘Æ°á»£c ghi log nháº­p kho ngay.</Text>
               </View>
               <TouchableOpacity onPress={closeStockModal} style={styles.modalClose}>
                 <Ionicons name="close" size={20} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.inputLabel}>Tên mặt hàng</Text>
+            <Text style={styles.inputLabel}>TÃªn máº·t hÃ ng</Text>
             <TextInput
               style={[styles.input, selectedStockItem && styles.inputDisabled]}
               value={stockForm.name}
               onChangeText={(name) => setStockForm((current) => ({ ...current, name }))}
-              placeholder="VD: Trân châu đen"
+              placeholder="VD: TrÃ¢n chÃ¢u Ä‘en"
               placeholderTextColor={COLORS.textMuted}
               editable={!selectedStockItem}
             />
 
             <View style={styles.modalFieldRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Đơn vị</Text>
+                <Text style={styles.inputLabel}>ÄÆ¡n vá»‹</Text>
                 <TextInput
                   style={styles.input}
                   value={stockForm.unit}
                   onChangeText={(unit) => setStockForm((current) => ({ ...current, unit }))}
-                  placeholder="kg, hộp..."
+                  placeholder="kg, há»™p..."
                   placeholderTextColor={COLORS.textMuted}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Tồn an toàn</Text>
+                <Text style={styles.inputLabel}>Tá»“n an toÃ n</Text>
                 <TextInput
                   style={styles.input}
                   value={stockForm.safeLevel}
@@ -563,7 +563,7 @@ export default function CentralWarehouseScreen({ navigation }) {
               </View>
             </View>
 
-            <Text style={styles.inputLabel}>Số lượng nhập</Text>
+            <Text style={styles.inputLabel}>Sá»‘ lÆ°á»£ng nháº­p</Text>
             <TextInput
               style={[styles.input, styles.amountInput]}
               value={stockForm.amount}
@@ -575,7 +575,7 @@ export default function CentralWarehouseScreen({ navigation }) {
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelButton} onPress={closeStockModal}>
-                <Text style={styles.cancelButtonText}>Hủy</Text>
+                <Text style={styles.cancelButtonText}>Há»§y</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.saveButton, busyKey === 'save-stock' && styles.disabledButton]}
@@ -584,7 +584,7 @@ export default function CentralWarehouseScreen({ navigation }) {
               >
                 {busyKey === 'save-stock'
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.saveButtonText}>Lưu nhập tồn</Text>}
+                  : <Text style={styles.saveButtonText}>LÆ°u nháº­p tá»“n</Text>}
               </TouchableOpacity>
             </View>
           </View>

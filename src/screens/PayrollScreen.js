@@ -16,24 +16,24 @@ export default function PayrollScreen({ navigation }) {
   const isManager = currentUser?.role === 'MANAGER';
   const isStaff = currentUser?.role === 'STAFF';
 
-  // State chọn tháng
+  // State chá»n thÃ¡ng
   const [monthOffset, setMonthOffset] = useState(0);
 
-  // Lấy thông tin tháng được chọn
+  // Láº¥y thÃ´ng tin thÃ¡ng Ä‘Æ°á»£c chá»n
   const getSelectedMonthInfo = () => {
     const d = new Date();
     d.setMonth(d.getMonth() + monthOffset);
     return {
       year: d.getFullYear(),
       month: d.getMonth() + 1, // 1-12
-      label: `Tháng ${d.getMonth() + 1} / ${d.getFullYear()}`
+      label: `ThÃ¡ng ${d.getMonth() + 1} / ${d.getFullYear()}`
     };
   };
 
   const selectedMonth = getSelectedMonthInfo();
   const targetMonthStr = `${selectedMonth.year}-${String(selectedMonth.month).padStart(2, '0')}`;
 
-  // Gom nhóm dữ liệu chấm công theo nhân viên cho tháng được chọn
+  // Gom nhÃ³m dá»¯ liá»‡u cháº¥m cÃ´ng theo nhÃ¢n viÃªn cho thÃ¡ng Ä‘Æ°á»£c chá»n
   const payrollData = useMemo(() => {
     const monthlyRecords = attendanceHistory.filter(r => r.date && r.date.startsWith(targetMonthStr) && r.hours > 0);
 
@@ -122,7 +122,7 @@ export default function PayrollScreen({ navigation }) {
   // Expand detail
   const [expandedUser, setExpandedUser] = useState(null);
 
-  // Modal Điều Chỉnh Thưởng Phạt
+  // Modal Äiá»u Chá»‰nh ThÆ°á»Ÿng Pháº¡t
   const [showAdjModal, setShowAdjModal] = useState(false);
   const [adjTarget, setAdjTarget] = useState(null); 
   const [editBonusHours, setEditBonusHours] = useState('0');
@@ -153,24 +153,24 @@ export default function PayrollScreen({ navigation }) {
     };
 
     try {
-      // Chỉ xóa khoản phạt/thưởng thủ công cũ
+      // Chá»‰ xÃ³a khoáº£n pháº¡t/thÆ°á»Ÿng thá»§ cÃ´ng cÅ©
       await supabase.from('payroll_adjustments').delete().like('id', 'adj_manual_%').eq('user_id', adjTarget.id).eq('month', targetMonthStr);
-      // Thêm khoản thưởng phạt mới ghi đè tổng
+      // ThÃªm khoáº£n thÆ°á»Ÿng pháº¡t má»›i ghi Ä‘Ã¨ tá»•ng
       const { error } = await supabase.from('payroll_adjustments').insert([newAdj]);
       if (error) throw error;
       
       const newAdjustments = [...(payrollAdjustments || []).filter(a => !(a.id.startsWith('adj_manual_') && a.user_id === adjTarget.id && a.month === targetMonthStr)), newAdj];
       setPayrollAdjustments(newAdjustments);
       setShowAdjModal(false);
-      Alert.alert('Thành công', 'Đã lưu điều chỉnh thưởng/phạt!');
+      Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ lÆ°u Ä‘iá»u chá»‰nh thÆ°á»Ÿng/pháº¡t!');
     } catch (e) {
-      Alert.alert('Lỗi', e.message || 'Không thể lưu. Kiểm tra kết nối mạng!');
+      Alert.alert('Lá»—i', e.message || 'KhÃ´ng thá»ƒ lÆ°u. Kiá»ƒm tra káº¿t ná»‘i máº¡ng!');
     } finally {
       setIsSavingAdj(false);
     }
   };
 
-  // Logic Duyệt 3 bước
+  // Logic Duyá»‡t 3 bÆ°á»›c
   const handleApprove = async (staffItem, roleType) => {
     const currentApproval = staffItem.approval || {};
     
@@ -208,19 +208,19 @@ export default function PayrollScreen({ navigation }) {
       
       const newApprovals = [...(payrollApprovals || []).filter(a => a.id !== updates.id), updates];
       setPayrollApprovals(newApprovals);
-      Alert.alert('Thành công', 'Đã xác nhận phiếu lương!');
+      Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ xÃ¡c nháº­n phiáº¿u lÆ°Æ¡ng!');
 
       // Send notification
       const targetStaff = staffList.find(s => s.id === staffItem.id);
       if (targetStaff) {
         if (roleType === 'MANAGER') {
-          sendPushNotification(targetStaff.push_token, 'Duyệt lương (Quản lý) 🟢', `Quản lý đã xác nhận phiếu lương tháng ${targetMonthStr} của bạn.`, {}, targetStaff.id);
+          sendPushNotification(targetStaff.push_token, 'Duyá»‡t lÆ°Æ¡ng (Quáº£n lÃ½) ðŸŸ¢', `Quáº£n lÃ½ Ä‘Ã£ xÃ¡c nháº­n phiáº¿u lÆ°Æ¡ng thÃ¡ng ${targetMonthStr} cá»§a báº¡n.`, {}, targetStaff.id);
         } else if (roleType === 'OWNER') {
-          sendPushNotification(targetStaff.push_token, 'Chốt lương (Chủ cửa hàng) ✅', `Chủ cửa hàng đã chốt phiếu lương tháng ${targetMonthStr} của bạn.`, {}, targetStaff.id);
+          sendPushNotification(targetStaff.push_token, 'Chá»‘t lÆ°Æ¡ng (Chá»§ cá»­a hÃ ng) âœ…', `Chá»§ cá»­a hÃ ng Ä‘Ã£ chá»‘t phiáº¿u lÆ°Æ¡ng thÃ¡ng ${targetMonthStr} cá»§a báº¡n.`, {}, targetStaff.id);
         }
       }
     } catch (e) {
-      Alert.alert('Lỗi xác nhận', e.message);
+      Alert.alert('Lá»—i xÃ¡c nháº­n', e.message);
     }
   };
 
@@ -248,9 +248,9 @@ export default function PayrollScreen({ navigation }) {
       if (error) throw error;
       const newApprovals = [...(payrollApprovals || []).filter(a => a.id !== updates.id), updates];
       setPayrollApprovals(newApprovals);
-      Alert.alert('Thành công', 'Đã hủy duyệt phiếu lương!');
+      Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ há»§y duyá»‡t phiáº¿u lÆ°Æ¡ng!');
     } catch (e) {
-      Alert.alert('Lỗi', e.message);
+      Alert.alert('Lá»—i', e.message);
     }
   };
 
@@ -264,10 +264,10 @@ export default function PayrollScreen({ navigation }) {
     return (
       <View style={styles.progressBlock}>
         <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
-          <Text style={styles.progressTitle}>Tiến trình duyệt lương:</Text>
+          <Text style={styles.progressTitle}>Tiáº¿n trÃ¬nh duyá»‡t lÆ°Æ¡ng:</Text>
           {(isOwner || (isManager && !owner_confirmed)) && (staff_confirmed || manager_confirmed || owner_confirmed) && (
             <TouchableOpacity onPress={() => handleCancelApprove(item)}>
-              <Text style={{color: '#d32f2f', fontSize: 12, fontWeight: 'bold'}}>Hủy duyệt (Mở khóa)</Text>
+              <Text style={{color: '#d32f2f', fontSize: 12, fontWeight: 'bold'}}>Há»§y duyá»‡t (Má»Ÿ khÃ³a)</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -275,48 +275,48 @@ export default function PayrollScreen({ navigation }) {
         <View style={styles.stepRow}>
           <Ionicons name={staff_confirmed ? "checkmark-circle" : "ellipse-outline"} size={20} color={staff_confirmed ? "#4CAF50" : "#ccc"} />
           <View>
-            <Text style={[styles.stepText, staff_confirmed && styles.stepTextActive]}>1. Nhân viên xác nhận giờ & lương</Text>
-            {staff_confirmed && staff_confirmed_at && <Text style={styles.stepMeta}>Lúc: {staff_confirmed_at}</Text>}
+            <Text style={[styles.stepText, staff_confirmed && styles.stepTextActive]}>1. NhÃ¢n viÃªn xÃ¡c nháº­n giá» & lÆ°Æ¡ng</Text>
+            {staff_confirmed && staff_confirmed_at && <Text style={styles.stepMeta}>LÃºc: {staff_confirmed_at}</Text>}
           </View>
         </View>
         <View style={styles.stepRow}>
           <Ionicons name={manager_confirmed ? "checkmark-circle" : "ellipse-outline"} size={20} color={manager_confirmed ? "#4CAF50" : "#ccc"} />
           <View>
-            <Text style={[styles.stepText, manager_confirmed && styles.stepTextActive]}>2. Quản lý duyệt phiếu lương</Text>
-            {manager_confirmed && manager_confirmed_by && <Text style={styles.stepMeta}>Duyệt bởi: {manager_confirmed_by} - {manager_confirmed_at}</Text>}
+            <Text style={[styles.stepText, manager_confirmed && styles.stepTextActive]}>2. Quáº£n lÃ½ duyá»‡t phiáº¿u lÆ°Æ¡ng</Text>
+            {manager_confirmed && manager_confirmed_by && <Text style={styles.stepMeta}>Duyá»‡t bá»Ÿi: {manager_confirmed_by} - {manager_confirmed_at}</Text>}
           </View>
         </View>
         <View style={styles.stepRow}>
           <Ionicons name={owner_confirmed ? "checkmark-circle" : "ellipse-outline"} size={20} color={owner_confirmed ? "#4CAF50" : "#ccc"} />
           <View>
-            <Text style={[styles.stepText, owner_confirmed && styles.stepTextActive]}>3. Chủ quán chốt (Hoàn tất)</Text>
-            {owner_confirmed && owner_confirmed_by && <Text style={styles.stepMeta}>Duyệt bởi: {owner_confirmed_by} - {owner_confirmed_at}</Text>}
+            <Text style={[styles.stepText, owner_confirmed && styles.stepTextActive]}>3. Chá»§ quÃ¡n chá»‘t (HoÃ n táº¥t)</Text>
+            {owner_confirmed && owner_confirmed_by && <Text style={styles.stepMeta}>Duyá»‡t bá»Ÿi: {owner_confirmed_by} - {owner_confirmed_at}</Text>}
           </View>
         </View>
 
-        {/* Nút thao tác */}
+        {/* NÃºt thao tÃ¡c */}
         {isStaff && item.id === currentUser.id && !staff_confirmed && (
           <TouchableOpacity style={[styles.approveBtn, {backgroundColor: '#1976d2'}]} onPress={() => handleApprove(item, 'STAFF')}>
-            <Text style={styles.approveBtnText}>TÔI XÁC NHẬN GIỜ & LƯƠNG ĐÚNG</Text>
+            <Text style={styles.approveBtnText}>TÃ”I XÃC NHáº¬N GIá»œ & LÆ¯Æ NG ÄÃšNG</Text>
           </TouchableOpacity>
         )}
         
         {isManager && staff_confirmed && !manager_confirmed && (
           <TouchableOpacity style={[styles.approveBtn, {backgroundColor: '#1976d2'}]} onPress={() => handleApprove(item, 'MANAGER')}>
-            <Text style={styles.approveBtnText}>QUẢN LÝ XÁC NHẬN PHIẾU LƯƠNG</Text>
+            <Text style={styles.approveBtnText}>QUáº¢N LÃ XÃC NHáº¬N PHIáº¾U LÆ¯Æ NG</Text>
           </TouchableOpacity>
         )}
 
         {isOwner && manager_confirmed && !owner_confirmed && (
           <TouchableOpacity style={[styles.approveBtn, {backgroundColor: '#ff9800'}]} onPress={() => handleApprove(item, 'OWNER')}>
-            <Text style={styles.approveBtnText}>CHỐT PHIẾU LƯƠNG CUỐI CÙNG</Text>
+            <Text style={styles.approveBtnText}>CHá»T PHIáº¾U LÆ¯Æ NG CUá»I CÃ™NG</Text>
           </TouchableOpacity>
         )}
         
         {owner_confirmed && (
           <View style={styles.finalizedBadge}>
             <Ionicons name="shield-checkmark" size={16} color="#fff" />
-            <Text style={styles.finalizedText}>ĐÃ CHỐT PHIẾU LƯƠNG</Text>
+            <Text style={styles.finalizedText}>ÄÃƒ CHá»T PHIáº¾U LÆ¯Æ NG</Text>
           </View>
         )}
       </View>
@@ -325,13 +325,13 @@ export default function PayrollScreen({ navigation }) {
 
   const getApprovalLabel = (item) => {
     const approval = item.approval || {};
-    if (approval.owner_confirmed) return 'Đã chốt';
-    if (approval.manager_confirmed) return 'Quản lý đã duyệt';
-    if (approval.staff_confirmed) return 'Nhân viên đã xác nhận';
-    return 'Nháp';
+    if (approval.owner_confirmed) return 'ÄÃ£ chá»‘t';
+    if (approval.manager_confirmed) return 'Quáº£n lÃ½ Ä‘Ã£ duyá»‡t';
+    if (approval.staff_confirmed) return 'NhÃ¢n viÃªn Ä‘Ã£ xÃ¡c nháº­n';
+    return 'NhÃ¡p';
   };
 
-  const getSalaryModeLabel = (item) => item.wage ? `Lương giờ ${formatMoney(item.wage)}đ/h` : 'Chưa cấu hình mức lương';
+  const getSalaryModeLabel = (item) => item.wage ? `LÆ°Æ¡ng giá» ${formatMoney(item.wage)}Ä‘/h` : 'ChÆ°a cáº¥u hÃ¬nh má»©c lÆ°Æ¡ng';
 
   const escapeHtml = (value) => String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -349,18 +349,18 @@ export default function PayrollScreen({ navigation }) {
         <td>${escapeHtml(r.check_out || r.checkOut || '-')}</td>
         <td class="right">${Number(r.hours || 0).toFixed(1)}</td>
       </tr>
-    `).join('') : '<tr><td colspan="5" class="muted center">Không có dữ liệu ngày công</td></tr>';
+    `).join('') : '<tr><td colspan="5" class="muted center">KhÃ´ng cÃ³ dá»¯ liá»‡u ngÃ y cÃ´ng</td></tr>';
 
     const approval = item.approval || {};
-    const autoNote = item.adjustment?.auto_note ? `<p class="note"><b>Ghi chú tự động:</b><br/>${escapeHtml(item.adjustment.auto_note).replace(/\n/g, '<br/>')}</p>` : '';
-    const manualNote = item.adjustment?.note ? `<p class="note"><b>Ghi chú thưởng/phạt:</b> ${escapeHtml(item.adjustment.note)}</p>` : '';
+    const autoNote = item.adjustment?.auto_note ? `<p class="note"><b>Ghi chÃº tá»± Ä‘á»™ng:</b><br/>${escapeHtml(item.adjustment.auto_note).replace(/\n/g, '<br/>')}</p>` : '';
+    const manualNote = item.adjustment?.note ? `<p class="note"><b>Ghi chÃº thÆ°á»Ÿng/pháº¡t:</b> ${escapeHtml(item.adjustment.note)}</p>` : '';
 
     return `<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Phiếu lương - ${escapeHtml(item.name)} - ${escapeHtml(selectedMonth.label)}</title>
+  <title>Phiáº¿u lÆ°Æ¡ng - ${escapeHtml(item.name)} - ${escapeHtml(selectedMonth.label)}</title>
   <style>
     @page { size: A4; margin: 14mm; }
     * { box-sizing: border-box; }
@@ -407,64 +407,64 @@ export default function PayrollScreen({ navigation }) {
     }
   </script>
   <div class="toolbar no-print">
-    <button class="print-btn" onclick="window.print()">In phiếu</button>
-    <a class="back-btn" href="/">Quay lại app</a>
-    <button class="close-btn" onclick="closePayslip()">Đóng phiếu</button>
+    <button class="print-btn" onclick="window.print()">In phiáº¿u</button>
+    <a class="back-btn" href="/">Quay láº¡i app</a>
+    <button class="close-btn" onclick="closePayslip()">ÄÃ³ng phiáº¿u</button>
   </div>
   <main class="sheet">
     <div class="top">
       <div>
-        <div class="brand">THE CỐC</div>
-        <div class="subtitle">Phiếu lương nội bộ - dùng để đối chiếu và ký nhận</div>
+        <div class="brand">THE Cá»C</div>
+        <div class="subtitle">Phiáº¿u lÆ°Æ¡ng ná»™i bá»™ - dÃ¹ng Ä‘á»ƒ Ä‘á»‘i chiáº¿u vÃ  kÃ½ nháº­n</div>
       </div>
-      <div class="subtitle right">Ngày in: ${escapeHtml(new Date().toLocaleString('vi-VN'))}</div>
+      <div class="subtitle right">NgÃ y in: ${escapeHtml(new Date().toLocaleString('vi-VN'))}</div>
     </div>
 
-    <h1>PHIẾU LƯƠNG NHÂN VIÊN</h1>
-    <div class="period">Kỳ lương: ${escapeHtml(selectedMonth.label)}</div>
+    <h1>PHIáº¾U LÆ¯Æ NG NHÃ‚N VIÃŠN</h1>
+    <div class="period">Ká»³ lÆ°Æ¡ng: ${escapeHtml(selectedMonth.label)}</div>
 
     <section class="info">
-      <div class="box"><div class="label">Nhân viên</div><div class="value">${escapeHtml(item.name)}</div></div>
-      <div class="box"><div class="label">Vai trò</div><div class="value">${escapeHtml(item.role === 'MANAGER' ? 'Quản lý' : 'Nhân viên')}</div></div>
-      <div class="box"><div class="label">Chế độ lương</div><div class="value">${escapeHtml(getSalaryModeLabel(item))}</div></div>
-      <div class="box"><div class="label">Trạng thái duyệt</div><div class="value">${escapeHtml(getApprovalLabel(item))}</div></div>
+      <div class="box"><div class="label">NhÃ¢n viÃªn</div><div class="value">${escapeHtml(item.name)}</div></div>
+      <div class="box"><div class="label">Vai trÃ²</div><div class="value">${escapeHtml(item.role === 'MANAGER' ? 'Quáº£n lÃ½' : 'NhÃ¢n viÃªn')}</div></div>
+      <div class="box"><div class="label">Cháº¿ Ä‘á»™ lÆ°Æ¡ng</div><div class="value">${escapeHtml(getSalaryModeLabel(item))}</div></div>
+      <div class="box"><div class="label">Tráº¡ng thÃ¡i duyá»‡t</div><div class="value">${escapeHtml(getApprovalLabel(item))}</div></div>
     </section>
 
-    <div class="section-title">Tổng hợp lương</div>
+    <div class="section-title">Tá»•ng há»£p lÆ°Æ¡ng</div>
     <table>
       <tbody>
-        <tr><td>Giờ công thực tế</td><td class="right">${item.totalHours.toFixed(1)} giờ / ${item.recordsCount} ca</td></tr>
-        <tr><td>Lương công</td><td class="right earn">${formatMoney(item.baseSalary)}đ</td></tr>
-        <tr><td>Thưởng giờ (${Number(item.adjustment?.bonus_hours || 0).toFixed(1)} giờ)</td><td class="right earn">${formatMoney(item.bonusHoursSalary)}đ</td></tr>
-        <tr><td>Thưởng tiền</td><td class="right earn">${formatMoney(item.bonusMoney)}đ</td></tr>
-        <tr><td>Phạt thủ công</td><td class="right deduct">-${formatMoney(item.manualPenalty)}đ</td></tr>
-        <tr><td>Phạt/lệch két tự động</td><td class="right deduct">-${formatMoney(item.autoPenalty)}đ</td></tr>
-        <tr class="total"><td>Thực nhận</td><td class="right">${formatMoney(item.totalSalary)}đ</td></tr>
+        <tr><td>Giá» cÃ´ng thá»±c táº¿</td><td class="right">${item.totalHours.toFixed(1)} giá» / ${item.recordsCount} ca</td></tr>
+        <tr><td>LÆ°Æ¡ng cÃ´ng</td><td class="right earn">${formatMoney(item.baseSalary)}Ä‘</td></tr>
+        <tr><td>ThÆ°á»Ÿng giá» (${Number(item.adjustment?.bonus_hours || 0).toFixed(1)} giá»)</td><td class="right earn">${formatMoney(item.bonusHoursSalary)}Ä‘</td></tr>
+        <tr><td>ThÆ°á»Ÿng tiá»n</td><td class="right earn">${formatMoney(item.bonusMoney)}Ä‘</td></tr>
+        <tr><td>Pháº¡t thá»§ cÃ´ng</td><td class="right deduct">-${formatMoney(item.manualPenalty)}Ä‘</td></tr>
+        <tr><td>Pháº¡t/lá»‡ch kÃ©t tá»± Ä‘á»™ng</td><td class="right deduct">-${formatMoney(item.autoPenalty)}Ä‘</td></tr>
+        <tr class="total"><td>Thá»±c nháº­n</td><td class="right">${formatMoney(item.totalSalary)}Ä‘</td></tr>
       </tbody>
     </table>
 
     ${manualNote}
     ${autoNote}
 
-    <div class="section-title">Chi tiết ngày công</div>
+    <div class="section-title">Chi tiáº¿t ngÃ y cÃ´ng</div>
     <table>
-      <thead><tr><th>#</th><th>Ngày</th><th>Check-in</th><th>Check-out</th><th class="right">Giờ</th></tr></thead>
+      <thead><tr><th>#</th><th>NgÃ y</th><th>Check-in</th><th>Check-out</th><th class="right">Giá»</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
 
-    <div class="section-title">Luồng xác nhận</div>
+    <div class="section-title">Luá»“ng xÃ¡c nháº­n</div>
     <table>
       <tbody>
-        <tr><td>Nhân viên xác nhận</td><td>${approval.staff_confirmed ? 'Đã xác nhận' : 'Chưa xác nhận'} ${approval.staff_confirmed_at ? `- ${escapeHtml(approval.staff_confirmed_at)}` : ''}</td></tr>
-        <tr><td>Quản lý duyệt</td><td>${approval.manager_confirmed ? `Đã duyệt bởi ${escapeHtml(approval.manager_confirmed_by || '')}` : 'Chưa duyệt'} ${approval.manager_confirmed_at ? `- ${escapeHtml(approval.manager_confirmed_at)}` : ''}</td></tr>
-        <tr><td>Chủ quán chốt</td><td>${approval.owner_confirmed ? `Đã chốt bởi ${escapeHtml(approval.owner_confirmed_by || '')}` : 'Chưa chốt'} ${approval.owner_confirmed_at ? `- ${escapeHtml(approval.owner_confirmed_at)}` : ''}</td></tr>
+        <tr><td>NhÃ¢n viÃªn xÃ¡c nháº­n</td><td>${approval.staff_confirmed ? 'ÄÃ£ xÃ¡c nháº­n' : 'ChÆ°a xÃ¡c nháº­n'} ${approval.staff_confirmed_at ? `- ${escapeHtml(approval.staff_confirmed_at)}` : ''}</td></tr>
+        <tr><td>Quáº£n lÃ½ duyá»‡t</td><td>${approval.manager_confirmed ? `ÄÃ£ duyá»‡t bá»Ÿi ${escapeHtml(approval.manager_confirmed_by || '')}` : 'ChÆ°a duyá»‡t'} ${approval.manager_confirmed_at ? `- ${escapeHtml(approval.manager_confirmed_at)}` : ''}</td></tr>
+        <tr><td>Chá»§ quÃ¡n chá»‘t</td><td>${approval.owner_confirmed ? `ÄÃ£ chá»‘t bá»Ÿi ${escapeHtml(approval.owner_confirmed_by || '')}` : 'ChÆ°a chá»‘t'} ${approval.owner_confirmed_at ? `- ${escapeHtml(approval.owner_confirmed_at)}` : ''}</td></tr>
       </tbody>
     </table>
 
     <section class="signatures">
-      <div class="sig">Nhân viên ký nhận</div>
-      <div class="sig">Quản lý</div>
-      <div class="sig">Chủ quán</div>
+      <div class="sig">NhÃ¢n viÃªn kÃ½ nháº­n</div>
+      <div class="sig">Quáº£n lÃ½</div>
+      <div class="sig">Chá»§ quÃ¡n</div>
     </section>
   </main>
 </body>
@@ -473,13 +473,13 @@ export default function PayrollScreen({ navigation }) {
 
   const handlePrintPayslip = (item) => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') {
-      Alert.alert('In phiếu lương', 'Vui lòng mở bản PWA/Web để in trực tiếp phiếu lương A4.');
+      Alert.alert('In phiáº¿u lÆ°Æ¡ng', 'Vui lÃ²ng má»Ÿ báº£n PWA/Web Ä‘á»ƒ in trá»±c tiáº¿p phiáº¿u lÆ°Æ¡ng A4.');
       return;
     }
 
     const printWindow = window.open('', '_blank', 'width=900,height=1100');
     if (!printWindow) {
-      Alert.alert('Trình duyệt chặn cửa sổ in', 'Hãy cho phép popup cho app rồi bấm In phiếu lương lại.');
+      Alert.alert('TrÃ¬nh duyá»‡t cháº·n cá»­a sá»• in', 'HÃ£y cho phÃ©p popup cho app rá»“i báº¥m In phiáº¿u lÆ°Æ¡ng láº¡i.');
       return;
     }
 
@@ -493,31 +493,31 @@ export default function PayrollScreen({ navigation }) {
   const handleExportExcel = async () => {
     try {
       const exportData = payrollData.map(item => ({
-        'Tên nhân viên': item.name,
-        'Vai trò': item.role === 'MANAGER' ? 'Quản lý' : 'Nhân viên',
-        'Chế độ lương': getSalaryModeLabel(item),
-        'Số ca': item.recordsCount,
-        'Giờ công': Number(item.totalHours || 0).toFixed(1),
-        'Giờ thưởng': Number(item.adjustment?.bonus_hours || 0).toFixed(1),
-        'Giờ tính lương': Number(item.finalHours || 0).toFixed(1),
-        'Lương giờ': item.wage || 0,
-        'Lương công': Math.round(item.baseSalary || 0),
-        'Thưởng giờ quy tiền': Math.round(item.bonusHoursSalary || 0),
-        'Thưởng tiền': Math.round(item.bonusMoney || 0),
-        'Phạt thủ công': Math.round(item.manualPenalty || 0),
-        'Phạt/lệch két tự động': Math.round(item.autoPenalty || 0),
-        'Tổng phạt': Math.round(item.totalPenalty || 0),
-        'Thực nhận': Math.round(item.totalSalary || 0),
-        'Trạng thái duyệt': getApprovalLabel(item),
-        'Ghi chú thủ công': item.adjustment?.note || '',
-        'Ghi chú tự động': item.adjustment?.auto_note || ''
+        'TÃªn nhÃ¢n viÃªn': item.name,
+        'Vai trÃ²': item.role === 'MANAGER' ? 'Quáº£n lÃ½' : 'NhÃ¢n viÃªn',
+        'Cháº¿ Ä‘á»™ lÆ°Æ¡ng': getSalaryModeLabel(item),
+        'Sá»‘ ca': item.recordsCount,
+        'Giá» cÃ´ng': Number(item.totalHours || 0).toFixed(1),
+        'Giá» thÆ°á»Ÿng': Number(item.adjustment?.bonus_hours || 0).toFixed(1),
+        'Giá» tÃ­nh lÆ°Æ¡ng': Number(item.finalHours || 0).toFixed(1),
+        'LÆ°Æ¡ng giá»': item.wage || 0,
+        'LÆ°Æ¡ng cÃ´ng': Math.round(item.baseSalary || 0),
+        'ThÆ°á»Ÿng giá» quy tiá»n': Math.round(item.bonusHoursSalary || 0),
+        'ThÆ°á»Ÿng tiá»n': Math.round(item.bonusMoney || 0),
+        'Pháº¡t thá»§ cÃ´ng': Math.round(item.manualPenalty || 0),
+        'Pháº¡t/lá»‡ch kÃ©t tá»± Ä‘á»™ng': Math.round(item.autoPenalty || 0),
+        'Tá»•ng pháº¡t': Math.round(item.totalPenalty || 0),
+        'Thá»±c nháº­n': Math.round(item.totalSalary || 0),
+        'Tráº¡ng thÃ¡i duyá»‡t': getApprovalLabel(item),
+        'Ghi chÃº thá»§ cÃ´ng': item.adjustment?.note || '',
+        'Ghi chÃº tá»± Ä‘á»™ng': item.adjustment?.auto_note || ''
       }));
       
       const fileName = `Bang_Luong_Thang_${selectedMonth.month}_${selectedMonth.year}`;
-      await exportToExcel(exportData, fileName, 'Bảng Lương');
-      Alert.alert('Thành công', 'Đã xuất file Excel bảng lương!');
+      await exportToExcel(exportData, fileName, 'Báº£ng LÆ°Æ¡ng');
+      Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ xuáº¥t file Excel báº£ng lÆ°Æ¡ng!');
     } catch (e) {
-      Alert.alert('Lỗi', 'Không thể xuất báo cáo: ' + e.message);
+      Alert.alert('Lá»—i', 'KhÃ´ng thá»ƒ xuáº¥t bÃ¡o cÃ¡o: ' + e.message);
     }
   };
   return (
@@ -527,7 +527,7 @@ export default function PayrollScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#1976d2" />
         </TouchableOpacity>
-        <Text style={styles.header}>Bảng Lương</Text>
+        <Text style={styles.header}>Báº£ng LÆ°Æ¡ng</Text>
       </View>
 
       <View style={styles.monthSelector}>
@@ -544,47 +544,45 @@ export default function PayrollScreen({ navigation }) {
       <ScrollView 
         style={styles.flexRoot}
         contentContainerStyle={styles.scrollContent}
-        decelerationRate="fast"
-        scrollEventThrottle={16}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
       >
         {isManager || isOwner ? (
           <View style={styles.summaryCard}>
             <View style={styles.summaryHeaderRow}>
               <View>
-                <Text style={styles.summaryTitle}>Tổng quỹ lương thực nhận</Text>
-                <Text style={styles.summaryAmount}>{formatMoney(payrollSummary.totalNet)} đ</Text>
+                <Text style={styles.summaryTitle}>Tá»•ng quá»¹ lÆ°Æ¡ng thá»±c nháº­n</Text>
+                <Text style={styles.summaryAmount}>{formatMoney(payrollSummary.totalNet)} Ä‘</Text>
               </View>
               <TouchableOpacity style={styles.exportBtn} onPress={handleExportExcel}>
                 <Ionicons name="download-outline" size={18} color="#fff" />
-                <Text style={styles.exportBtnText}>Xuất Excel</Text>
+                <Text style={styles.exportBtnText}>Xuáº¥t Excel</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.summaryGrid}>
               <View style={styles.summaryMiniBox}>
                 <Text style={styles.summaryMiniValue}>{payrollSummary.totalStaff}</Text>
-                <Text style={styles.summaryMiniLabel}>Nhân viên</Text>
+                <Text style={styles.summaryMiniLabel}>NhÃ¢n viÃªn</Text>
               </View>
               <View style={styles.summaryMiniBox}>
                 <Text style={styles.summaryMiniValue}>{payrollSummary.totalHours.toFixed(1)}h</Text>
-                <Text style={styles.summaryMiniLabel}>Giờ tính lương</Text>
+                <Text style={styles.summaryMiniLabel}>Giá» tÃ­nh lÆ°Æ¡ng</Text>
               </View>
               <View style={styles.summaryMiniBox}>
-                <Text style={styles.summaryMiniValue}>{formatMoney(payrollSummary.totalPenalty)}đ</Text>
-                <Text style={styles.summaryMiniLabel}>Tổng phạt</Text>
+                <Text style={styles.summaryMiniValue}>{formatMoney(payrollSummary.totalPenalty)}Ä‘</Text>
+                <Text style={styles.summaryMiniLabel}>Tá»•ng pháº¡t</Text>
               </View>
               <View style={styles.summaryMiniBox}>
                 <Text style={styles.summaryMiniValue}>{payrollSummary.finalized}/{payrollSummary.totalStaff}</Text>
-                <Text style={styles.summaryMiniLabel}>Đã chốt</Text>
+                <Text style={styles.summaryMiniLabel}>ÄÃ£ chá»‘t</Text>
               </View>
             </View>
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>Chi tiết nhân sự</Text>
+        <Text style={styles.sectionTitle}>Chi tiáº¿t nhÃ¢n sá»±</Text>
         
         {payrollData.length === 0 ? (
-          <Text style={{textAlign: 'center', color: COLORS.textMuted, marginTop: 20}}>Chưa có dữ liệu chấm công tháng này</Text>
+          <Text style={{textAlign: 'center', color: COLORS.textMuted, marginTop: 20}}>ChÆ°a cÃ³ dá»¯ liá»‡u cháº¥m cÃ´ng thÃ¡ng nÃ y</Text>
         ) : (
           payrollData.map(item => (
             <View key={item.id} style={styles.staffCard}>
@@ -595,12 +593,12 @@ export default function PayrollScreen({ navigation }) {
               >
                 <View style={{flex: 1}}>
                   <Text style={styles.staffName}>{item.name}</Text>
-                  <Text style={styles.staffRole}>{item.role === 'MANAGER' ? 'Quản Lý' : 'Nhân Viên'} • {item.wage ? `${formatMoney(item.wage)}đ/h` : 'Chưa nhập lương'}</Text>
-                  {item.approval.owner_confirmed && <Text style={{color: '#388e3c', fontSize: 12, fontWeight: 'bold', marginTop: 2}}>✓ Đã chốt lương</Text>}
+                  <Text style={styles.staffRole}>{item.role === 'MANAGER' ? 'Quáº£n LÃ½' : 'NhÃ¢n ViÃªn'} â€¢ {item.wage ? `${formatMoney(item.wage)}Ä‘/h` : 'ChÆ°a nháº­p lÆ°Æ¡ng'}</Text>
+                  {item.approval.owner_confirmed && <Text style={{color: '#388e3c', fontSize: 12, fontWeight: 'bold', marginTop: 2}}>âœ“ ÄÃ£ chá»‘t lÆ°Æ¡ng</Text>}
                 </View>
                 <View style={{alignItems: 'flex-end'}}>
-                  <Text style={styles.staffTotal}>{formatMoney(item.totalSalary)} đ</Text>
-                  <Text style={styles.staffHours}>Thực tế: {item.finalHours.toFixed(1)} giờ</Text>
+                  <Text style={styles.staffTotal}>{formatMoney(item.totalSalary)} Ä‘</Text>
+                  <Text style={styles.staffHours}>Thá»±c táº¿: {item.finalHours.toFixed(1)} giá»</Text>
                 </View>
               </TouchableOpacity>
 
@@ -611,72 +609,72 @@ export default function PayrollScreen({ navigation }) {
                   <View style={styles.salaryBreakdownCard}>
                     <View style={styles.salaryBreakdownHeader}>
                       <View style={{flex: 1}}>
-                        <Text style={styles.salaryBreakdownTitle}>Tổng hợp phiếu lương</Text>
-                        <Text style={styles.salaryModeText}>{getSalaryModeLabel(item)} • {getApprovalLabel(item)}</Text>
+                        <Text style={styles.salaryBreakdownTitle}>Tá»•ng há»£p phiáº¿u lÆ°Æ¡ng</Text>
+                        <Text style={styles.salaryModeText}>{getSalaryModeLabel(item)} â€¢ {getApprovalLabel(item)}</Text>
                       </View>
                       <TouchableOpacity style={styles.printBtn} onPress={() => handlePrintPayslip(item)}>
                         <Ionicons name="print-outline" size={16} color={COLORS.primary} />
-                        <Text style={styles.printBtnText}>In phiếu</Text>
+                        <Text style={styles.printBtnText}>In phiáº¿u</Text>
                       </TouchableOpacity>
                     </View>
 
                     <View style={styles.salaryGrid}>
                       <View style={styles.salaryCell}>
-                        <Text style={styles.salaryCellLabel}>Lương công</Text>
-                        <Text style={styles.salaryCellValue}>{formatMoney(item.baseSalary)}đ</Text>
-                        <Text style={styles.salaryCellMeta}>{item.totalHours.toFixed(1)}h × {formatMoney(item.wage || 0)}đ</Text>
+                        <Text style={styles.salaryCellLabel}>LÆ°Æ¡ng cÃ´ng</Text>
+                        <Text style={styles.salaryCellValue}>{formatMoney(item.baseSalary)}Ä‘</Text>
+                        <Text style={styles.salaryCellMeta}>{item.totalHours.toFixed(1)}h Ã— {formatMoney(item.wage || 0)}Ä‘</Text>
                       </View>
                       <View style={styles.salaryCell}>
-                        <Text style={styles.salaryCellLabel}>Thưởng</Text>
-                        <Text style={[styles.salaryCellValue, styles.positiveText]}>{formatMoney(item.bonusHoursSalary + item.bonusMoney)}đ</Text>
-                        <Text style={styles.salaryCellMeta}>Giờ + tiền</Text>
+                        <Text style={styles.salaryCellLabel}>ThÆ°á»Ÿng</Text>
+                        <Text style={[styles.salaryCellValue, styles.positiveText]}>{formatMoney(item.bonusHoursSalary + item.bonusMoney)}Ä‘</Text>
+                        <Text style={styles.salaryCellMeta}>Giá» + tiá»n</Text>
                       </View>
                       <View style={styles.salaryCell}>
-                        <Text style={styles.salaryCellLabel}>Phạt/trừ</Text>
-                        <Text style={[styles.salaryCellValue, styles.negativeText]}>-{formatMoney(item.totalPenalty)}đ</Text>
-                        <Text style={styles.salaryCellMeta}>Thủ công + tự động</Text>
+                        <Text style={styles.salaryCellLabel}>Pháº¡t/trá»«</Text>
+                        <Text style={[styles.salaryCellValue, styles.negativeText]}>-{formatMoney(item.totalPenalty)}Ä‘</Text>
+                        <Text style={styles.salaryCellMeta}>Thá»§ cÃ´ng + tá»± Ä‘á»™ng</Text>
                       </View>
                       <View style={[styles.salaryCell, styles.salaryNetCell]}>
-                        <Text style={styles.salaryCellLabel}>Thực nhận</Text>
-                        <Text style={styles.salaryNetValue}>{formatMoney(item.totalSalary)}đ</Text>
-                        <Text style={styles.salaryCellMeta}>Sau đối chiếu</Text>
+                        <Text style={styles.salaryCellLabel}>Thá»±c nháº­n</Text>
+                        <Text style={styles.salaryNetValue}>{formatMoney(item.totalSalary)}Ä‘</Text>
+                        <Text style={styles.salaryCellMeta}>Sau Ä‘á»‘i chiáº¿u</Text>
                       </View>
                     </View>
                   </View>
 
-                  {/* Khối Thưởng Phạt */}
+                  {/* Khá»‘i ThÆ°á»Ÿng Pháº¡t */}
                   <View style={styles.adjBlock}>
                     <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <Text style={styles.adjTitle}>Lương & Thưởng / Phạt</Text>
+                      <Text style={styles.adjTitle}>LÆ°Æ¡ng & ThÆ°á»Ÿng / Pháº¡t</Text>
                       {isOwner && !item.approval.owner_confirmed && (
                         <TouchableOpacity style={styles.adjEditBtn} onPress={() => openAdjustmentModal(item)}>
                           <Ionicons name="pencil" size={14} color="#1976d2" />
-                          <Text style={styles.adjEditText}>Điều chỉnh</Text>
+                          <Text style={styles.adjEditText}>Äiá»u chá»‰nh</Text>
                         </TouchableOpacity>
                       )}
                     </View>
                     <View style={{marginTop: 8, gap: 4}}>
-                      <Text style={styles.adjText}>• Giờ làm gốc: {item.totalHours.toFixed(1)}h ({item.recordsCount} ca)</Text>
-                      {item.adjustment?.bonus_hours > 0 && <Text style={[styles.adjText, {color: '#388e3c'}]}>• Thưởng thêm giờ: +{item.adjustment.bonus_hours}h</Text>}
-                      {item.adjustment?.bonus_money > 0 && <Text style={[styles.adjText, {color: '#388e3c'}]}>• Tiền thưởng (Quy định quán): +{formatMoney(item.adjustment.bonus_money)}đ</Text>}
-                      {item.adjustment?.manual_penalty > 0 && <Text style={[styles.adjText, {color: 'red'}]}>• Tiền phạt (Quy định quán): -{formatMoney(item.adjustment.manual_penalty)}đ</Text>}
-                      {item.adjustment?.note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: COLORS.textMuted, marginLeft: 10}]}>Lý do: {item.adjustment.note}</Text> : null}
+                      <Text style={styles.adjText}>â€¢ Giá» lÃ m gá»‘c: {item.totalHours.toFixed(1)}h ({item.recordsCount} ca)</Text>
+                      {item.adjustment?.bonus_hours > 0 && <Text style={[styles.adjText, {color: '#388e3c'}]}>â€¢ ThÆ°á»Ÿng thÃªm giá»: +{item.adjustment.bonus_hours}h</Text>}
+                      {item.adjustment?.bonus_money > 0 && <Text style={[styles.adjText, {color: '#388e3c'}]}>â€¢ Tiá»n thÆ°á»Ÿng (Quy Ä‘á»‹nh quÃ¡n): +{formatMoney(item.adjustment.bonus_money)}Ä‘</Text>}
+                      {item.adjustment?.manual_penalty > 0 && <Text style={[styles.adjText, {color: 'red'}]}>â€¢ Tiá»n pháº¡t (Quy Ä‘á»‹nh quÃ¡n): -{formatMoney(item.adjustment.manual_penalty)}Ä‘</Text>}
+                      {item.adjustment?.note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: COLORS.textMuted, marginLeft: 10}]}>LÃ½ do: {item.adjustment.note}</Text> : null}
                       
                       {item.adjustment?.auto_penalty > 0 && (
                         <>
-                          <Text style={[styles.adjText, {color: 'red', marginTop: 4}]}>• Lệch két (Hệ thống tự trừ): -{formatMoney(item.adjustment.auto_penalty)}đ</Text>
+                          <Text style={[styles.adjText, {color: 'red', marginTop: 4}]}>â€¢ Lá»‡ch kÃ©t (Há»‡ thá»‘ng tá»± trá»«): -{formatMoney(item.adjustment.auto_penalty)}Ä‘</Text>
                           {item.adjustment?.auto_note ? <Text style={[styles.adjText, {fontStyle: 'italic', color: COLORS.textMuted, marginLeft: 10}]}>{item.adjustment.auto_note}</Text> : null}
                         </>
                       )}
                     </View>
                   </View>
 
-                  {/* Khối Tiến trình Duyệt Lương */}
+                  {/* Khá»‘i Tiáº¿n trÃ¬nh Duyá»‡t LÆ°Æ¡ng */}
                   {renderApprovalProgress(item)}
 
-                  <Text style={{fontWeight: 'bold', marginBottom: 10, color: COLORS.text, marginTop: 15}}>Chi tiết các ngày làm việc:</Text>
+                  <Text style={{fontWeight: 'bold', marginBottom: 10, color: COLORS.text, marginTop: 15}}>Chi tiáº¿t cÃ¡c ngÃ y lÃ m viá»‡c:</Text>
                   {item.records.length === 0 ? (
-                    <Text style={styles.emptyText}>Không có dữ liệu</Text>
+                    <Text style={styles.emptyText}>KhÃ´ng cÃ³ dá»¯ liá»‡u</Text>
                   ) : (
                     item.records.map((r, idx) => (
                       <View key={idx} style={styles.recordRow}>
@@ -693,33 +691,33 @@ export default function PayrollScreen({ navigation }) {
         )}
       </ScrollView>
 
-      {/* MODAL ĐIỀU CHỈNH THƯỞNG PHẠT */}
+      {/* MODAL ÄIá»€U CHá»ˆNH THÆ¯á»žNG PHáº T */}
       <Modal visible={showAdjModal} transparent animationType="fade">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Thưởng / Phạt</Text>
+              <Text style={styles.modalTitle}>ThÆ°á»Ÿng / Pháº¡t</Text>
               <TouchableOpacity onPress={() => setShowAdjModal(false)}>
                 <Ionicons name="close" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalSubtitle}>Nhân viên: {adjTarget?.name}</Text>
+            <Text style={styles.modalSubtitle}>NhÃ¢n viÃªn: {adjTarget?.name}</Text>
             
-            <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" scrollEventThrottle={16}>
-              <Text style={styles.label}>Số giờ thưởng thêm (vd: 2.5):</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.label}>Sá»‘ giá» thÆ°á»Ÿng thÃªm (vd: 2.5):</Text>
               <TextInput style={styles.input} keyboardType="numeric" value={editBonusHours} onChangeText={setEditBonusHours} />
               
-              <Text style={styles.label}>Số tiền thưởng thêm (VNĐ):</Text>
+              <Text style={styles.label}>Sá»‘ tiá»n thÆ°á»Ÿng thÃªm (VNÄ):</Text>
               <TextInput style={styles.input} keyboardType="numeric" value={editBonusMoney} onChangeText={setEditBonusMoney} />
               
-              <Text style={styles.label}>Số tiền phạt / trừ lệch két (VNĐ):</Text>
+              <Text style={styles.label}>Sá»‘ tiá»n pháº¡t / trá»« lá»‡ch kÃ©t (VNÄ):</Text>
               <TextInput style={styles.input} keyboardType="numeric" value={editPenaltyMoney} onChangeText={setEditPenaltyMoney} />
               
-              <Text style={styles.label}>Ghi chú lý do:</Text>
-              <TextInput style={[styles.input, {height: 60}]} multiline value={editNote} onChangeText={setEditNote} placeholder="Vd: Thưởng lễ, đi trễ, làm vỡ ly..." />
+              <Text style={styles.label}>Ghi chÃº lÃ½ do:</Text>
+              <TextInput style={[styles.input, {height: 60}]} multiline value={editNote} onChangeText={setEditNote} placeholder="Vd: ThÆ°á»Ÿng lá»…, Ä‘i trá»…, lÃ m vá»¡ ly..." />
               
               <TouchableOpacity style={styles.saveBtn} onPress={handleSaveAdjustment} disabled={isSavingAdj}>
-                <Text style={styles.saveBtnText}>{isSavingAdj ? 'Đang lưu...' : 'Lưu Điều Chỉnh'}</Text>
+                <Text style={styles.saveBtnText}>{isSavingAdj ? 'Äang lÆ°u...' : 'LÆ°u Äiá»u Chá»‰nh'}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>

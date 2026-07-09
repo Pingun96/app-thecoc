@@ -83,10 +83,9 @@ function MainTabs() {
     attendanceHistory = [],
   } = useContext(AppContext);
 
-  // SafeAreaProvider đã tự lo - KHÔNG cộng thêm vào tab bar
-  // (React Navigation tự thêm safeBottom, nếu ta thêm nữa sẽ bị double)
-  const tabBarH = Platform.OS === 'web' ? 62 : Platform.OS === 'ios' ? 84 : 62;
-  const tabBarPB = Platform.OS === 'web' ? 12 : Platform.OS === 'ios' ? 22 : 7;
+  // Restoring old stable PWA tab layout constants
+  const tabBarH = Platform.OS === 'web' ? 82 : Platform.OS === 'ios' ? 84 : 62;
+  const tabBarPB = Platform.OS === 'web' ? 8 : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();
   const hasOpenAttendance = Boolean(
@@ -124,7 +123,6 @@ function MainTabs() {
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarSafeAreaInsets: Platform.OS === 'web' ? { bottom: 0 } : undefined,
         tabBarStyle: [
           styles.tabBar,
           {

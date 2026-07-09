@@ -27,8 +27,8 @@ export default function ShiftScheduleScreen({ navigation }) {
   if (isOwner && selectedStoreId === 'ALL') myStoreId = 'ALL';
 
   const storeName = myStoreId === 'ALL'
-    ? 'Tất cả chi nhánh'
-    : storeList.find((store) => store.id === myStoreId)?.name || `Chi nhánh ${myStoreId || '--'}`;
+    ? 'Táº¥t cáº£ chi nhÃ¡nh'
+    : storeList.find((store) => store.id === myStoreId)?.name || `Chi nhÃ¡nh ${myStoreId || '--'}`;
 
   const canScheduleShift = isOwner || (isManager && currentUser?.permissions?.can_schedule_shift === true);
 
@@ -62,14 +62,14 @@ export default function ShiftScheduleScreen({ navigation }) {
     ? currentUser.permissions.viewable_stores
     : [currentUser?.store_id];
 
-  // Nhân viên chỉ đăng ký vào chi nhánh gốc của mình. Chủ/Quản lý sẽ điều động sau.
+  // NhÃ¢n viÃªn chá»‰ Ä‘Äƒng kÃ½ vÃ o chi nhÃ¡nh gá»‘c cá»§a mÃ¬nh. Chá»§/Quáº£n lÃ½ sáº½ Ä‘iá»u Ä‘á»™ng sau.
   const [registerStoreId, setRegisterStoreId] = useState(currentUser?.store_id);
 
-  // Modal Xếp Ca
+  // Modal Xáº¿p Ca
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignTarget, setAssignTarget] = useState(null); // { date, shiftType }
 
-  // Modal Đổi Ca
+  // Modal Äá»•i Ca
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapShiftReg, setSwapShiftReg] = useState(null); // The shift to swap
 
@@ -88,18 +88,18 @@ export default function ShiftScheduleScreen({ navigation }) {
 
       setShiftSwaps([...shiftSwaps, newSwap]);
       setShowSwapModal(false);
-      Alert.alert('Thành công', 'Đã gửi yêu cầu đổi ca. Đang chờ quản lý duyệt.');
+      Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ gá»­i yÃªu cáº§u Ä‘á»•i ca. Äang chá» quáº£n lÃ½ duyá»‡t.');
 
       // Notify Manager
       const storeId = swapShiftReg.store_id;
       const managers = await getManagersToNotify(storeId);
       for (const manager of managers) {
         if (manager) {
-          sendPushNotification(manager.push_token, 'Yêu cầu đổi ca mới 🔔', `Nhân viên ${currentUser.name} vừa gửi yêu cầu nhờ làm thay ca.`, {}, manager.id);
+          sendPushNotification(manager.push_token, 'YÃªu cáº§u Ä‘á»•i ca má»›i ðŸ””', `NhÃ¢n viÃªn ${currentUser.name} vá»«a gá»­i yÃªu cáº§u nhá» lÃ m thay ca.`, {}, manager.id);
         }
       }
     } catch (e) {
-      Alert.alert('Lỗi', e.message);
+      Alert.alert('Lá»—i', e.message);
     }
   };
 
@@ -111,24 +111,24 @@ export default function ShiftScheduleScreen({ navigation }) {
       const shiftToSwap = shiftRegistrations.find(r => r.id === swap.shift_id);
       if (!shiftToSwap) return;
 
-      // VALIDATE: 1 người không được làm 2 ca cùng lúc
+      // VALIDATE: 1 ngÆ°á»i khÃ´ng Ä‘Æ°á»£c lÃ m 2 ca cÃ¹ng lÃºc
       const targetHasSameShift = shiftRegistrations.some(r => r.user_id === swap.target_user_id && r.date === shiftToSwap.date && r.shift_type === shiftToSwap.shift_type && (r.status === 'APPROVED' || r.status === 'PENDING'));
       if (targetHasSameShift) {
-        Alert.alert('Từ chối Đổi Ca', 'Nhân viên nhận ca ĐÃ CÓ LỊCH làm việc vào khung giờ này rồi. Vui lòng từ chối yêu cầu này!');
+        Alert.alert('Tá»« chá»‘i Äá»•i Ca', 'NhÃ¢n viÃªn nháº­n ca ÄÃƒ CÃ“ Lá»ŠCH lÃ m viá»‡c vÃ o khung giá» nÃ y rá»“i. Vui lÃ²ng tá»« chá»‘i yÃªu cáº§u nÃ y!');
         return;
       }
 
-      // VALIDATE: Không vượt quá 2 ca/ngày
+      // VALIDATE: KhÃ´ng vÆ°á»£t quÃ¡ 2 ca/ngÃ y
       const targetShiftsThatDay = shiftRegistrations.filter(r => r.user_id === swap.target_user_id && r.date === shiftToSwap.date && (r.status === 'APPROVED' || r.status === 'PENDING'));
       if (targetShiftsThatDay.length >= 2) {
-        Alert.alert('Từ chối Đổi Ca', 'Nhân viên nhận ca ĐÃ KÍN LỊCH trong ngày này. Vui lòng từ chối!');
+        Alert.alert('Tá»« chá»‘i Äá»•i Ca', 'NhÃ¢n viÃªn nháº­n ca ÄÃƒ KÃN Lá»ŠCH trong ngÃ y nÃ y. Vui lÃ²ng tá»« chá»‘i!');
         return;
       }
 
-      // VALIDATE: 1 ngày 1 chi nhánh
+      // VALIDATE: 1 ngÃ y 1 chi nhÃ¡nh
       const hasDifferentStoreShift = targetShiftsThatDay.some(r => r.store_id !== shiftToSwap.store_id);
       if (hasDifferentStoreShift) {
-        Alert.alert('Từ chối Đổi Ca', 'Nhân viên nhận ca đang có lịch làm ở CHI NHÁNH KHÁC trong ngày này. Vui lòng từ chối!');
+        Alert.alert('Tá»« chá»‘i Äá»•i Ca', 'NhÃ¢n viÃªn nháº­n ca Ä‘ang cÃ³ lá»‹ch lÃ m á»Ÿ CHI NHÃNH KHÃC trong ngÃ y nÃ y. Vui lÃ²ng tá»« chá»‘i!');
         return;
       }
 
@@ -143,20 +143,20 @@ export default function ShiftScheduleScreen({ navigation }) {
       setShiftSwaps(shiftSwaps.map(s => s.id === swapId ? { ...s, status: 'APPROVED' } : s));
       setShiftRegistrations(shiftRegistrations.map(r => r.id === swap.shift_id ? { ...r, user_id: swap.target_user_id } : r));
 
-      Alert.alert('Thành công', 'Đã duyệt đổi ca!');
+      Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ duyá»‡t Ä‘á»•i ca!');
 
       // Send notifications to both users
       const requester = staffList.find(s => s.id === swap.requester_id);
       const targetUser = staffList.find(s => s.id === swap.target_user_id);
       if (requester) {
-        sendPushNotification(requester.push_token, 'Đổi ca thành công ✅', 'Quản lý đã duyệt yêu cầu đổi ca của bạn.', {}, requester.id);
+        sendPushNotification(requester.push_token, 'Äá»•i ca thÃ nh cÃ´ng âœ…', 'Quáº£n lÃ½ Ä‘Ã£ duyá»‡t yÃªu cáº§u Ä‘á»•i ca cá»§a báº¡n.', {}, requester.id);
       }
       if (targetUser) {
-        sendPushNotification(targetUser.push_token, 'Bạn có ca mới 📅', 'Quản lý đã duyệt đổi ca. Bạn sẽ làm thay ca này.', {}, targetUser.id);
+        sendPushNotification(targetUser.push_token, 'Báº¡n cÃ³ ca má»›i ðŸ“…', 'Quáº£n lÃ½ Ä‘Ã£ duyá»‡t Ä‘á»•i ca. Báº¡n sáº½ lÃ m thay ca nÃ y.', {}, targetUser.id);
       }
 
     } catch (e) {
-      Alert.alert('Lỗi', e.message);
+      Alert.alert('Lá»—i', e.message);
     }
   };
 
@@ -167,11 +167,11 @@ export default function ShiftScheduleScreen({ navigation }) {
 
       setShiftSwaps(shiftSwaps.map(s => s.id === swapId ? { ...s, status: 'REJECTED' } : s));
     } catch (e) {
-      Alert.alert('Lỗi', e.message);
+      Alert.alert('Lá»—i', e.message);
     }
   };
 
-  // Lấy danh sách 7 ngày (Thứ 2 - Chủ Nhật) của tuần được chọn
+  // Láº¥y danh sÃ¡ch 7 ngÃ y (Thá»© 2 - Chá»§ Nháº­t) cá»§a tuáº§n Ä‘Æ°á»£c chá»n
   const getWeekDates = (offset) => {
     const curr = new Date();
     const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1) + (offset * 7);
@@ -194,7 +194,7 @@ export default function ShiftScheduleScreen({ navigation }) {
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
   };
 
-  const weekLabel = weekOffset === 0 ? 'Tuần này' : weekOffset === 1 ? 'Tuần sau' : weekOffset === -1 ? 'Tuần trước' : (weekOffset > 1 ? `Tuần sau +${weekOffset-1}` : `Cách đây ${Math.abs(weekOffset)} tuần`);
+  const weekLabel = weekOffset === 0 ? 'Tuáº§n nÃ y' : weekOffset === 1 ? 'Tuáº§n sau' : weekOffset === -1 ? 'Tuáº§n trÆ°á»›c' : (weekOffset > 1 ? `Tuáº§n sau +${weekOffset-1}` : `CÃ¡ch Ä‘Ã¢y ${Math.abs(weekOffset)} tuáº§n`);
   const weekRangeText = `${weekLabel} (${getShortDate(weekDates[0])} - ${getShortDate(weekDates[6])})`;
 
   const isRegistrationLocked = (dateStr) => {
@@ -205,25 +205,25 @@ export default function ShiftScheduleScreen({ navigation }) {
 
     const previousSunday = new Date(mondayOfThisWeek);
     previousSunday.setDate(mondayOfThisWeek.getDate() - 1);
-    previousSunday.setHours(13, 0, 0, 0); // 13:00 Chủ nhật tuần trước
+    previousSunday.setHours(13, 0, 0, 0); // 13:00 Chá»§ nháº­t tuáº§n trÆ°á»›c
 
     return new Date() > previousSunday;
   };
 
   const getDayName = (dateString) => {
     const d = new Date(dateString);
-    const days = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+    const days = ['Chá»§ Nháº­t', 'Thá»© 2', 'Thá»© 3', 'Thá»© 4', 'Thá»© 5', 'Thá»© 6', 'Thá»© 7'];
     const dd = String(d.getDate()).padStart(2, '0');
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     return `${days[d.getDay()]} (${dd}/${mm})`;
   };
 
-  // Lấy số lượng người đã đăng ký trong 1 ca (đã gửi, bao gồm PENDING & APPROVED)
+  // Láº¥y sá»‘ lÆ°á»£ng ngÆ°á»i Ä‘Ã£ Ä‘Äƒng kÃ½ trong 1 ca (Ä‘Ã£ gá»­i, bao gá»“m PENDING & APPROVED)
   const getShiftRegistrations = (date, shiftType) => {
     return shiftRegistrations.filter(r => r.date === date && r.shift_type === shiftType && r.store_id === myStoreId && (r.status === 'APPROVED' || r.status === 'PENDING'));
   };
 
-  // Lấy số người đã DUYỆT
+  // Láº¥y sá»‘ ngÆ°á»i Ä‘Ã£ DUYá»†T
   const getApprovedRegistrations = (date, shiftType) => {
     return shiftRegistrations.filter(r => r.date === date && r.shift_type === shiftType && r.store_id === myStoreId && r.status === 'APPROVED');
   };
@@ -251,11 +251,11 @@ export default function ShiftScheduleScreen({ navigation }) {
   };
 
   // =====================
-  // ĐĂNG KÝ CA (GIỎ HÀNG)
+  // ÄÄ‚NG KÃ CA (GIá»Ž HÃ€NG)
   // =====================
   const handleToggleDraft = (date, shiftType) => {
     if (isRegistrationLocked(date)) {
-      Alert.alert('Hết hạn đăng ký', 'Đã chốt lịch. Bạn phải đăng ký ca làm việc trước 13:00 Chủ Nhật của tuần trước đó.');
+      Alert.alert('Háº¿t háº¡n Ä‘Äƒng kÃ½', 'ÄÃ£ chá»‘t lá»‹ch. Báº¡n pháº£i Ä‘Äƒng kÃ½ ca lÃ m viá»‡c trÆ°á»›c 13:00 Chá»§ Nháº­t cá»§a tuáº§n trÆ°á»›c Ä‘Ã³.');
       return;
     }
 
@@ -273,7 +273,7 @@ export default function ShiftScheduleScreen({ navigation }) {
     const uniqueDraftedShifts = new Set(myDraftsThatDay.map(d => d.shiftType)).size;
 
     if (uniqueSubmittedShifts + uniqueDraftedShifts >= 2) {
-      Alert.alert('Cảnh báo', 'Bạn chỉ được đăng ký tối đa 2 ca/ngày (Sáng và Chiều)!');
+      Alert.alert('Cáº£nh bÃ¡o', 'Báº¡n chá»‰ Ä‘Æ°á»£c Ä‘Äƒng kÃ½ tá»‘i Ä‘a 2 ca/ngÃ y (SÃ¡ng vÃ  Chiá»u)!');
       return;
     }
 
@@ -301,42 +301,42 @@ export default function ShiftScheduleScreen({ navigation }) {
       if (error) throw error;
 
       setShiftRegistrations([...shiftRegistrations, ...newRegs]);
-      setDraftShifts([]); // Xóa giỏ hàng
+      setDraftShifts([]); // XÃ³a giá» hÃ ng
 
-      // 1. Lên lịch báo thức cho nhân viên (trước 60 phút)
+      // 1. LÃªn lá»‹ch bÃ¡o thá»©c cho nhÃ¢n viÃªn (trÆ°á»›c 60 phÃºt)
       for (const draft of draftShifts) {
         await scheduleShiftReminder(draft.date, draft.shiftType, 60);
       }
 
-      // 2. Gửi Push Notification cho Quản Lý chi nhánh
+      // 2. Gá»­i Push Notification cho Quáº£n LÃ½ chi nhÃ¡nh
       const uniqueStoreIds = [...new Set(draftShifts.map(d => d.storeId))];
       for (const sId of uniqueStoreIds) {
         const managers = await getManagersToNotify(sId);
         for (const manager of managers) {
           await sendPushNotification(
             manager.push_token,
-            'Lịch Làm Việc Mới',
-            `Nhân viên ${currentUser?.name} vừa gửi đăng ký ca làm việc. Đang chờ bạn duyệt.`,
+            'Lá»‹ch LÃ m Viá»‡c Má»›i',
+            `NhÃ¢n viÃªn ${currentUser?.name} vá»«a gá»­i Ä‘Äƒng kÃ½ ca lÃ m viá»‡c. Äang chá» báº¡n duyá»‡t.`,
             {},
             manager.id
           );
         }
       }
 
-      Alert.alert('Thành công', `Đã gửi thành công ${newRegs.length} ca làm việc. Vui lòng chờ quản lý duyệt!`);
+      Alert.alert('ThÃ nh cÃ´ng', `ÄÃ£ gá»­i thÃ nh cÃ´ng ${newRegs.length} ca lÃ m viá»‡c. Vui lÃ²ng chá» quáº£n lÃ½ duyá»‡t!`);
     } catch (e) {
-      Alert.alert('Lỗi gửi đăng ký', e.message);
+      Alert.alert('Lá»—i gá»­i Ä‘Äƒng kÃ½', e.message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   // =====================
-  // QUẢN LÝ CA LÀM VIỆC
+  // QUáº¢N LÃ CA LÃ€M VIá»†C
   // =====================
   const handleManagerDeleteShift = (regId, staffName, staffId) => {
     if (!canScheduleShift) {
-      Alert.alert('Không có quyền', 'Bạn không có quyền xóa ca làm việc.');
+      Alert.alert('KhÃ´ng cÃ³ quyá»n', 'Báº¡n khÃ´ng cÃ³ quyá»n xÃ³a ca lÃ m viá»‡c.');
       return;
     }
     setDeleteConfirmTarget({ regId, staffName, staffId });
@@ -346,7 +346,7 @@ export default function ShiftScheduleScreen({ navigation }) {
     if (!deleteConfirmTarget) return;
     const { regId, staffName, staffId } = deleteConfirmTarget;
     try {
-      // Lấy thông tin ca để gửi thông báo trước khi xóa
+      // Láº¥y thÃ´ng tin ca Ä‘á»ƒ gá»­i thÃ´ng bÃ¡o trÆ°á»›c khi xÃ³a
       const shiftToDelete = shiftRegistrations.find(r => r.id === regId);
 
       const { error } = await supabase
@@ -354,25 +354,25 @@ export default function ShiftScheduleScreen({ navigation }) {
         .delete()
         .eq('id', regId);
       if (error) {
-        Alert.alert('Lỗi xóa ca', error.message || 'Không xóa được, thử lại!');
+        Alert.alert('Lá»—i xÃ³a ca', error.message || 'KhÃ´ng xÃ³a Ä‘Æ°á»£c, thá»­ láº¡i!');
         return;
       }
       setShiftRegistrations(prev => prev.filter(r => r.id !== regId));
-      Alert.alert('Thành công', `Đã xóa ca của ${staffName}!`);
+      Alert.alert('ThÃ nh cÃ´ng', `ÄÃ£ xÃ³a ca cá»§a ${staffName}!`);
 
-      // Gửi thông báo cho nhân viên bị xóa ca (tự động xử lý push + in-app)
+      // Gá»­i thÃ´ng bÃ¡o cho nhÃ¢n viÃªn bá»‹ xÃ³a ca (tá»± Ä‘á»™ng xá»­ lÃ½ push + in-app)
       if (staffId) {
-        const shiftDateStr = shiftToDelete?.date ? ` ngày ${shiftToDelete.date}` : '';
+        const shiftDateStr = shiftToDelete?.date ? ` ngÃ y ${shiftToDelete.date}` : '';
         const shiftTypeStr = shiftToDelete?.shift_type ? ` (ca ${shiftToDelete.shift_type})` : '';
         sendNotificationToUser(
           staffId,
-          '📅 Ca làm việc bị hủy',
-          `Ca làm việc của bạn${shiftDateStr}${shiftTypeStr} đã bị quản lý hủy.`,
+          'ðŸ“… Ca lÃ m viá»‡c bá»‹ há»§y',
+          `Ca lÃ m viá»‡c cá»§a báº¡n${shiftDateStr}${shiftTypeStr} Ä‘Ã£ bá»‹ quáº£n lÃ½ há»§y.`,
           { route: 'ScheduleTab', type: 'SHIFT_CANCELLED' }
-        ).catch(e => console.log('Lỗi gửi thông báo xóa ca:', e?.message));
+        ).catch(e => console.log('Lá»—i gá»­i thÃ´ng bÃ¡o xÃ³a ca:', e?.message));
       }
     } catch (e) {
-      Alert.alert('Lỗi', e.message);
+      Alert.alert('Lá»—i', e.message);
     } finally {
       setDeleteConfirmTarget(null);
     }
@@ -382,19 +382,19 @@ export default function ShiftScheduleScreen({ navigation }) {
     try {
       const shiftToApprove = shiftRegistrations.find(r => r.id === regId);
 
-      // KIỂM TRA TRÙNG LỊCH KHI DUYỆT
+      // KIá»‚M TRA TRÃ™NG Lá»ŠCH KHI DUYá»†T
       if (shiftToApprove) {
-        // 1. Trùng ca: Đã có ca nào được duyệt ở cùng khung giờ này chưa?
+        // 1. TrÃ¹ng ca: ÄÃ£ cÃ³ ca nÃ o Ä‘Æ°á»£c duyá»‡t á»Ÿ cÃ¹ng khung giá» nÃ y chÆ°a?
         const existingApprovedSameTime = shiftRegistrations.find(r => r.user_id === staffId && r.date === shiftToApprove.date && r.shift_type === shiftToApprove.shift_type && r.status === 'APPROVED' && r.id !== regId);
         if (existingApprovedSameTime) {
-          Alert.alert('Lỗi Duyệt Ca', 'Nhân viên này đã được duyệt 1 ca làm việc khác vào cùng khung giờ này rồi!');
+          Alert.alert('Lá»—i Duyá»‡t Ca', 'NhÃ¢n viÃªn nÃ y Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t 1 ca lÃ m viá»‡c khÃ¡c vÃ o cÃ¹ng khung giá» nÃ y rá»“i!');
           return;
         }
 
-        // 2. Kín lịch: Đã làm đủ 2 ca/ngày chưa?
+        // 2. KÃ­n lá»‹ch: ÄÃ£ lÃ m Ä‘á»§ 2 ca/ngÃ y chÆ°a?
         const approvedShiftsThatDay = shiftRegistrations.filter(r => r.user_id === staffId && r.date === shiftToApprove.date && r.status === 'APPROVED' && r.id !== regId);
         if (approvedShiftsThatDay.length >= 2) {
-          Alert.alert('Lỗi Duyệt Ca', 'Nhân viên này đã kín lịch (2 ca) trong ngày hôm nay rồi!');
+          Alert.alert('Lá»—i Duyá»‡t Ca', 'NhÃ¢n viÃªn nÃ y Ä‘Ã£ kÃ­n lá»‹ch (2 ca) trong ngÃ y hÃ´m nay rá»“i!');
           return;
         }
       }
@@ -402,7 +402,7 @@ export default function ShiftScheduleScreen({ navigation }) {
       const { error } = await supabase.from('shift_registrations').update({ status: 'APPROVED' }).eq('id', regId);
       if (error) throw error;
 
-      // Auto-reject các ca PENDING bị xung đột (cùng khung giờ)
+      // Auto-reject cÃ¡c ca PENDING bá»‹ xung Ä‘á»™t (cÃ¹ng khung giá»)
       const conflictingPending = shiftRegistrations.filter(r =>
         r.user_id === staffId &&
         r.date === shiftToApprove.date &&
@@ -424,10 +424,10 @@ export default function ShiftScheduleScreen({ navigation }) {
 
       const staff = staffList.find(s => s.id === staffId);
       if (staff) {
-         sendPushNotification(staff.push_token, 'Lịch đã duyệt ✅', 'Ca làm việc của bạn đã được quản lý phê duyệt!', {}, staff.id);
+         sendPushNotification(staff.push_token, 'Lá»‹ch Ä‘Ã£ duyá»‡t âœ…', 'Ca lÃ m viá»‡c cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c quáº£n lÃ½ phÃª duyá»‡t!', {}, staff.id);
       }
     } catch (e) {
-      Alert.alert('Lỗi duyệt ca', e.message);
+      Alert.alert('Lá»—i duyá»‡t ca', e.message);
     }
   };
 
@@ -438,22 +438,22 @@ export default function ShiftScheduleScreen({ navigation }) {
 
       const staff = staffList.find(s => s.id === staffId);
       if (staff) {
-         sendPushNotification(staff.push_token, 'Đăng ký ca bị từ chối', 'Đăng ký ca làm việc của bạn đã bị từ chối!', {}, staff.id);
+         sendPushNotification(staff.push_token, 'ÄÄƒng kÃ½ ca bá»‹ tá»« chá»‘i', 'ÄÄƒng kÃ½ ca lÃ m viá»‡c cá»§a báº¡n Ä‘Ã£ bá»‹ tá»« chá»‘i!', {}, staff.id);
       }
     } catch (e) {
-      Alert.alert('Lỗi từ chối ca', e.message);
+      Alert.alert('Lá»—i tá»« chá»‘i ca', e.message);
     }
   };
 
   const handleAssignStaff = async (staffId) => {
     const { date, shiftType, storeId } = assignTarget;
 
-    // Tìm đăng ký của nhân viên này trong ca đó
+    // TÃ¬m Ä‘Äƒng kÃ½ cá»§a nhÃ¢n viÃªn nÃ y trong ca Ä‘Ã³
     const existingReg = shiftRegistrations.find(r => r.user_id === staffId && r.date === date && r.shift_type === shiftType);
 
     try {
       if (existingReg) {
-        // Cập nhật store_id và duyệt luôn
+        // Cáº­p nháº­t store_id vÃ  duyá»‡t luÃ´n
         const { error } = await supabase.from('shift_registrations')
           .update({ store_id: storeId, status: 'APPROVED' })
           .eq('id', existingReg.id);
@@ -466,7 +466,7 @@ export default function ShiftScheduleScreen({ navigation }) {
             : r
         ));
       } else {
-        // Tạo đăng ký mới tinh (Force Assign)
+        // Táº¡o Ä‘Äƒng kÃ½ má»›i tinh (Force Assign)
         const newReg = {
           id: `sr_${Date.now()}_${Math.random().toString(36).substring(7)}`,
           user_id: staffId,
@@ -487,12 +487,12 @@ export default function ShiftScheduleScreen({ navigation }) {
       const staff = staffList.find(s => s.id === staffId);
       const storeName = storeList.find(s => s.id === storeId)?.name || storeId;
       if (staff) {
-         sendPushNotification(staff.push_token, 'Điều động công tác 🏃', `Bạn đã được quản lý xếp sang làm việc tại ${storeName} cho ca đăng ký này!`, {}, staff.id);
+         sendPushNotification(staff.push_token, 'Äiá»u Ä‘á»™ng cÃ´ng tÃ¡c ðŸƒ', `Báº¡n Ä‘Ã£ Ä‘Æ°á»£c quáº£n lÃ½ xáº¿p sang lÃ m viá»‡c táº¡i ${storeName} cho ca Ä‘Äƒng kÃ½ nÃ y!`, {}, staff.id);
       }
 
-      Alert.alert('Thành công', `Đã điều động ${staff?.name} sang chi nhánh này!`);
+      Alert.alert('ThÃ nh cÃ´ng', `ÄÃ£ Ä‘iá»u Ä‘á»™ng ${staff?.name} sang chi nhÃ¡nh nÃ y!`);
     } catch (e) {
-      Alert.alert('Lỗi', e.message);
+      Alert.alert('Lá»—i', e.message);
     }
   };
 
@@ -505,7 +505,7 @@ export default function ShiftScheduleScreen({ navigation }) {
         contentContainerStyle={{paddingBottom: 100}}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
       >
-        <Text style={styles.sectionTitle}>Lịch làm việc cá nhân</Text>
+        <Text style={styles.sectionTitle}>Lá»‹ch lÃ m viá»‡c cÃ¡ nhÃ¢n</Text>
 
         <View style={styles.weekSelector}>
           <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
@@ -520,9 +520,9 @@ export default function ShiftScheduleScreen({ navigation }) {
         <ScrollView
         keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.timetableContainer}>
-            {/* Header Row: Ngày */}
+            {/* Header Row: NgÃ y */}
             <View style={styles.timeTableRow}>
-              <View style={[styles.timeTableCell, styles.timeTableHeaderCell, {width: 60, backgroundColor: '#1e3a8a', borderBottomColor: '#1e40af'}]}><Text style={[styles.timeTableTitle, {color: '#fff'}]}>Ca \ Thứ</Text></View>
+              <View style={[styles.timeTableCell, styles.timeTableHeaderCell, {width: 60, backgroundColor: '#1e3a8a', borderBottomColor: '#1e40af'}]}><Text style={[styles.timeTableTitle, {color: '#fff'}]}>Ca \ Thá»©</Text></View>
               {weekDates.map(date => (
                 <View key={`header_${date}`} style={[styles.timeTableCell, styles.timeTableHeaderCell, {backgroundColor: '#1e3a8a', borderBottomColor: '#1e40af'}]}>
                   <Text style={[styles.timeTableTitle, {color: '#fff'}]}>{getDayName(date).replace(/ (\d{1,2}\/\d{1,2})/, '\n($1)')}</Text>
@@ -530,10 +530,10 @@ export default function ShiftScheduleScreen({ navigation }) {
               ))}
             </View>
 
-            {/* Row Sáng */}
+            {/* Row SÃ¡ng */}
             <View style={styles.timeTableRow}>
               <View style={[styles.timeTableCell, styles.timeTableSidebarCell, {width: 60, backgroundColor: '#dcfce7', borderColor: '#86efac', borderWidth: 1}]}>
-                <Text style={[styles.timeTableSidebarText, {color: '#15803d'}]}>SÁNG</Text>
+                <Text style={[styles.timeTableSidebarText, {color: '#15803d'}]}>SÃNG</Text>
               </View>
               {weekDates.map(date => {
                 const myRegs = shiftRegistrations.filter(r => r.date === date && r.shift_type === 'MORNING' && r.user_id === currentUser.id);
@@ -558,7 +558,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                       <>
                         <Text style={[styles.cellStoreText, reg.status === 'APPROVED' ? styles.textWhite : {}]}>{sName}</Text>
                         <Text style={[styles.cellStatusText, reg.status === 'APPROVED' ? styles.textWhite : {}]}>
-                          {pendingSwap ? '(Chờ đổi)' : (reg.status === 'APPROVED' ? '(Đã duyệt)' : '(Chờ)')}
+                          {pendingSwap ? '(Chá» Ä‘á»•i)' : (reg.status === 'APPROVED' ? '(ÄÃ£ duyá»‡t)' : '(Chá»)')}
                         </Text>
                       </>
                     ) : (
@@ -569,10 +569,10 @@ export default function ShiftScheduleScreen({ navigation }) {
               })}
             </View>
 
-            {/* Row Chiều */}
+            {/* Row Chiá»u */}
             <View style={styles.timeTableRow}>
               <View style={[styles.timeTableCell, styles.timeTableSidebarCell, {width: 60, backgroundColor: '#fef08a', borderColor: '#fde047', borderWidth: 1}]}>
-                <Text style={[styles.timeTableSidebarText, {color: '#a16207'}]}>CHIỀU</Text>
+                <Text style={[styles.timeTableSidebarText, {color: '#a16207'}]}>CHIá»€U</Text>
               </View>
               {weekDates.map(date => {
                 const myRegs = shiftRegistrations.filter(r => r.date === date && r.shift_type === 'AFTERNOON' && r.user_id === currentUser.id);
@@ -597,7 +597,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                       <>
                         <Text style={[styles.cellStoreText, reg.status === 'APPROVED' ? styles.textWhite : {}]}>{sName}</Text>
                         <Text style={[styles.cellStatusText, reg.status === 'APPROVED' ? styles.textWhite : {}]}>
-                          {pendingSwap ? '(Chờ đổi)' : (reg.status === 'APPROVED' ? '(Đã duyệt)' : '(Chờ)')}
+                          {pendingSwap ? '(Chá» Ä‘á»•i)' : (reg.status === 'APPROVED' ? '(ÄÃ£ duyá»‡t)' : '(Chá»)')}
                         </Text>
                       </>
                     ) : (
@@ -623,8 +623,8 @@ export default function ShiftScheduleScreen({ navigation }) {
         contentContainerStyle={{paddingBottom: 100}}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
       >
-        <Text style={styles.sectionTitle}>Đăng ký lịch làm việc (Tối đa 4 người/ca)</Text>
-        <Text style={{fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 15}}>Lưu ý: Bạn chỉ chọn khung giờ rảnh. Quản lý sẽ tự động điều động bạn vào chi nhánh phù hợp.</Text>
+        <Text style={styles.sectionTitle}>ÄÄƒng kÃ½ lá»‹ch lÃ m viá»‡c (Tá»‘i Ä‘a 4 ngÆ°á»i/ca)</Text>
+        <Text style={{fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 15}}>LÆ°u Ã½: Báº¡n chá»‰ chá»n khung giá» ráº£nh. Quáº£n lÃ½ sáº½ tá»± Ä‘á»™ng Ä‘iá»u Ä‘á»™ng báº¡n vÃ o chi nhÃ¡nh phÃ¹ há»£p.</Text>
 
         <View style={styles.weekSelector}>
           <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
@@ -653,13 +653,13 @@ export default function ShiftScheduleScreen({ navigation }) {
             <View key={date} style={[styles.card, isPastDate && styles.cardPast]}>
               <Text style={styles.dateText}>{getDayName(date)}</Text>
               <View style={styles.shiftRow}>
-                {/* CA SÁNG */}
+                {/* CA SÃNG */}
                 {myMorningSubmitted ? (
                   <View style={[styles.shiftBtn, myMorningSubmitted.status === 'APPROVED' ? styles.shiftSubmitted : styles.shiftPending]}>
                     <Text style={[styles.shiftBtnText, styles.textWhite]}>
-                      {myMorningSubmitted.status === 'APPROVED' ? `SÁNG - ${getStoreAbbr(myMorningSubmitted.store_id)}` : 'SÁNG'}
+                      {myMorningSubmitted.status === 'APPROVED' ? `SÃNG - ${getStoreAbbr(myMorningSubmitted.store_id)}` : 'SÃNG'}
                     </Text>
-                    <Text style={[styles.shiftBtnText, styles.textWhite, {fontSize: 10}]}>({myMorningSubmitted.status === 'APPROVED' ? 'Đã Duyệt' : 'Chờ Duyệt'})</Text>
+                    <Text style={[styles.shiftBtnText, styles.textWhite, {fontSize: 10}]}>({myMorningSubmitted.status === 'APPROVED' ? 'ÄÃ£ Duyá»‡t' : 'Chá» Duyá»‡t'})</Text>
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -668,18 +668,18 @@ export default function ShiftScheduleScreen({ navigation }) {
                     onPress={() => handleToggleDraft(date, 'MORNING')}
                   >
                     <Text style={[styles.shiftBtnText, myMorningDraft ? styles.textWhite : {}]}>
-                      {myMorningDraft ? 'SÁNG (Đang chọn)' : `SÁNG (Đăng ký)`}
+                      {myMorningDraft ? 'SÃNG (Äang chá»n)' : `SÃNG (ÄÄƒng kÃ½)`}
                     </Text>
                   </TouchableOpacity>
                 )}
 
-                {/* CA CHIỀU */}
+                {/* CA CHIá»€U */}
                 {myAfternoonSubmitted ? (
                   <View style={[styles.shiftBtn, myAfternoonSubmitted.status === 'APPROVED' ? styles.shiftSubmitted : styles.shiftPending]}>
                     <Text style={[styles.shiftBtnText, styles.textWhite]}>
-                      {myAfternoonSubmitted.status === 'APPROVED' ? `CHIỀU - ${getStoreAbbr(myAfternoonSubmitted.store_id)}` : 'CHIỀU'}
+                      {myAfternoonSubmitted.status === 'APPROVED' ? `CHIá»€U - ${getStoreAbbr(myAfternoonSubmitted.store_id)}` : 'CHIá»€U'}
                     </Text>
-                    <Text style={[styles.shiftBtnText, styles.textWhite, {fontSize: 10}]}>({myAfternoonSubmitted.status === 'APPROVED' ? 'Đã Duyệt' : 'Chờ Duyệt'})</Text>
+                    <Text style={[styles.shiftBtnText, styles.textWhite, {fontSize: 10}]}>({myAfternoonSubmitted.status === 'APPROVED' ? 'ÄÃ£ Duyá»‡t' : 'Chá» Duyá»‡t'})</Text>
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -688,7 +688,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                     onPress={() => handleToggleDraft(date, 'AFTERNOON')}
                   >
                     <Text style={[styles.shiftBtnText, myAfternoonDraft ? styles.textWhite : {}]}>
-                      {myAfternoonDraft ? 'CHIỀU (Đang chọn)' : `CHIỀU (Đăng ký)`}
+                      {myAfternoonDraft ? 'CHIá»€U (Äang chá»n)' : `CHIá»€U (ÄÄƒng kÃ½)`}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -698,11 +698,11 @@ export default function ShiftScheduleScreen({ navigation }) {
         })}
       </ScrollView>
 
-      {/* FOOTER GỬI ĐĂNG KÝ */}
+      {/* FOOTER Gá»¬I ÄÄ‚NG KÃ */}
       {draftShifts.length > 0 && (
         <View style={styles.footerContainer}>
           <TouchableOpacity style={styles.submitBtn} onPress={handleSubmitDrafts} disabled={isSubmitting}>
-            <Text style={styles.submitBtnText}>{isSubmitting ? 'ĐANG GỬI...' : `GỬI ĐĂNG KÝ (${draftShifts.length} CA)`}</Text>
+            <Text style={styles.submitBtnText}>{isSubmitting ? 'ÄANG Gá»¬I...' : `Gá»¬I ÄÄ‚NG KÃ (${draftShifts.length} CA)`}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -710,7 +710,7 @@ export default function ShiftScheduleScreen({ navigation }) {
   );
 
   // =====================
-  // LỊCH TỔNG (OVERVIEW)
+  // Lá»ŠCH Tá»”NG (OVERVIEW)
   // =====================
   const renderScheduleOverview = () => (
     <ScrollView
@@ -719,7 +719,7 @@ export default function ShiftScheduleScreen({ navigation }) {
       contentContainerStyle={{paddingBottom: 80}}
       refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} />}
     >
-      <Text style={styles.sectionTitle}>Lịch Tổng - Tất cả chi nhánh</Text>
+      <Text style={styles.sectionTitle}>Lá»‹ch Tá»•ng - Táº¥t cáº£ chi nhÃ¡nh</Text>
 
       <View style={styles.weekSelector}>
         <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
@@ -731,10 +731,10 @@ export default function ShiftScheduleScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Yêu cầu Đổi ca (Dành cho Quản lý) */}
+      {/* YÃªu cáº§u Äá»•i ca (DÃ nh cho Quáº£n lÃ½) */}
       {canScheduleShift && shiftSwaps.filter(s => s.status === 'PENDING').length > 0 && (
         <View style={styles.swapApprovalContainer}>
-          <Text style={styles.swapApprovalTitle}>⚠️ Cần Duyệt Đổi Ca</Text>
+          <Text style={styles.swapApprovalTitle}>âš ï¸ Cáº§n Duyá»‡t Äá»•i Ca</Text>
           {shiftSwaps.filter(s => s.status === 'PENDING').map(swap => {
             const shift = shiftRegistrations.find(r => r.id === swap.shift_id);
             if (!shift) return null;
@@ -742,20 +742,20 @@ export default function ShiftScheduleScreen({ navigation }) {
             const target = staffList.find(u => u.id === swap.target_user_id);
             const sName = storeList.find(s => s.id === shift.store_id)?.name || `CN ${shift.store_id}`;
             const dateStr = getDayName(shift.date);
-            const shiftName = shift.shift_type === 'MORNING' ? 'Sáng' : 'Chiều';
+            const shiftName = shift.shift_type === 'MORNING' ? 'SÃ¡ng' : 'Chiá»u';
 
             return (
               <View key={swap.id} style={styles.swapItem}>
                 <View style={{flex: 1}}>
-                  <Text style={styles.swapItemText}><Text style={{fontWeight: 'bold'}}>{requester?.name}</Text> muốn nhượng ca cho <Text style={{fontWeight: 'bold'}}>{target?.name}</Text></Text>
-                  <Text style={styles.swapItemDetail}>Ca {shiftName} - {dateStr} tại {sName}</Text>
+                  <Text style={styles.swapItemText}><Text style={{fontWeight: 'bold'}}>{requester?.name}</Text> muá»‘n nhÆ°á»£ng ca cho <Text style={{fontWeight: 'bold'}}>{target?.name}</Text></Text>
+                  <Text style={styles.swapItemDetail}>Ca {shiftName} - {dateStr} táº¡i {sName}</Text>
                 </View>
                 <View style={{flexDirection: 'row', gap: 10}}>
                   <TouchableOpacity onPress={() => handleApproveSwap(swap.id)} style={[styles.swapActionBtn, {backgroundColor: '#4CAF50'}]}>
-                    <Text style={{color: '#fff', fontSize: 12, fontWeight: 'bold'}}>Duyệt</Text>
+                    <Text style={{color: '#fff', fontSize: 12, fontWeight: 'bold'}}>Duyá»‡t</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleRejectSwap(swap.id)} style={[styles.swapActionBtn, {backgroundColor: '#f44336'}]}>
-                    <Text style={{color: '#fff', fontSize: 12, fontWeight: 'bold'}}>Từ chối</Text>
+                    <Text style={{color: '#fff', fontSize: 12, fontWeight: 'bold'}}>Tá»« chá»‘i</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -813,12 +813,12 @@ export default function ShiftScheduleScreen({ navigation }) {
                   const staff = staffList.find(s => s.id === userId);
                   if (!staff) return { name: 'Unknown', label: '', bgColor: '#f0fdfa', textColor: '#0f766e' };
 
-                  let label = 'PC'; // Pha chế mặc định
-                  if (staff.role === 'OWNER') label = 'CHỦ';
+                  let label = 'PC'; // Pha cháº¿ máº·c Ä‘á»‹nh
+                  if (staff.role === 'OWNER') label = 'CHá»¦';
                   else if (staff.role === 'MANAGER') label = 'QL';
-                  else if (staff.permissions?.cashier) label = 'TN'; // Thu ngân
+                  else if (staff.permissions?.cashier) label = 'TN'; // Thu ngÃ¢n
 
-                  // Tạo màu ngẫu nhiên nhưng cố định theo userId
+                  // Táº¡o mÃ u ngáº«u nhiÃªn nhÆ°ng cá»‘ Ä‘á»‹nh theo userId
                   let hash = 0;
                   for (let i = 0; i < userId.length; i++) {
                     hash = userId.charCodeAt(i) + ((hash << 5) - hash);
@@ -888,7 +888,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                                   </View>
                                 )}
                                 <Text style={[styles.staffBadgeText, {color: '#b45309'}]} numberOfLines={1}>
-                                  ⏳ {getDisplayName(s.name, staffList)}
+                                  â³ {getDisplayName(s.name, staffList)}
                                 </Text>
                               </View>
                               {canScheduleShift && !isPastDate && (
@@ -914,7 +914,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                             }}
                           >
                             <Ionicons name="add" size={14} color="#1976d2" />
-                            <Text style={styles.addBtnTextSmall}>Xếp</Text>
+                            <Text style={styles.addBtnTextSmall}>Xáº¿p</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -926,8 +926,8 @@ export default function ShiftScheduleScreen({ navigation }) {
                   <View key={date} style={[styles.dayColumn, isPastDate && { opacity: 0.6, backgroundColor: '#f5f5f5' }]}>
                     <Text style={styles.dayColHeader}>{getDayName(date)}</Text>
                     <View style={styles.dayColBody}>
-                      {renderShiftBox(morningRegs, 'MORNING', 'SÁNG', '#15803d', '#dcfce7', '#86efac')}
-                      {renderShiftBox(afternoonRegs, 'AFTERNOON', 'CHIỀU', '#a16207', '#fef08a', '#fde047')}
+                      {renderShiftBox(morningRegs, 'MORNING', 'SÃNG', '#15803d', '#dcfce7', '#86efac')}
+                      {renderShiftBox(afternoonRegs, 'AFTERNOON', 'CHIá»€U', '#a16207', '#fef08a', '#fde047')}
                     </View>
                   </View>
                 );
@@ -946,7 +946,7 @@ export default function ShiftScheduleScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#1976d2" />
         </TouchableOpacity>
-        <Text style={styles.header}>Quản lý Lịch Làm Việc</Text>
+        <Text style={styles.header}>Quáº£n lÃ½ Lá»‹ch LÃ m Viá»‡c</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative', marginRight: 10 }}>
           <Ionicons name="notifications-outline" size={26} color="#60a5fa" />
           {unreadCount > 0 && (
@@ -959,13 +959,13 @@ export default function ShiftScheduleScreen({ navigation }) {
 
       <View style={styles.tabContainer}>
         <TouchableOpacity style={[styles.tabBtn, activeTab === 'PERSONAL' && styles.tabBtnActive]} onPress={() => setActiveTab('PERSONAL')}>
-          <Text style={[styles.tabText, activeTab === 'PERSONAL' && styles.tabTextActive]}>Cá Nhân</Text>
+          <Text style={[styles.tabText, activeTab === 'PERSONAL' && styles.tabTextActive]}>CÃ¡ NhÃ¢n</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.tabBtn, activeTab === 'SCHEDULE' && styles.tabBtnActive]} onPress={() => setActiveTab('SCHEDULE')}>
-          <Text style={[styles.tabText, activeTab === 'SCHEDULE' && styles.tabTextActive]}>Lịch Quán</Text>
+          <Text style={[styles.tabText, activeTab === 'SCHEDULE' && styles.tabTextActive]}>Lá»‹ch QuÃ¡n</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.tabBtn, activeTab === 'REGISTER' && styles.tabBtnActive]} onPress={() => setActiveTab('REGISTER')}>
-          <Text style={[styles.tabText, activeTab === 'REGISTER' && styles.tabTextActive]}>Đăng Ký</Text>
+          <Text style={[styles.tabText, activeTab === 'REGISTER' && styles.tabTextActive]}>ÄÄƒng KÃ½</Text>
         </TouchableOpacity>
       </View>
       </View>
@@ -976,25 +976,25 @@ export default function ShiftScheduleScreen({ navigation }) {
         {activeTab === 'REGISTER' && renderStaffRegister()}
       </View>
 
-      {/* Modal Chọn Nhân Viên Để Xếp Ca */}
+      {/* Modal Chá»n NhÃ¢n ViÃªn Äá»ƒ Xáº¿p Ca */}
       <Modal visible={showAssignModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Xếp Nhân Viên</Text>
+              <Text style={styles.modalTitle}>Xáº¿p NhÃ¢n ViÃªn</Text>
               <TouchableOpacity onPress={() => setShowAssignModal(false)}>
                 <Ionicons name="close" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>
-              {assignTarget ? `${assignTarget.shiftType === 'MORNING' ? 'Ca Sáng' : 'Ca Chiều'} - ${getDayName(assignTarget.date)}` : ''}
+              {assignTarget ? `${assignTarget.shiftType === 'MORNING' ? 'Ca SÃ¡ng' : 'Ca Chiá»u'} - ${getDayName(assignTarget.date)}` : ''}
             </Text>
             <ScrollView keyboardShouldPersistTaps="handled" style={{maxHeight: 300, marginTop: 10}}>
               {staffList.filter(staff => {
                 if (!assignTarget) return false;
-                if (staff.is_active === false) return false; // Không xếp nhân viên đã nghỉ
+                if (staff.is_active === false) return false; // KhÃ´ng xáº¿p nhÃ¢n viÃªn Ä‘Ã£ nghá»‰
 
-                // 1. Kiểm tra nhân viên có được phép làm ở chi nhánh đích không
+                // 1. Kiá»ƒm tra nhÃ¢n viÃªn cÃ³ Ä‘Æ°á»£c phÃ©p lÃ m á»Ÿ chi nhÃ¡nh Ä‘Ã­ch khÃ´ng
                 const isAllowedAtStore = staff.store_id === assignTarget.storeId || staff.permissions?.viewable_stores?.includes(assignTarget.storeId);
                 if (!isAllowedAtStore) return false;
 
@@ -1002,13 +1002,13 @@ export default function ShiftScheduleScreen({ navigation }) {
 
                 const sameShiftReg = staffShiftsToday.find(r => r.shift_type === assignTarget.shiftType);
 
-                // Nếu đã được duyệt làm việc tại CHI NHÁNH KHÁC trong đúng ca này -> Không được xếp nữa
+                // Náº¿u Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t lÃ m viá»‡c táº¡i CHI NHÃNH KHÃC trong Ä‘Ãºng ca nÃ y -> KhÃ´ng Ä‘Æ°á»£c xáº¿p ná»¯a
                 if (sameShiftReg && sameShiftReg.status === 'APPROVED' && sameShiftReg.store_id !== assignTarget.storeId) return false;
 
-                // Nếu đã được duyệt làm việc TẠI ĐÂY trong đúng ca này -> Ẩn đi cho đỡ rối (vì đã có trên lịch)
+                // Náº¿u Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t lÃ m viá»‡c Táº I ÄÃ‚Y trong Ä‘Ãºng ca nÃ y -> áº¨n Ä‘i cho Ä‘á»¡ rá»‘i (vÃ¬ Ä‘Ã£ cÃ³ trÃªn lá»‹ch)
                 if (sameShiftReg && sameShiftReg.status === 'APPROVED' && sameShiftReg.store_id === assignTarget.storeId) return false;
 
-                // 4. Luật 1 ngày 1 chi nhánh: Nếu họ có 1 ca KHÁC ở chi nhánh khác đã APPROVED (ví dụ Sáng làm ở A, thì chiều không thể làm ở B)
+                // 4. Luáº­t 1 ngÃ y 1 chi nhÃ¡nh: Náº¿u há» cÃ³ 1 ca KHÃC á»Ÿ chi nhÃ¡nh khÃ¡c Ä‘Ã£ APPROVED (vÃ­ dá»¥ SÃ¡ng lÃ m á»Ÿ A, thÃ¬ chiá»u khÃ´ng thá»ƒ lÃ m á»Ÿ B)
                 const hasOtherStoreDifferentShift = staffShiftsToday.some(r => r.store_id !== assignTarget.storeId && r.shift_type !== assignTarget.shiftType && r.status === 'APPROVED');
                 if (hasOtherStoreDifferentShift) return false;
 
@@ -1017,7 +1017,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                 <TouchableOpacity key={staff.id} style={styles.staffSelectBtn} onPress={() => handleAssignStaff(staff.id)}>
                   <View>
                     <Text style={styles.staffSelectName}>{staff.name}</Text>
-                    <Text style={styles.staffSelectRole}>{staff.role === 'MANAGER' ? 'Quản Lý' : staff.role === 'STAFF' ? 'Nhân Viên' : 'Chủ Cửa Hàng'}</Text>
+                    <Text style={styles.staffSelectRole}>{staff.role === 'MANAGER' ? 'Quáº£n LÃ½' : staff.role === 'STAFF' ? 'NhÃ¢n ViÃªn' : 'Chá»§ Cá»­a HÃ ng'}</Text>
                   </View>
                   <Ionicons name="add-circle" size={24} color="#1976d2" />
                 </TouchableOpacity>
@@ -1027,58 +1027,58 @@ export default function ShiftScheduleScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* Modal Xác Nhận Xóa Ca */}
+      {/* Modal XÃ¡c Nháº­n XÃ³a Ca */}
       <Modal visible={!!deleteConfirmTarget} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Xóa Ca Làm Việc</Text>
+              <Text style={styles.modalTitle}>XÃ³a Ca LÃ m Viá»‡c</Text>
               <TouchableOpacity onPress={() => setDeleteConfirmTarget(null)}>
                 <Ionicons name="close" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
             <Text style={[styles.modalSubtitle, { marginBottom: 20 }]}>
-              Bạn có chắc muốn xóa ca của {deleteConfirmTarget?.staffName} không?
+              Báº¡n cÃ³ cháº¯c muá»‘n xÃ³a ca cá»§a {deleteConfirmTarget?.staffName} khÃ´ng?
             </Text>
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
               <TouchableOpacity style={[styles.btn, { backgroundColor: '#f3f4f6', paddingHorizontal: 20 }]} onPress={() => setDeleteConfirmTarget(null)}>
-                <Text style={{ color: '#4b5563', fontWeight: 'bold' }}>Hủy</Text>
+                <Text style={{ color: '#4b5563', fontWeight: 'bold' }}>Há»§y</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.btn, { backgroundColor: '#ef4444', paddingHorizontal: 20 }]} onPress={confirmDeleteShift}>
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Xóa</Text>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>XÃ³a</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Modal Chọn Nhân Viên Để Đổi Ca */}
+      {/* Modal Chá»n NhÃ¢n ViÃªn Äá»ƒ Äá»•i Ca */}
       <Modal visible={showSwapModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Xin Đổi Ca</Text>
+              <Text style={styles.modalTitle}>Xin Äá»•i Ca</Text>
               <TouchableOpacity onPress={() => setShowSwapModal(false)}>
                 <Ionicons name="close" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>
-              Chọn đồng nghiệp bạn muốn nhờ làm thay:
+              Chá»n Ä‘á»“ng nghiá»‡p báº¡n muá»‘n nhá» lÃ m thay:
             </Text>
             <ScrollView keyboardShouldPersistTaps="handled" style={{maxHeight: 300, marginTop: 10}}>
               {staffList.filter(staff => {
                 if (staff.id === currentUser.id) return false;
                 if (!swapShiftReg) return false;
 
-                // 1. Không hiển thị nhân viên đã có ca làm việc ở cùng khung giờ Sáng/Chiều đó
+                // 1. KhÃ´ng hiá»ƒn thá»‹ nhÃ¢n viÃªn Ä‘Ã£ cÃ³ ca lÃ m viá»‡c á»Ÿ cÃ¹ng khung giá» SÃ¡ng/Chiá»u Ä‘Ã³
                 const targetHasSameShift = shiftRegistrations.some(r => r.user_id === staff.id && r.date === swapShiftReg.date && r.shift_type === swapShiftReg.shift_type && (r.status === 'APPROVED' || r.status === 'PENDING'));
                 if (targetHasSameShift) return false;
 
-                // 2. Không hiển thị nhân viên đã làm 2 ca trong ngày đó (kín lịch)
+                // 2. KhÃ´ng hiá»ƒn thá»‹ nhÃ¢n viÃªn Ä‘Ã£ lÃ m 2 ca trong ngÃ y Ä‘Ã³ (kÃ­n lá»‹ch)
                 const targetShiftsThatDay = shiftRegistrations.filter(r => r.user_id === staff.id && r.date === swapShiftReg.date && (r.status === 'APPROVED' || r.status === 'PENDING'));
                 if (targetShiftsThatDay.length >= 2) return false;
 
-                // 3. Quy tắc 1 ngày 1 chi nhánh: Nếu nhân viên đã có ca làm việc khác trong ngày, thì phải cùng chi nhánh với ca đang xin đổi
+                // 3. Quy táº¯c 1 ngÃ y 1 chi nhÃ¡nh: Náº¿u nhÃ¢n viÃªn Ä‘Ã£ cÃ³ ca lÃ m viá»‡c khÃ¡c trong ngÃ y, thÃ¬ pháº£i cÃ¹ng chi nhÃ¡nh vá»›i ca Ä‘ang xin Ä‘á»•i
                 const hasDifferentStoreShift = targetShiftsThatDay.some(r => r.store_id !== swapShiftReg.store_id);
                 if (hasDifferentStoreShift) return false;
 
@@ -1087,7 +1087,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                 <TouchableOpacity key={staff.id} style={styles.staffSelectBtn} onPress={() => handleRequestSwap(staff.id)}>
                   <View>
                     <Text style={styles.staffSelectName}>{staff.name}</Text>
-                    <Text style={styles.staffSelectRole}>{staff.role === 'MANAGER' ? 'Quản Lý' : staff.role === 'STAFF' ? 'Nhân Viên' : 'Chủ Cửa Hàng'}</Text>
+                    <Text style={styles.staffSelectRole}>{staff.role === 'MANAGER' ? 'Quáº£n LÃ½' : staff.role === 'STAFF' ? 'NhÃ¢n ViÃªn' : 'Chá»§ Cá»­a HÃ ng'}</Text>
                   </View>
                   <Ionicons name="swap-horizontal" size={24} color="#1976d2" />
                 </TouchableOpacity>
@@ -1158,7 +1158,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   submitBtn: { backgroundColor: '#e91e63', padding: 15, borderRadius: 10, alignItems: 'center', elevation: 3 },
   submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 
-  // Lịch Tổng styles
+  // Lá»‹ch Tá»•ng styles
   storeCard: { backgroundColor: COLORS.card, borderRadius: 12, marginBottom: 20, elevation: 3, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.25 : 0.1, shadowRadius: 5, shadowOffset: {width: 0, height: 2}, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
   storeHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, padding: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   storeHeaderText: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
@@ -1187,7 +1187,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   staffSelectName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
   staffSelectRole: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 
-  // Thời Khóa Biểu
+  // Thá»i KhÃ³a Biá»ƒu
   timetableContainer: { backgroundColor: COLORS.card, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
   timeTableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.border },
   timeTableCell: { width: 100, minHeight: 70, borderRightWidth: 1, borderRightColor: COLORS.border, justifyContent: 'center', alignItems: 'center', padding: 5 },

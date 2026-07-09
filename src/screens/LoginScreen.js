@@ -42,7 +42,7 @@ export default function LoginScreen({ navigation }) {
         if (storedPhone === '0900000000') {
           setCurrentUser({
             id: 'owner_1',
-            name: 'Chủ Cửa Hàng',
+            name: 'Chá»§ Cá»­a HÃ ng',
             role: 'OWNER',
             store_id: null,
             permissions: {},
@@ -57,7 +57,7 @@ export default function LoginScreen({ navigation }) {
           navigation.replace('Dashboard');
         }
       } catch (e) {
-        console.log('Lỗi auto login:', e);
+        console.log('Lá»—i auto login:', e);
       }
     };
     autoLogin();
@@ -66,7 +66,7 @@ export default function LoginScreen({ navigation }) {
   const handleLogin = async () => {
     const normalizedPhone = phone.replace(/\s/g, '');
     if (!normalizedPhone || !password) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập số điện thoại và mật khẩu.');
+      Alert.alert('Thiáº¿u thÃ´ng tin', 'Vui lÃ²ng nháº­p sá»‘ Ä‘iá»‡n thoáº¡i vÃ  máº­t kháº©u.');
       return;
     }
 
@@ -75,7 +75,7 @@ export default function LoginScreen({ navigation }) {
       if (normalizedPhone === '0900000000' && password === '123') {
         setCurrentUser({
           id: 'owner_1',
-          name: 'Chủ Cửa Hàng',
+          name: 'Chá»§ Cá»­a HÃ ng',
           role: 'OWNER',
           store_id: null,
           permissions: {},
@@ -87,15 +87,15 @@ export default function LoginScreen({ navigation }) {
 
       const user = staffList.find((staff) => staff.phone === normalizedPhone);
       if (!user) {
-        Alert.alert('Không tìm thấy tài khoản', 'Số điện thoại chưa được đăng ký trong hệ thống.');
+        Alert.alert('KhÃ´ng tÃ¬m tháº¥y tÃ i khoáº£n', 'Sá»‘ Ä‘iá»‡n thoáº¡i chÆ°a Ä‘Æ°á»£c Ä‘Äƒng kÃ½ trong há»‡ thá»‘ng.');
         return;
       }
       if (password !== (user.password || '123')) {
-        Alert.alert('Đăng nhập thất bại', 'Mật khẩu không đúng.');
+        Alert.alert('ÄÄƒng nháº­p tháº¥t báº¡i', 'Máº­t kháº©u khÃ´ng Ä‘Ãºng.');
         return;
       }
       if (user.hasAppAccess === false) {
-        Alert.alert('Tài khoản bị khóa', 'Vui lòng liên hệ quản lý để được cấp quyền truy cập.');
+        Alert.alert('TÃ i khoáº£n bá»‹ khÃ³a', 'Vui lÃ²ng liÃªn há»‡ quáº£n lÃ½ Ä‘á»ƒ Ä‘Æ°á»£c cáº¥p quyá»n truy cáº­p.');
         return;
       }
 
@@ -119,27 +119,27 @@ export default function LoginScreen({ navigation }) {
             style={styles.logo}
           />
         </View>
-        <Text style={styles.title}>The Cốc</Text>
-        <Text style={styles.subtitle}>Vận hành cửa hàng nội bộ</Text>
+        <Text style={styles.title}>The Cá»‘c</Text>
+        <Text style={styles.subtitle}>Váº­n hÃ nh cá»­a hÃ ng ná»™i bá»™</Text>
       </View>
 
       <View style={styles.formCard}>
-        <Text style={styles.welcome}>Đăng nhập</Text>
-        <Text style={styles.formCaption}>Sử dụng tài khoản đã được quản lý cấp.</Text>
+        <Text style={styles.welcome}>ÄÄƒng nháº­p</Text>
+        <Text style={styles.formCaption}>Sá»­ dá»¥ng tÃ i khoáº£n Ä‘Ã£ Ä‘Æ°á»£c quáº£n lÃ½ cáº¥p.</Text>
 
         {dataError ? (
           <TouchableOpacity style={styles.errorBox} onPress={refreshData}>
             <Ionicons name="cloud-offline-outline" size={20} color="#b91c1c" />
-            <Text style={styles.errorText}>{dataError}{'\n'}Chạm để thử tải lại.</Text>
+            <Text style={styles.errorText}>{dataError}{'\n'}Cháº¡m Ä‘á»ƒ thá»­ táº£i láº¡i.</Text>
           </TouchableOpacity>
         ) : null}
 
-        <Text style={styles.label}>Số điện thoại</Text>
+        <Text style={styles.label}>Sá»‘ Ä‘iá»‡n thoáº¡i</Text>
         <View style={styles.inputBox}>
           <Ionicons name="call-outline" size={20} color="#64748b" />
           <TextInput
             style={styles.input}
-            placeholder="Nhập số điện thoại"
+            placeholder="Nháº­p sá»‘ Ä‘iá»‡n thoáº¡i"
             placeholderTextColor="#94a3b8"
             keyboardType="phone-pad"
             autoComplete="tel"
@@ -148,12 +148,12 @@ export default function LoginScreen({ navigation }) {
           />
         </View>
 
-        <Text style={styles.label}>Mật khẩu</Text>
+        <Text style={styles.label}>Máº­t kháº©u</Text>
         <View style={styles.inputBox}>
           <Ionicons name="lock-closed-outline" size={20} color="#64748b" />
           <TextInput
             style={styles.input}
-            placeholder="Nhập mật khẩu"
+            placeholder="Nháº­p máº­t kháº©u"
             placeholderTextColor="#94a3b8"
             secureTextEntry
             value={password}
@@ -169,13 +169,13 @@ export default function LoginScreen({ navigation }) {
         >
           {isSigningIn || isDataLoading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.buttonText}>Đăng nhập</Text>}
+            : <Text style={styles.buttonText}>ÄÄƒng nháº­p</Text>}
         </TouchableOpacity>
       </View>
 
       <Text style={styles.footer}>
-        Dữ liệu vận hành được đồng bộ bảo mật qua Supabase.{'\n'}
-        {Updates.updateId ? `Phiên bản: v${Constants?.expoConfig?.version || '2.0.0'} (OTA: ${Updates.updateId.substring(0,8)})` : `Phiên bản: v${Constants?.expoConfig?.version || '2.0.0'} (Gốc)`}
+        Dá»¯ liá»‡u váº­n hÃ nh Ä‘Æ°á»£c Ä‘á»“ng bá»™ báº£o máº­t qua Supabase.{'\n'}
+        {Updates.updateId ? `PhiÃªn báº£n: v${Constants?.expoConfig?.version || '2.0.0'} (OTA: ${Updates.updateId.substring(0,8)})` : `PhiÃªn báº£n: v${Constants?.expoConfig?.version || '2.0.0'} (Gá»‘c)`}
       </Text>
     </KeyboardAvoidingView>
   );

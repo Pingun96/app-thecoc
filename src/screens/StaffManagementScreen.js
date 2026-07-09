@@ -6,15 +6,15 @@ import { supabase } from '../services/supabaseClient';
 import { getBusinessStores } from '../utils/warehouse';
 
 const MODULE_PERMISSIONS = [
-  { key: 'cashier', icon: '💵', title: 'Giao ca / Thu ngân', desc: 'Mở ca, kiểm két, nhập doanh thu và chốt ca.' },
-  { key: 'inventory', icon: '📦', title: 'Kho hàng', desc: 'Xem tồn kho, nhập/xuất, kiểm kê và lịch sử kho.' },
-  { key: 'central_warehouse', icon: '🏬', title: 'Kho tổng', desc: 'Xem tồn kho tổng, duyệt xuất hàng và điều phối đơn về cửa hàng.' },
-  { key: 'hr', icon: '👥', title: 'Nhân sự / Chấm công', desc: 'Xem nhân sự, chấm công và lịch sử làm việc.' },
-  { key: 'payroll', icon: '💰', title: 'Bảng lương', desc: 'Xem lương, điều chỉnh và duyệt/chốt lương theo quyền.' },
-  { key: 'finance', icon: '📊', title: 'Tài chính / Báo cáo', desc: 'Xem doanh thu, báo cáo tài chính và lợi nhuận.' },
-  { key: 'can_schedule_shift', icon: '🗓️', title: 'Xếp lịch & Duyệt ca', desc: 'Xếp lịch, duyệt đăng ký ca và điều động nhân sự.' },
-  { key: 'is_primary_manager', icon: '✅', title: 'Duyệt báo cáo chốt ca', desc: 'Duyệt, từ chối hoặc hủy duyệt báo cáo giao ca.' },
-  { key: 'manage_permissions', icon: '🔐', title: 'Cấp quyền nhân sự', desc: 'Tạo tài khoản, sửa thông tin và phân quyền ứng dụng.' },
+  { key: 'cashier', icon: 'ðŸ’µ', title: 'Giao ca / Thu ngÃ¢n', desc: 'Má»Ÿ ca, kiá»ƒm kÃ©t, nháº­p doanh thu vÃ  chá»‘t ca.' },
+  { key: 'inventory', icon: 'ðŸ“¦', title: 'Kho hÃ ng', desc: 'Xem tá»“n kho, nháº­p/xuáº¥t, kiá»ƒm kÃª vÃ  lá»‹ch sá»­ kho.' },
+  { key: 'central_warehouse', icon: 'ðŸ¬', title: 'Kho tá»•ng', desc: 'Xem tá»“n kho tá»•ng, duyá»‡t xuáº¥t hÃ ng vÃ  Ä‘iá»u phá»‘i Ä‘Æ¡n vá» cá»­a hÃ ng.' },
+  { key: 'hr', icon: 'ðŸ‘¥', title: 'NhÃ¢n sá»± / Cháº¥m cÃ´ng', desc: 'Xem nhÃ¢n sá»±, cháº¥m cÃ´ng vÃ  lá»‹ch sá»­ lÃ m viá»‡c.' },
+  { key: 'payroll', icon: 'ðŸ’°', title: 'Báº£ng lÆ°Æ¡ng', desc: 'Xem lÆ°Æ¡ng, Ä‘iá»u chá»‰nh vÃ  duyá»‡t/chá»‘t lÆ°Æ¡ng theo quyá»n.' },
+  { key: 'finance', icon: 'ðŸ“Š', title: 'TÃ i chÃ­nh / BÃ¡o cÃ¡o', desc: 'Xem doanh thu, bÃ¡o cÃ¡o tÃ i chÃ­nh vÃ  lá»£i nhuáº­n.' },
+  { key: 'can_schedule_shift', icon: 'ðŸ—“ï¸', title: 'Xáº¿p lá»‹ch & Duyá»‡t ca', desc: 'Xáº¿p lá»‹ch, duyá»‡t Ä‘Äƒng kÃ½ ca vÃ  Ä‘iá»u Ä‘á»™ng nhÃ¢n sá»±.' },
+  { key: 'is_primary_manager', icon: 'âœ…', title: 'Duyá»‡t bÃ¡o cÃ¡o chá»‘t ca', desc: 'Duyá»‡t, tá»« chá»‘i hoáº·c há»§y duyá»‡t bÃ¡o cÃ¡o giao ca.' },
+  { key: 'manage_permissions', icon: 'ðŸ”', title: 'Cáº¥p quyá»n nhÃ¢n sá»±', desc: 'Táº¡o tÃ i khoáº£n, sá»­a thÃ´ng tin vÃ  phÃ¢n quyá»n á»©ng dá»¥ng.' },
 ];
 
 const DEFAULT_STAFF_PERMISSIONS = {
@@ -76,7 +76,7 @@ export default function StaffManagementScreen({ navigation }) {
   const canEditPermissions = currentUser?.role === 'OWNER' || currentPermissions.manage_permissions === true || currentPermissions.hr === true;
   const businessStores = useMemo(() => getBusinessStores(storeList), [storeList]);
 
-  // OWNER luôn được thấy ALL. Quản lý thì tùy thuộc viewable_stores
+  // OWNER luÃ´n Ä‘Æ°á»£c tháº¥y ALL. Quáº£n lÃ½ thÃ¬ tÃ¹y thuá»™c viewable_stores
   let displayStoreId = currentUser?.store_id;
   if (currentUser?.role === 'OWNER' || currentUser?.permissions?.viewable_stores?.includes(selectedStoreId)) {
     displayStoreId = selectedStoreId;
@@ -88,7 +88,7 @@ export default function StaffManagementScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [localStoreFilter, setLocalStoreFilter] = useState('ALL');
 
-  // Lọc danh sách nhân sự theo chi nhánh được phép xem và chỉ lấy người còn hoạt động
+  // Lá»c danh sÃ¡ch nhÃ¢n sá»± theo chi nhÃ¡nh Ä‘Æ°á»£c phÃ©p xem vÃ  chá»‰ láº¥y ngÆ°á»i cÃ²n hoáº¡t Ä‘á»™ng
   const activeStaffList = staffList.filter(s => s.is_active !== false);
   let baseFilteredStaffList = activeStaffList.filter(s => displayStoreId === 'ALL' || s.store_id === displayStoreId || s.permissions?.viewable_stores?.includes(displayStoreId));
   
@@ -103,7 +103,7 @@ export default function StaffManagementScreen({ navigation }) {
 
   const filteredStaffList = baseFilteredStaffList;
 
-  // === THÊM MỚI NHÂN VIÊN ===
+  // === THÃŠM Má»šI NHÃ‚N VIÃŠN ===
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -120,15 +120,15 @@ export default function StaffManagementScreen({ navigation }) {
     const cleanPhone = phone.replace(/\s/g, '');
     const numericWage = Number(wage);
     if (!cleanName || !cleanPhone || !Number.isFinite(numericWage) || numericWage <= 0) {
-      Alert.alert('Thông tin chưa hợp lệ', 'Vui lòng nhập đầy đủ họ tên, số điện thoại và mức lương.');
+      Alert.alert('ThÃ´ng tin chÆ°a há»£p lá»‡', 'Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ há» tÃªn, sá»‘ Ä‘iá»‡n thoáº¡i vÃ  má»©c lÆ°Æ¡ng.');
       return;
     }
     if (staffList.some((staff) => staff.phone === cleanPhone)) {
-      Alert.alert('Số điện thoại đã tồn tại', 'Vui lòng dùng số điện thoại khác.');
+      Alert.alert('Sá»‘ Ä‘iá»‡n thoáº¡i Ä‘Ã£ tá»“n táº¡i', 'Vui lÃ²ng dÃ¹ng sá»‘ Ä‘iá»‡n thoáº¡i khÃ¡c.');
       return;
     }
 
-    // Mặc định luôn có store_id gốc trong viewable_stores
+    // Máº·c Ä‘á»‹nh luÃ´n cÃ³ store_id gá»‘c trong viewable_stores
     const finalPermissions = normalizePermissions(perms, role, storeId);
 
     const newStaff = {
@@ -155,12 +155,12 @@ export default function StaffManagementScreen({ navigation }) {
       permissions: newStaff.permissions,
     }]);
     if (error) {
-      Alert.alert('Không thể tạo tài khoản', error.message);
+      Alert.alert('KhÃ´ng thá»ƒ táº¡o tÃ i khoáº£n', error.message);
       return;
     }
 
     setStaffList((current) => [...current, newStaff]);
-    Alert.alert('Đã tạo tài khoản', `${cleanName} có thể đăng nhập bằng mật khẩu tạm thời 123.`);
+    Alert.alert('ÄÃ£ táº¡o tÃ i khoáº£n', `${cleanName} cÃ³ thá»ƒ Ä‘Äƒng nháº­p báº±ng máº­t kháº©u táº¡m thá»i 123.`);
     setFullName(''); setPhone(''); setWage(''); setIsPartTime(true); setRole('STAFF'); setPerms(buildDefaultPermissions('STAFF'));
     setShowCreateModal(false);
   };
@@ -216,7 +216,7 @@ export default function StaffManagementScreen({ navigation }) {
     if (!options.length) {
       return (
         <Text style={styles.permissionDesc}>
-          Tài khoản của bạn chưa được cấp quyền để phân quyền module cho người khác.
+          TÃ i khoáº£n cá»§a báº¡n chÆ°a Ä‘Æ°á»£c cáº¥p quyá»n Ä‘á»ƒ phÃ¢n quyá»n module cho ngÆ°á»i khÃ¡c.
         </Text>
       );
     }
@@ -237,7 +237,7 @@ export default function StaffManagementScreen({ navigation }) {
     ));
   };
 
-  // === CHỈNH SỬA NHÂN VIÊN (MODAL) ===
+  // === CHá»ˆNH Sá»¬A NHÃ‚N VIÃŠN (MODAL) ===
   const [editingStaff, setEditingStaff] = useState(null);
 
   const openEditModal = (staff) => {
@@ -249,12 +249,12 @@ export default function StaffManagementScreen({ navigation }) {
 
   const saveEditStaff = async () => {
     if (!editingStaff.name || !editingStaff.phone || !editingStaff.wage) {
-      Alert.alert('Lỗi', 'Không được để trống thông tin!');
+      Alert.alert('Lá»—i', 'KhÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng thÃ´ng tin!');
       return;
     }
     const cleanPhone = editingStaff.phone.replace(/\s/g, '');
     if (staffList.some((s) => s.phone === cleanPhone && s.id !== editingStaff.id)) {
-      Alert.alert('Lỗi', 'Số điện thoại này đã được sử dụng cho nhân viên khác!');
+      Alert.alert('Lá»—i', 'Sá»‘ Ä‘iá»‡n thoáº¡i nÃ y Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng cho nhÃ¢n viÃªn khÃ¡c!');
       return;
     }
 
@@ -268,23 +268,23 @@ export default function StaffManagementScreen({ navigation }) {
     }).eq('id', finalStaff.id);
 
     if (error) {
-      Alert.alert('Lỗi', 'Không thể cập nhật nhân viên: ' + error.message);
+      Alert.alert('Lá»—i', 'KhÃ´ng thá»ƒ cáº­p nháº­t nhÃ¢n viÃªn: ' + error.message);
       return;
     }
 
     setStaffList((current) => current.map(s => s.id === finalStaff.id ? finalStaff : s));
-    Alert.alert('Thành công', 'Thông tin nhân viên đã được lưu.');
+    Alert.alert('ThÃ nh cÃ´ng', 'ThÃ´ng tin nhÃ¢n viÃªn Ä‘Ã£ Ä‘Æ°á»£c lÆ°u.');
     setEditingStaff(null);
   };
 
   const handleDeleteStaff = (staffId, staffName) => {
     Alert.alert(
-      'Xóa nhân viên',
-      `Bạn có chắc chắn muốn xóa nhân viên ${staffName}?\nLưu ý: Nếu nhân viên đã có lịch sử làm việc, bạn nên KHÓA APP thay vì xóa để giữ lại báo cáo cũ.`,
+      'XÃ³a nhÃ¢n viÃªn',
+      `Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a nhÃ¢n viÃªn ${staffName}?\nLÆ°u Ã½: Náº¿u nhÃ¢n viÃªn Ä‘Ã£ cÃ³ lá»‹ch sá»­ lÃ m viá»‡c, báº¡n nÃªn KHÃ“A APP thay vÃ¬ xÃ³a Ä‘á»ƒ giá»¯ láº¡i bÃ¡o cÃ¡o cÅ©.`,
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: 'Há»§y', style: 'cancel' },
         {
-          text: 'Xóa vĩnh viễn',
+          text: 'XÃ³a vÄ©nh viá»…n',
           style: 'destructive',
           onPress: async () => {
             setIsLoading(true);
@@ -292,16 +292,16 @@ export default function StaffManagementScreen({ navigation }) {
               const { error } = await supabase.from('users').delete().eq('id', staffId);
               if (error) {
                 if (error.code === '23503') {
-                  Alert.alert('Không thể xóa', 'Nhân viên này đã có dữ liệu làm việc trong hệ thống (chốt ca, xếp lịch, lương...). Vui lòng KHÓA APP thay vì xóa.');
+                  Alert.alert('KhÃ´ng thá»ƒ xÃ³a', 'NhÃ¢n viÃªn nÃ y Ä‘Ã£ cÃ³ dá»¯ liá»‡u lÃ m viá»‡c trong há»‡ thá»‘ng (chá»‘t ca, xáº¿p lá»‹ch, lÆ°Æ¡ng...). Vui lÃ²ng KHÃ“A APP thay vÃ¬ xÃ³a.');
                 } else {
                   throw error;
                 }
               } else {
                 setStaffList(staffList.filter(s => s.id !== staffId));
-                Alert.alert('Thành công', 'Đã xóa nhân viên.');
+                Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ xÃ³a nhÃ¢n viÃªn.');
               }
             } catch (e) {
-              Alert.alert('Lỗi', e.message);
+              Alert.alert('Lá»—i', e.message);
             } finally {
               setIsLoading(false);
             }
@@ -341,7 +341,7 @@ export default function StaffManagementScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#1976d2" />
           </TouchableOpacity>
-          <Text style={styles.header}>Quản Lý Nhân Sự</Text>
+          <Text style={styles.header}>Quáº£n LÃ½ NhÃ¢n Sá»±</Text>
         </View>
 
         </View>
@@ -359,7 +359,7 @@ export default function StaffManagementScreen({ navigation }) {
               <Ionicons name="search" size={20} color="#94a3b8" />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Tìm nhân viên theo tên hoặc SĐT..."
+                placeholder="TÃ¬m nhÃ¢n viÃªn theo tÃªn hoáº·c SÄT..."
                 placeholderTextColor="#94a3b8"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -377,7 +377,7 @@ export default function StaffManagementScreen({ navigation }) {
                   style={[styles.filterChip, localStoreFilter === 'ALL' && styles.filterChipActive]}
                   onPress={() => setLocalStoreFilter('ALL')}
                 >
-                  <Text style={[styles.filterChipText, localStoreFilter === 'ALL' && styles.filterChipTextActive]}>Tất cả</Text>
+                  <Text style={[styles.filterChipText, localStoreFilter === 'ALL' && styles.filterChipTextActive]}>Táº¥t cáº£</Text>
                 </TouchableOpacity>
                 {businessStores.map(store => (
                   <TouchableOpacity
@@ -392,28 +392,28 @@ export default function StaffManagementScreen({ navigation }) {
             )}
 
             <Text style={styles.sectionTitle}>
-              DANH SÁCH NHÂN SỰ {displayStoreId === 'ALL' ? '(TẤT CẢ CHI NHÁNH)' : `(CHI NHÁNH ${displayStoreId})`}
+              DANH SÃCH NHÃ‚N Sá»° {displayStoreId === 'ALL' ? '(Táº¤T Cáº¢ CHI NHÃNH)' : `(CHI NHÃNH ${displayStoreId})`}
             </Text>
             {filteredStaffList.map(staff => (
               <View key={staff.id} style={styles.staffCard}>
                 <View style={{flex: 1}}>
                   <Text style={styles.staffName}>
-                    {staff.name} <Text style={{fontSize: 12, color: staff.role === 'MANAGER' ? '#e91e63' : '#1976d2'}}>({staff.role === 'MANAGER' ? 'QUẢN LÝ' : 'NHÂN VIÊN'})</Text>
+                    {staff.name} <Text style={{fontSize: 12, color: staff.role === 'MANAGER' ? '#e91e63' : '#1976d2'}}>({staff.role === 'MANAGER' ? 'QUáº¢N LÃ' : 'NHÃ‚N VIÃŠN'})</Text>
                   </Text>
-                  <Text style={styles.staffDetail}>SĐT: {staff.phone} - Lương: {staff.wage.toLocaleString()}đ/h</Text>
-                  <Text style={styles.staffDetail}>Loại: <Text style={{fontWeight: 'bold', color: staff.is_part_time ? '#ff9800' : '#4CAF50'}}>{staff.is_part_time ? 'Part-Time' : 'Full-Time'}</Text> - Gốc: {storeList.find(s=>s.id === staff.store_id)?.name}</Text>
+                  <Text style={styles.staffDetail}>SÄT: {staff.phone} - LÆ°Æ¡ng: {staff.wage.toLocaleString()}Ä‘/h</Text>
+                  <Text style={styles.staffDetail}>Loáº¡i: <Text style={{fontWeight: 'bold', color: staff.is_part_time ? '#ff9800' : '#4CAF50'}}>{staff.is_part_time ? 'Part-Time' : 'Full-Time'}</Text> - Gá»‘c: {storeList.find(s=>s.id === staff.store_id)?.name}</Text>
 
                   <View style={styles.statusRow}>
                     <Text style={{fontSize: 12, color: staff.hasAppAccess ? '#4CAF50' : '#F44336', fontWeight: 'bold'}}>
-                      {staff.hasAppAccess ? '🟢 App Mở' : '🔴 App Khóa'}
+                      {staff.hasAppAccess ? 'ðŸŸ¢ App Má»Ÿ' : 'ðŸ”´ App KhÃ³a'}
                     </Text>
                     {staff.role === 'MANAGER' ? (
                        <Text style={{fontSize: 12, color: '#e91e63', marginLeft: 15, fontWeight: 'bold'}}>
-                         Quản lý: {staff.permissions?.viewable_stores?.length || 1} cửa hàng
+                         Quáº£n lÃ½: {staff.permissions?.viewable_stores?.length || 1} cá»­a hÃ ng
                        </Text>
                     ) : (
                        <Text style={{fontSize: 12, color: '#1976d2', marginLeft: 15, fontWeight: 'bold'}}>
-                         Làm việc: {staff.permissions?.viewable_stores?.length || 1} cửa hàng
+                         LÃ m viá»‡c: {staff.permissions?.viewable_stores?.length || 1} cá»­a hÃ ng
                        </Text>
                     )}
                   </View>
@@ -422,11 +422,11 @@ export default function StaffManagementScreen({ navigation }) {
                   <View style={{flexDirection: 'row', gap: 10}}>
                     {currentUser?.role === 'OWNER' && staff.role !== 'OWNER' && (
                     <TouchableOpacity style={[styles.editBtn, {backgroundColor: '#ef4444'}]} onPress={() => handleDeleteStaff(staff.id, staff.name)}>
-                      <Text style={[styles.editBtnText, {color: '#fff'}]}>Xóa</Text>
+                      <Text style={[styles.editBtnText, {color: '#fff'}]}>XÃ³a</Text>
                     </TouchableOpacity>
                     )}
                     <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(staff)}>
-                      <Text style={styles.editBtnText}>Sửa</Text>
+                      <Text style={styles.editBtnText}>Sá»­a</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -435,45 +435,45 @@ export default function StaffManagementScreen({ navigation }) {
           </View>
         </ScrollView>
 
-        {/* MODAL TẠO MỚI */}
+        {/* MODAL Táº O Má»šI */}
         <Modal visible={showCreateModal} animationType="slide" transparent>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Tạo Tài Khoản Mới</Text>
+              <Text style={styles.modalTitle}>Táº¡o TÃ i Khoáº£n Má»›i</Text>
               <ScrollView showsVerticalScrollIndicator={false}>
 
-                <Text style={styles.label}>Họ và tên:</Text>
-                <TextInput style={styles.input} placeholder="VD: Nguyễn Văn A" value={fullName} onChangeText={setFullName} />
+                <Text style={styles.label}>Há» vÃ  tÃªn:</Text>
+                <TextInput style={styles.input} placeholder="VD: Nguyá»…n VÄƒn A" value={fullName} onChangeText={setFullName} />
 
                 <View style={{flexDirection:'row', justifyContent:'space-between'}}>
                   <View style={{flex: 1, marginRight: 10}}>
-                    <Text style={styles.label}>SĐT (Đăng nhập):</Text>
+                    <Text style={styles.label}>SÄT (ÄÄƒng nháº­p):</Text>
                     <TextInput style={styles.input} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
                   </View>
                   <View style={{flex: 1}}>
                     <View style={styles.passwordHint}>
                       <Ionicons name="key-outline" size={18} color="#1d4ed8" />
-                      <Text style={styles.passwordHintText}>Mật khẩu đăng nhập tạm thời: 123</Text>
+                      <Text style={styles.passwordHintText}>Máº­t kháº©u Ä‘Äƒng nháº­p táº¡m thá»i: 123</Text>
                     </View>
                   </View>
                 </View>
 
-                <Text style={styles.label}>Chức vụ:</Text>
+                <Text style={styles.label}>Chá»©c vá»¥:</Text>
                 <View style={styles.roleRow}>
                   <TouchableOpacity style={[styles.roleChip, role === 'STAFF' && styles.roleChipActive]} onPress={() => handleRoleChange('STAFF')}>
-                    <Text style={[styles.roleText, role === 'STAFF' && {color:'#fff'}]}>Nhân Viên</Text>
+                    <Text style={[styles.roleText, role === 'STAFF' && {color:'#fff'}]}>NhÃ¢n ViÃªn</Text>
                   </TouchableOpacity>
                   {currentUser?.role === 'OWNER' && (
                   <TouchableOpacity style={[styles.roleChip, role === 'MANAGER' && styles.roleChipActive]} onPress={() => handleRoleChange('MANAGER')}>
-                    <Text style={[styles.roleText, role === 'MANAGER' && {color:'#fff'}]}>Quản Lý</Text>
+                    <Text style={[styles.roleText, role === 'MANAGER' && {color:'#fff'}]}>Quáº£n LÃ½</Text>
                   </TouchableOpacity>
                   )}
                 </View>
 
-                <Text style={styles.label}>Mức lương (VNĐ/h):</Text>
+                <Text style={styles.label}>Má»©c lÆ°Æ¡ng (VNÄ/h):</Text>
                 <TextInput style={styles.input} keyboardType="numeric" value={wage} onChangeText={setWage} />
 
-                <Text style={styles.label}>Loại hình làm việc:</Text>
+                <Text style={styles.label}>Loáº¡i hÃ¬nh lÃ m viá»‡c:</Text>
                 <View style={styles.roleRow}>
                   <TouchableOpacity style={[styles.roleChip, isPartTime && styles.roleChipActive]} onPress={() => setIsPartTime(true)}>
                     <Text style={[styles.roleText, isPartTime && {color:'#fff'}]}>Part-Time</Text>
@@ -483,7 +483,7 @@ export default function StaffManagementScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
 
-                <Text style={styles.label}>Chi nhánh gốc (Trực thuộc):</Text>
+                <Text style={styles.label}>Chi nhÃ¡nh gá»‘c (Trá»±c thuá»™c):</Text>
                 <View style={styles.storeSelectRow}>
                   {businessStores.map(store => (
                     <TouchableOpacity key={store.id} style={[styles.storeChip, storeId === store.id && styles.storeChipActive]} onPress={() => setStoreId(store.id)}>
@@ -495,13 +495,13 @@ export default function StaffManagementScreen({ navigation }) {
                 {(currentUser?.role === 'OWNER' || currentUser?.role === 'MANAGER') && (
                   <View style={[styles.permBox, {borderColor: role === 'MANAGER' ? '#e91e63' : '#1976d2'}]}>
                     <Text style={{fontWeight: 'bold', color: role === 'MANAGER' ? '#e91e63' : '#1976d2', marginBottom: 10}}>
-                      {role === 'MANAGER' ? '🌐 Cấp quyền xem dữ liệu chi nhánh khác:' : '🌐 Cấp quyền làm việc tại chi nhánh khác:'}
+                      {role === 'MANAGER' ? 'ðŸŒ Cáº¥p quyá»n xem dá»¯ liá»‡u chi nhÃ¡nh khÃ¡c:' : 'ðŸŒ Cáº¥p quyá»n lÃ m viá»‡c táº¡i chi nhÃ¡nh khÃ¡c:'}
                     </Text>
                     {businessStores.map(store => {
                       const isHomeStore = store.id === storeId;
                       return (
                         <View key={store.id} style={styles.permRow}>
-                          <Text style={[styles.permRowText, isHomeStore && styles.permRowTextActive]}>{store.name} {isHomeStore && '(Chi nhánh gốc)'}</Text>
+                          <Text style={[styles.permRowText, isHomeStore && styles.permRowTextActive]}>{store.name} {isHomeStore && '(Chi nhÃ¡nh gá»‘c)'}</Text>
                           <Switch
                             value={isHomeStore ? true : perms.viewable_stores.includes(store.id)}
                             disabled={isHomeStore}
@@ -511,23 +511,23 @@ export default function StaffManagementScreen({ navigation }) {
                         </View>
                       );
                     })}
-                    <Text style={{fontSize: 12, color: COLORS.textMuted, marginTop: 10}}>*Nhân sự luôn được gắn quyền với chi nhánh gốc.</Text>
+                    <Text style={{fontSize: 12, color: COLORS.textMuted, marginTop: 10}}>*NhÃ¢n sá»± luÃ´n Ä‘Æ°á»£c gáº¯n quyá»n vá»›i chi nhÃ¡nh gá»‘c.</Text>
                   </View>
                 )}
 
                 <View style={styles.permBox}>
-                  <Text style={[styles.label, {marginTop:0}]}>Phân quyền theo nút ứng dụng:</Text>
+                  <Text style={[styles.label, {marginTop:0}]}>PhÃ¢n quyá»n theo nÃºt á»©ng dá»¥ng:</Text>
                   {renderPermissionRows(perms, togglePerm, role)}
                 </View>
 
                 {false && role === 'STAFF' && (
                   <View style={styles.permBox}>
-                    <Text style={[styles.label, {marginTop:0}]}>Cấp quyền sử dụng tính năng:</Text>
-                    <View style={styles.permRow}><Text>💵 Thu ngân / Bán hàng</Text><Switch value={perms.cashier} onValueChange={()=>togglePerm('cashier')} /></View>
-                    <View style={styles.permRow}><Text>📦 Kiểm Kho / Nhập xuất</Text><Switch value={perms.inventory} onValueChange={()=>togglePerm('inventory')} /></View>
-                    <View style={styles.permRow}><Text>⏱️ Chấm công</Text><Switch value={perms.hr} onValueChange={()=>togglePerm('hr')} /></View>
-                    <View style={styles.permRow}><Text>💰 Xem lương</Text><Switch value={perms.payroll} onValueChange={()=>togglePerm('payroll')} /></View>
-                    <View style={styles.permRow}><Text>📊 Xem Báo cáo</Text><Switch value={perms.reports} onValueChange={()=>togglePerm('reports')} /></View>
+                    <Text style={[styles.label, {marginTop:0}]}>Cáº¥p quyá»n sá»­ dá»¥ng tÃ­nh nÄƒng:</Text>
+                    <View style={styles.permRow}><Text>ðŸ’µ Thu ngÃ¢n / BÃ¡n hÃ ng</Text><Switch value={perms.cashier} onValueChange={()=>togglePerm('cashier')} /></View>
+                    <View style={styles.permRow}><Text>ðŸ“¦ Kiá»ƒm Kho / Nháº­p xuáº¥t</Text><Switch value={perms.inventory} onValueChange={()=>togglePerm('inventory')} /></View>
+                    <View style={styles.permRow}><Text>â±ï¸ Cháº¥m cÃ´ng</Text><Switch value={perms.hr} onValueChange={()=>togglePerm('hr')} /></View>
+                    <View style={styles.permRow}><Text>ðŸ’° Xem lÆ°Æ¡ng</Text><Switch value={perms.payroll} onValueChange={()=>togglePerm('payroll')} /></View>
+                    <View style={styles.permRow}><Text>ðŸ“Š Xem BÃ¡o cÃ¡o</Text><Switch value={perms.reports} onValueChange={()=>togglePerm('reports')} /></View>
                   </View>
                 )}
 
@@ -535,8 +535,8 @@ export default function StaffManagementScreen({ navigation }) {
                   <View style={{flexDirection: 'column', gap: 10, marginTop: 15}}>
                     <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, backgroundColor: '#e0f2fe', borderRadius: 10, borderWidth: 1, borderColor: '#bae6fd'}}>
                       <View>
-                        <Text style={{fontSize: 16, fontWeight: 'bold', color: '#0284c7'}}>Quyền Xếp Lịch & Duyệt Ca</Text>
-                        <Text style={{fontSize: 12, color: '#38bdf8', marginTop: 4, maxWidth: 220}}>Được xếp lịch và duyệt đăng ký ca làm việc của nhân sự.</Text>
+                        <Text style={{fontSize: 16, fontWeight: 'bold', color: '#0284c7'}}>Quyá»n Xáº¿p Lá»‹ch & Duyá»‡t Ca</Text>
+                        <Text style={{fontSize: 12, color: '#38bdf8', marginTop: 4, maxWidth: 220}}>ÄÆ°á»£c xáº¿p lá»‹ch vÃ  duyá»‡t Ä‘Äƒng kÃ½ ca lÃ m viá»‡c cá»§a nhÃ¢n sá»±.</Text>
                       </View>
                       <Switch
                         value={!!perms.can_schedule_shift}
@@ -548,10 +548,10 @@ export default function StaffManagementScreen({ navigation }) {
 
                 <View style={{flexDirection: 'row', marginTop: 25}}>
                   <TouchableOpacity style={[styles.createBtn, {flex: 1, marginRight: 10, backgroundColor: '#F44336'}]} onPress={() => setShowCreateModal(false)}>
-                    <Text style={styles.btnText}>Hủy</Text>
+                    <Text style={styles.btnText}>Há»§y</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.createBtn, {flex: 1}]} onPress={handleCreateStaff}>
-                    <Text style={styles.btnText}>Tạo Mới</Text>
+                    <Text style={styles.btnText}>Táº¡o Má»›i</Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>
@@ -559,44 +559,44 @@ export default function StaffManagementScreen({ navigation }) {
           </View>
         </Modal>
 
-        {/* MODAL CHỈNH SỬA */}
+        {/* MODAL CHá»ˆNH Sá»¬A */}
         <Modal visible={!!editingStaff} animationType="slide" transparent>
           {editingStaff && (
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Chỉnh sửa thông tin</Text>
+                <Text style={styles.modalTitle}>Chá»‰nh sá»­a thÃ´ng tin</Text>
                 <ScrollView showsVerticalScrollIndicator={false}>
 
-                  <Text style={styles.label}>Tên:</Text>
+                  <Text style={styles.label}>TÃªn:</Text>
                   <TextInput style={styles.input} value={editingStaff.name} onChangeText={(t) => setEditingStaff({...editingStaff, name: t})} />
 
-                  <Text style={styles.label}>Số điện thoại (SĐT đăng nhập):</Text>
+                  <Text style={styles.label}>Sá»‘ Ä‘iá»‡n thoáº¡i (SÄT Ä‘Äƒng nháº­p):</Text>
                   <TextInput style={styles.input} keyboardType="phone-pad" value={editingStaff.phone} onChangeText={(t) => setEditingStaff({...editingStaff, phone: t})} />
 
-                  <Text style={styles.label}>Lương (đ/h):</Text>
+                  <Text style={styles.label}>LÆ°Æ¡ng (Ä‘/h):</Text>
                   <TextInput style={styles.input} keyboardType="numeric" value={String(editingStaff.wage || '')} onChangeText={(t) => setEditingStaff({...editingStaff, wage: Number(t)})} />
 
-                  <Text style={styles.label}>Chức vụ:</Text>
+                  <Text style={styles.label}>Chá»©c vá»¥:</Text>
                   {editingStaff.role === 'OWNER' ? (
                     <View style={styles.roleRow}>
                       <View style={[styles.roleChip, styles.roleChipActive, {backgroundColor: '#9c27b0', borderColor: '#9c27b0'}]}>
-                        <Text style={[styles.roleText, {color:'#fff'}]}>Chủ Quán</Text>
+                        <Text style={[styles.roleText, {color:'#fff'}]}>Chá»§ QuÃ¡n</Text>
                       </View>
                     </View>
                   ) : (
                     <View style={styles.roleRow}>
                       <TouchableOpacity style={[styles.roleChip, editingStaff.role === 'STAFF' && styles.roleChipActive]} onPress={() => setEditingRole('STAFF')}>
-                        <Text style={[styles.roleText, editingStaff.role === 'STAFF' && {color:'#fff'}]}>Nhân Viên</Text>
+                        <Text style={[styles.roleText, editingStaff.role === 'STAFF' && {color:'#fff'}]}>NhÃ¢n ViÃªn</Text>
                       </TouchableOpacity>
                       {currentUser?.role === 'OWNER' && (
                       <TouchableOpacity style={[styles.roleChip, editingStaff.role === 'MANAGER' && styles.roleChipActive]} onPress={() => setEditingRole('MANAGER')}>
-                        <Text style={[styles.roleText, editingStaff.role === 'MANAGER' && {color:'#fff'}]}>Quản Lý</Text>
+                        <Text style={[styles.roleText, editingStaff.role === 'MANAGER' && {color:'#fff'}]}>Quáº£n LÃ½</Text>
                       </TouchableOpacity>
                       )}
                     </View>
                   )}
 
-                  <Text style={styles.label}>Chi nhánh gốc (Trực thuộc):</Text>
+                  <Text style={styles.label}>Chi nhÃ¡nh gá»‘c (Trá»±c thuá»™c):</Text>
                   <View style={styles.storeSelectRow}>
                     {businessStores.map(store => (
                       <TouchableOpacity key={store.id} style={[styles.storeChip, editingStaff.store_id === store.id && styles.storeChipActive]} onPress={() => setEditingStaff({...editingStaff, store_id: store.id})}>
@@ -605,7 +605,7 @@ export default function StaffManagementScreen({ navigation }) {
                     ))}
                   </View>
 
-                  <Text style={styles.label}>Loại hình làm việc:</Text>
+                  <Text style={styles.label}>Loáº¡i hÃ¬nh lÃ m viá»‡c:</Text>
                   <View style={styles.roleRow}>
                     <TouchableOpacity style={[styles.roleChip, editingStaff.is_part_time && styles.roleChipActive]} onPress={() => setEditingStaff({...editingStaff, is_part_time: true})}>
                       <Text style={[styles.roleText, editingStaff.is_part_time && {color:'#fff'}]}>Part-Time</Text>
@@ -616,20 +616,20 @@ export default function StaffManagementScreen({ navigation }) {
                   </View>
 
                   <View style={styles.accessRow}>
-                    <Text style={styles.label}>Trạng thái đăng nhập App:</Text>
+                    <Text style={styles.label}>Tráº¡ng thÃ¡i Ä‘Äƒng nháº­p App:</Text>
                     <Switch value={editingStaff.hasAppAccess} onValueChange={(v) => setEditingStaff({...editingStaff, hasAppAccess: v})} />
                   </View>
 
                   {(currentUser?.role === 'OWNER' || currentUser?.role === 'MANAGER') && (
                     <View style={[styles.permBox, {borderColor: editingStaff.role === 'MANAGER' ? '#e91e63' : '#1976d2'}]}>
                       <Text style={{fontWeight: 'bold', color: editingStaff.role === 'MANAGER' ? '#e91e63' : '#1976d2', marginBottom: 10}}>
-                        {editingStaff.role === 'MANAGER' ? '🌐 Cấp quyền xem dữ liệu chi nhánh khác:' : '🌐 Cấp quyền làm việc tại chi nhánh khác:'}
+                        {editingStaff.role === 'MANAGER' ? 'ðŸŒ Cáº¥p quyá»n xem dá»¯ liá»‡u chi nhÃ¡nh khÃ¡c:' : 'ðŸŒ Cáº¥p quyá»n lÃ m viá»‡c táº¡i chi nhÃ¡nh khÃ¡c:'}
                       </Text>
                       {businessStores.map(store => {
                         const isHomeStore = store.id === editingStaff.store_id;
                         return (
                           <View key={store.id} style={styles.permRow}>
-                            <Text style={[styles.permRowText, isHomeStore && styles.permRowTextActive]}>{store.name} {isHomeStore && '(Chi nhánh gốc)'}</Text>
+                            <Text style={[styles.permRowText, isHomeStore && styles.permRowTextActive]}>{store.name} {isHomeStore && '(Chi nhÃ¡nh gá»‘c)'}</Text>
                             <Switch
                               value={isHomeStore ? true : !!editingStaff.permissions?.viewable_stores?.includes(store.id)}
                               disabled={isHomeStore}
@@ -639,25 +639,25 @@ export default function StaffManagementScreen({ navigation }) {
                           </View>
                         );
                       })}
-                      <Text style={{fontSize: 12, color: COLORS.textMuted, marginTop: 10}}>*Nhân sự luôn được gắn quyền với chi nhánh gốc.</Text>
+                      <Text style={{fontSize: 12, color: COLORS.textMuted, marginTop: 10}}>*NhÃ¢n sá»± luÃ´n Ä‘Æ°á»£c gáº¯n quyá»n vá»›i chi nhÃ¡nh gá»‘c.</Text>
                     </View>
                   )}
 
                   {editingStaff.role !== 'OWNER' && editingStaff.permissions && (
                     <View style={styles.permBox}>
-                      <Text style={[styles.label, {marginTop:0}]}>Phân quyền theo nút ứng dụng:</Text>
+                      <Text style={[styles.label, {marginTop:0}]}>PhÃ¢n quyá»n theo nÃºt á»©ng dá»¥ng:</Text>
                       {renderPermissionRows(editingStaff.permissions, toggleEditPerm, editingStaff.role)}
                     </View>
                   )}
 
                   {false && editingStaff.role === 'STAFF' && editingStaff.permissions && (
                     <View style={styles.permBox}>
-                      <Text style={[styles.label, {marginTop:0}]}>Phân quyền hiển thị:</Text>
-                  <View style={styles.permRow}><Text>💵 Thu ngân / Bán hàng</Text><Switch value={!!editingStaff.permissions.cashier} onValueChange={()=>toggleEditPerm('cashier')} /></View>
-                      <View style={styles.permRow}><Text>📦 Kiểm Kho / Nhập xuất</Text><Switch value={!!editingStaff.permissions.inventory} onValueChange={()=>toggleEditPerm('inventory')} /></View>
-                      <View style={styles.permRow}><Text>⏱️ Chấm công</Text><Switch value={!!editingStaff.permissions.hr} onValueChange={()=>toggleEditPerm('hr')} /></View>
-                      <View style={styles.permRow}><Text>💰 Xem lương</Text><Switch value={!!editingStaff.permissions.payroll} onValueChange={()=>toggleEditPerm('payroll')} /></View>
-                      <View style={styles.permRow}><Text>📊 Xem Báo cáo</Text><Switch value={!!editingStaff.permissions.reports} onValueChange={()=>toggleEditPerm('reports')} /></View>
+                      <Text style={[styles.label, {marginTop:0}]}>PhÃ¢n quyá»n hiá»ƒn thá»‹:</Text>
+                  <View style={styles.permRow}><Text>ðŸ’µ Thu ngÃ¢n / BÃ¡n hÃ ng</Text><Switch value={!!editingStaff.permissions.cashier} onValueChange={()=>toggleEditPerm('cashier')} /></View>
+                      <View style={styles.permRow}><Text>ðŸ“¦ Kiá»ƒm Kho / Nháº­p xuáº¥t</Text><Switch value={!!editingStaff.permissions.inventory} onValueChange={()=>toggleEditPerm('inventory')} /></View>
+                      <View style={styles.permRow}><Text>â±ï¸ Cháº¥m cÃ´ng</Text><Switch value={!!editingStaff.permissions.hr} onValueChange={()=>toggleEditPerm('hr')} /></View>
+                      <View style={styles.permRow}><Text>ðŸ’° Xem lÆ°Æ¡ng</Text><Switch value={!!editingStaff.permissions.payroll} onValueChange={()=>toggleEditPerm('payroll')} /></View>
+                      <View style={styles.permRow}><Text>ðŸ“Š Xem BÃ¡o cÃ¡o</Text><Switch value={!!editingStaff.permissions.reports} onValueChange={()=>toggleEditPerm('reports')} /></View>
                     </View>
                   )}
 
@@ -665,8 +665,8 @@ export default function StaffManagementScreen({ navigation }) {
                     <View style={{flexDirection: 'column', gap: 10, marginTop: 15}}>
                       <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, backgroundColor: '#fdf2f8', borderRadius: 10, borderWidth: 1, borderColor: '#fbcfe8'}}>
                         <View>
-                          <Text style={{fontSize: 16, fontWeight: 'bold', color: '#db2777'}}>Quản lý Chính</Text>
-                          <Text style={{fontSize: 12, color: '#ec4899', marginTop: 4, maxWidth: 220}}>Quản lý chính có quyền duyệt báo cáo chốt ca (doanh thu) của chi nhánh.</Text>
+                          <Text style={{fontSize: 16, fontWeight: 'bold', color: '#db2777'}}>Quáº£n lÃ½ ChÃ­nh</Text>
+                          <Text style={{fontSize: 12, color: '#ec4899', marginTop: 4, maxWidth: 220}}>Quáº£n lÃ½ chÃ­nh cÃ³ quyá»n duyá»‡t bÃ¡o cÃ¡o chá»‘t ca (doanh thu) cá»§a chi nhÃ¡nh.</Text>
                         </View>
                         <Switch
                           value={!!editingStaff.permissions?.is_primary_manager}
@@ -677,8 +677,8 @@ export default function StaffManagementScreen({ navigation }) {
                       </View>
                       <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, backgroundColor: '#e0f2fe', borderRadius: 10, borderWidth: 1, borderColor: '#bae6fd'}}>
                         <View>
-                          <Text style={{fontSize: 16, fontWeight: 'bold', color: '#0284c7'}}>Quyền Xếp Lịch & Duyệt Ca</Text>
-                          <Text style={{fontSize: 12, color: '#38bdf8', marginTop: 4, maxWidth: 220}}>Được xếp lịch và duyệt đăng ký ca làm việc của nhân sự.</Text>
+                          <Text style={{fontSize: 16, fontWeight: 'bold', color: '#0284c7'}}>Quyá»n Xáº¿p Lá»‹ch & Duyá»‡t Ca</Text>
+                          <Text style={{fontSize: 12, color: '#38bdf8', marginTop: 4, maxWidth: 220}}>ÄÆ°á»£c xáº¿p lá»‹ch vÃ  duyá»‡t Ä‘Äƒng kÃ½ ca lÃ m viá»‡c cá»§a nhÃ¢n sá»±.</Text>
                         </View>
                         <Switch
                           value={!!editingStaff.permissions?.can_schedule_shift}
@@ -690,16 +690,16 @@ export default function StaffManagementScreen({ navigation }) {
 
                   <View style={{flexDirection: 'row', marginTop: 20}}>
                     <TouchableOpacity style={[styles.createBtn, {flex: 1, marginRight: 10, backgroundColor: '#F44336'}]} onPress={() => setEditingStaff(null)}>
-                      <Text style={styles.btnText}>Hủy</Text>
+                      <Text style={styles.btnText}>Há»§y</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.createBtn, {flex: 1}]} onPress={saveEditStaff}>
-                      <Text style={styles.btnText}>Lưu Thay Đổi</Text>
+                      <Text style={styles.btnText}>LÆ°u Thay Äá»•i</Text>
                     </TouchableOpacity>
                   </View>
 
                   {currentUser?.role === 'OWNER' && (
                     <TouchableOpacity style={{ marginTop: 20, padding: 15, backgroundColor: '#fee2e2', borderRadius: 8, alignItems: 'center' }} onPress={handleDeleteStaff}>
-                      <Text style={{ color: '#ef4444', fontWeight: 'bold' }}>Xóa Nhân Viên Này</Text>
+                      <Text style={{ color: '#ef4444', fontWeight: 'bold' }}>XÃ³a NhÃ¢n ViÃªn NÃ y</Text>
                     </TouchableOpacity>
                   )}
                 </ScrollView>

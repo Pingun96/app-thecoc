@@ -34,7 +34,7 @@ export default function NotificationScreen({ navigation }) {
   };
 
   const markAsRead = async (id, isRead) => {
-    if (isRead) return; // Đã đọc rồi thì bỏ qua
+    if (isRead) return; // ÄÃ£ Ä‘á»c rá»“i thÃ¬ bá» qua
     try {
       const { error } = await supabase
         .from('notifications')
@@ -71,11 +71,11 @@ export default function NotificationScreen({ navigation }) {
 
     const title = item.title.toLowerCase();
     
-    if (title.includes('lương')) {
+    if (title.includes('lÆ°Æ¡ng')) {
       navigation.navigate('Payroll');
-    } else if (title.includes('chốt ca')) {
+    } else if (title.includes('chá»‘t ca')) {
       navigation.navigate('Shifts');
-    } else if (title.includes('lịch') || title.includes('ca') || title.includes('điều động')) {
+    } else if (title.includes('lá»‹ch') || title.includes('ca') || title.includes('Ä‘iá»u Ä‘á»™ng')) {
       navigation.navigate('Dashboard', { screen: 'ScheduleTab' });
     }
   };
@@ -103,7 +103,7 @@ export default function NotificationScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thông báo</Text>
+        <Text style={styles.headerTitle}>ThÃ´ng bÃ¡o</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity onPress={markAllAsRead} style={styles.markAllBtn}>
             <Ionicons name="checkmark-done-circle-outline" size={24} color={COLORS.primary} />
@@ -116,7 +116,7 @@ export default function NotificationScreen({ navigation }) {
       ) : notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="notifications-off-outline" size={60} color={COLORS.textMuted} />
-          <Text style={styles.emptyText}>Bạn không có thông báo nào</Text>
+          <Text style={styles.emptyText}>Báº¡n khÃ´ng cÃ³ thÃ´ng bÃ¡o nÃ o</Text>
         </View>
       ) : (
         <FlatList

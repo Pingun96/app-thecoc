@@ -173,7 +173,7 @@ export default function StaffCheckinScreen({ navigation }) {
   );
 
   const getStoreName = (storeId) => (
-    storeList.find((store) => String(store.id) === String(storeId))?.name || `Chi nhánh ${storeId || '--'}`
+    storeList.find((store) => String(store.id) === String(storeId))?.name || `Chi nhÃ¡nh ${storeId || '--'}`
   );
 
   useEffect(() => {
@@ -190,10 +190,10 @@ export default function StaffCheckinScreen({ navigation }) {
     reminderShownRef.current = reminderKey;
 
     Alert.alert(
-      checkoutReminder.isOverdue ? 'Quên check-out?' : 'Sắp hết ca',
+      checkoutReminder.isOverdue ? 'QuÃªn check-out?' : 'Sáº¯p háº¿t ca',
       checkoutReminder.isOverdue
-        ? `Ca ${checkoutReminder.shiftLabel} đã qua giờ kết thúc ${checkoutReminder.endTime}. Nếu đã xong việc, hãy Check-out để chốt giờ công.`
-        : `Còn khoảng ${checkoutReminder.minutesToEnd} phút đến giờ kết thúc ${checkoutReminder.shiftLabel}. Nhớ Check-out khi xong ca nhé.`,
+        ? `Ca ${checkoutReminder.shiftLabel} Ä‘Ã£ qua giá» káº¿t thÃºc ${checkoutReminder.endTime}. Náº¿u Ä‘Ã£ xong viá»‡c, hÃ£y Check-out Ä‘á»ƒ chá»‘t giá» cÃ´ng.`
+        : `CÃ²n khoáº£ng ${checkoutReminder.minutesToEnd} phÃºt Ä‘áº¿n giá» káº¿t thÃºc ${checkoutReminder.shiftLabel}. Nhá»› Check-out khi xong ca nhÃ©.`,
     );
   }, [checkoutReminder, currentRecord?.id]);
 
@@ -208,7 +208,7 @@ export default function StaffCheckinScreen({ navigation }) {
   const getWebLocation = () => {
     return new Promise((resolve, reject) => {
       if (typeof navigator === 'undefined' || !navigator.geolocation) {
-        reject(new Error('Trình duyệt không hỗ trợ định vị GPS.'));
+        reject(new Error('TrÃ¬nh duyá»‡t khÃ´ng há»— trá»£ Ä‘á»‹nh vá»‹ GPS.'));
         return;
       }
       navigator.geolocation.getCurrentPosition(
@@ -222,13 +222,13 @@ export default function StaffCheckinScreen({ navigation }) {
           });
         },
         (error) => {
-          let msg = 'Không thể lấy vị trí. ';
+          let msg = 'KhÃ´ng thá»ƒ láº¥y vá»‹ trÃ­. ';
           if (error.code === error.PERMISSION_DENIED) {
-            msg += 'Hãy cho phép truy cập GPS trong cài đặt trình duyệt/thiết bị.';
+            msg += 'HÃ£y cho phÃ©p truy cáº­p GPS trong cÃ i Ä‘áº·t trÃ¬nh duyá»‡t/thiáº¿t bá»‹.';
           } else if (error.code === error.POSITION_UNAVAILABLE) {
-            msg += 'Không có tín hiệu GPS.';
+            msg += 'KhÃ´ng cÃ³ tÃ­n hiá»‡u GPS.';
           } else if (error.code === error.TIMEOUT) {
-            msg += 'Quá thời gian lấy GPS.';
+            msg += 'QuÃ¡ thá»i gian láº¥y GPS.';
           }
           reject(new Error(msg));
         },
@@ -245,10 +245,10 @@ export default function StaffCheckinScreen({ navigation }) {
       return await withTimeout(
         Location.requestForegroundPermissionsAsync(),
         15000,
-        'iPhone không phản hồi quyền vị trí. Hãy mở Cài đặt > Quyền riêng tư > Dịch vụ định vị và thử lại.'
+        'iPhone khÃ´ng pháº£n há»“i quyá»n vá»‹ trÃ­. HÃ£y má»Ÿ CÃ i Ä‘áº·t > Quyá»n riÃªng tÆ° > Dá»‹ch vá»¥ Ä‘á»‹nh vá»‹ vÃ  thá»­ láº¡i.'
       );
     } catch (error) {
-      throw new Error(error?.message || 'Không thể xin quyền vị trí.');
+      throw new Error(error?.message || 'KhÃ´ng thá»ƒ xin quyá»n vá»‹ trÃ­.');
     }
   };
 
@@ -260,17 +260,17 @@ export default function StaffCheckinScreen({ navigation }) {
       return await withTimeout(
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
         12000,
-        'Không lấy được GPS trong 12 giây.'
+        'KhÃ´ng láº¥y Ä‘Æ°á»£c GPS trong 12 giÃ¢y.'
       );
     } catch (_error) {
       const lastLocation = await withTimeout(
         Location.getLastKnownPositionAsync(),
         5000,
-        'Không có vị trí gần nhất.'
+        'KhÃ´ng cÃ³ vá»‹ trÃ­ gáº§n nháº¥t.'
       ).catch(() => null);
 
       if (!lastLocation) {
-        throw new Error('Không thể lấy vị trí. Hãy bật GPS/quyền vị trí cho The Cốc rồi thử lại.');
+        throw new Error('KhÃ´ng thá»ƒ láº¥y vá»‹ trÃ­. HÃ£y báº­t GPS/quyá»n vá»‹ trÃ­ cho The Cá»‘c rá»“i thá»­ láº¡i.');
       }
 
       return lastLocation;
@@ -283,7 +283,7 @@ export default function StaffCheckinScreen({ navigation }) {
     try {
       let { status } = await requestLocationPermissionSafely();
       if (status !== 'granted') {
-        Alert.alert('Từ chối quyền', 'Cần quyền truy cập vị trí để cập nhật tọa độ.');
+        Alert.alert('Tá»« chá»‘i quyá»n', 'Cáº§n quyá»n truy cáº­p vá»‹ trÃ­ Ä‘á»ƒ cáº­p nháº­t tá»a Ä‘á»™.');
         return;
       }
       setIsSubmitting(true);
@@ -291,8 +291,8 @@ export default function StaffCheckinScreen({ navigation }) {
       try {
         location = await getCurrentLocationSafely();
       } catch (_locErr) {
-        location = await withTimeout(Location.getLastKnownPositionAsync(), 5000, 'Không có vị trí gần nhất.');
-        if (!location) throw new Error('Không thể lấy được vị trí. Hãy bật GPS và thử lại ngoài trời.');
+        location = await withTimeout(Location.getLastKnownPositionAsync(), 5000, 'KhÃ´ng cÃ³ vá»‹ trÃ­ gáº§n nháº¥t.');
+        if (!location) throw new Error('KhÃ´ng thá»ƒ láº¥y Ä‘Æ°á»£c vá»‹ trÃ­. HÃ£y báº­t GPS vÃ  thá»­ láº¡i ngoÃ i trá»i.');
       }
       const { latitude, longitude } = location.coords;
       
@@ -303,10 +303,10 @@ export default function StaffCheckinScreen({ navigation }) {
       }).eq('id', currentUser.store_id);
       
       if (error) throw error;
-      Alert.alert('Thành công', 'Đã lưu tọa độ quán thành công. Nhân viên giờ đây phải đứng cách tối đa 100m mới được chấm công.');
+      Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ lÆ°u tá»a Ä‘á»™ quÃ¡n thÃ nh cÃ´ng. NhÃ¢n viÃªn giá» Ä‘Ã¢y pháº£i Ä‘á»©ng cÃ¡ch tá»‘i Ä‘a 100m má»›i Ä‘Æ°á»£c cháº¥m cÃ´ng.');
       if (refreshData) await refreshData();
     } catch(e) {
-      Alert.alert('Lỗi', e.message);
+      Alert.alert('Lá»—i', e.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -316,30 +316,30 @@ export default function StaffCheckinScreen({ navigation }) {
     const myStore = storeList.find(s => String(s.id) === String(targetStoreId));
     if (!myStore?.latitude || !myStore?.longitude) {
       if (isOwner) {
-         throw new Error('Chưa cấu hình Tọa độ. Vui lòng bấm Thiết lập tọa độ quán trước.');
+         throw new Error('ChÆ°a cáº¥u hÃ¬nh Tá»a Ä‘á»™. Vui lÃ²ng báº¥m Thiáº¿t láº­p tá»a Ä‘á»™ quÃ¡n trÆ°á»›c.');
       }
-      throw new Error('Chủ cửa hàng chưa thiết lập Tọa độ Quán. Vui lòng báo quản lý.');
+      throw new Error('Chá»§ cá»­a hÃ ng chÆ°a thiáº¿t láº­p Tá»a Ä‘á»™ QuÃ¡n. Vui lÃ²ng bÃ¡o quáº£n lÃ½.');
     }
 
     let { status } = await requestLocationPermissionSafely();
     if (status !== 'granted') {
-      throw new Error('Bạn cần cấp quyền truy cập Vị trí (GPS) để chấm công.');
+      throw new Error('Báº¡n cáº§n cáº¥p quyá»n truy cáº­p Vá»‹ trÃ­ (GPS) Ä‘á»ƒ cháº¥m cÃ´ng.');
     }
 
     let location;
     try {
       location = await getCurrentLocationSafely();
     } catch (_locErr) {
-      location = await withTimeout(Location.getLastKnownPositionAsync(), 5000, 'Không có vị trí gần nhất.');
-      if (!location) throw new Error('Không thể lấy được vị trí của bạn lúc này. Vui lòng kiểm tra GPS.');
+      location = await withTimeout(Location.getLastKnownPositionAsync(), 5000, 'KhÃ´ng cÃ³ vá»‹ trÃ­ gáº§n nháº¥t.');
+      if (!location) throw new Error('KhÃ´ng thá»ƒ láº¥y Ä‘Æ°á»£c vá»‹ trÃ­ cá»§a báº¡n lÃºc nÃ y. Vui lÃ²ng kiá»ƒm tra GPS.');
     }
     const dist = getDistance(location.coords.latitude, location.coords.longitude, myStore.latitude, myStore.longitude);
     
-    if (dist === null) throw new Error('Không thể tính toán khoảng cách.');
+    if (dist === null) throw new Error('KhÃ´ng thá»ƒ tÃ­nh toÃ¡n khoáº£ng cÃ¡ch.');
     
     const allowed = myStore.allowed_radius || 100;
     if (dist > allowed) {
-      throw new Error(`Bạn đang cách cửa hàng ${Math.round(dist)}m. Bán kính cho phép là ${allowed}m. Vui lòng đến đúng cửa hàng để chấm công!`);
+      throw new Error(`Báº¡n Ä‘ang cÃ¡ch cá»­a hÃ ng ${Math.round(dist)}m. BÃ¡n kÃ­nh cho phÃ©p lÃ  ${allowed}m. Vui lÃ²ng Ä‘áº¿n Ä‘Ãºng cá»­a hÃ ng Ä‘á»ƒ cháº¥m cÃ´ng!`);
     }
 
     return location.coords;
@@ -347,25 +347,25 @@ export default function StaffCheckinScreen({ navigation }) {
 
   const handleAttendancePress = async (type) => {
     if (!currentUser?.id) {
-      Alert.alert('Phiên đăng nhập không hợp lệ', 'Vui lòng đăng nhập lại.');
+      Alert.alert('PhiÃªn Ä‘Äƒng nháº­p khÃ´ng há»£p lá»‡', 'Vui lÃ²ng Ä‘Äƒng nháº­p láº¡i.');
       return;
     }
     if (type === 'check-in' && currentRecord) {
-      Alert.alert('Đã vào ca', 'Bạn cần kết thúc ca hiện tại trước khi chấm công mới.');
+      Alert.alert('ÄÃ£ vÃ o ca', 'Báº¡n cáº§n káº¿t thÃºc ca hiá»‡n táº¡i trÆ°á»›c khi cháº¥m cÃ´ng má»›i.');
       return;
     }
     if (type === 'check-out') {
       if (!currentRecord) {
-        Alert.alert('Không có ca đang mở', 'Không tìm thấy lượt check-in cần kết thúc.');
+        Alert.alert('KhÃ´ng cÃ³ ca Ä‘ang má»Ÿ', 'KhÃ´ng tÃ¬m tháº¥y lÆ°á»£t check-in cáº§n káº¿t thÃºc.');
         return;
       }
 
       const checkInTime = currentRecord.checkIn || currentRecord.check_in || '--:--';
       Alert.alert(
-        'Xác nhận Check-out',
-        `Bạn chắc chắn muốn kết thúc ca đang mở từ ${checkInTime}? Nếu bấm nhầm, chỉ có thể dùng “Tiếp tục” trong ${RESUME_LIMIT_MINUTES} phút.`,
+        'XÃ¡c nháº­n Check-out',
+        `Báº¡n cháº¯c cháº¯n muá»‘n káº¿t thÃºc ca Ä‘ang má»Ÿ tá»« ${checkInTime}? Náº¿u báº¥m nháº§m, chá»‰ cÃ³ thá»ƒ dÃ¹ng â€œTiáº¿p tá»¥câ€ trong ${RESUME_LIMIT_MINUTES} phÃºt.`,
         [
-          { text: 'Hủy', style: 'cancel' },
+          { text: 'Há»§y', style: 'cancel' },
           {
             text: 'Check-out',
             style: 'destructive',
@@ -386,12 +386,12 @@ export default function StaffCheckinScreen({ navigation }) {
       
       if (myApprovedShiftsToday.length === 0) {
         Alert.alert(
-          'Không có lịch làm việc',
-          'Quản lý chưa duyệt ca nào cho bạn trong ngày hôm nay.\n\nBạn có chắc chắn muốn Check-in làm ngoài ca không?',
+          'KhÃ´ng cÃ³ lá»‹ch lÃ m viá»‡c',
+          'Quáº£n lÃ½ chÆ°a duyá»‡t ca nÃ o cho báº¡n trong ngÃ y hÃ´m nay.\n\nBáº¡n cÃ³ cháº¯c cháº¯n muá»‘n Check-in lÃ m ngoÃ i ca khÃ´ng?',
           [
-            { text: 'Hủy', style: 'cancel' },
+            { text: 'Há»§y', style: 'cancel' },
             { 
-              text: 'Vẫn Check-in', 
+              text: 'Váº«n Check-in', 
               onPress: () => {
                 setActionType(type);
                 takePictureAndSubmit('check-in');
@@ -409,21 +409,21 @@ export default function StaffCheckinScreen({ navigation }) {
 
   const handleResumeShift = () => {
     if (!currentUser?.id) {
-      Alert.alert('Phiên đăng nhập không hợp lệ', 'Vui lòng đăng nhập lại.');
+      Alert.alert('PhiÃªn Ä‘Äƒng nháº­p khÃ´ng há»£p lá»‡', 'Vui lÃ²ng Ä‘Äƒng nháº­p láº¡i.');
       return;
     }
     if (currentRecord) {
-      Alert.alert('Đang trong ca', 'Ca làm hiện tại vẫn đang mở.');
+      Alert.alert('Äang trong ca', 'Ca lÃ m hiá»‡n táº¡i váº«n Ä‘ang má»Ÿ.');
       return;
     }
     if (!latestClosedRecord) {
-      Alert.alert('Chưa có ca để tiếp tục', 'Không tìm thấy lượt check-out hôm nay để mở lại.');
+      Alert.alert('ChÆ°a cÃ³ ca Ä‘á»ƒ tiáº¿p tá»¥c', 'KhÃ´ng tÃ¬m tháº¥y lÆ°á»£t check-out hÃ´m nay Ä‘á»ƒ má»Ÿ láº¡i.');
       return;
     }
     if (!latestClosedResumeInfo?.canResume) {
       Alert.alert(
-        'Đã quá thời gian tự mở lại',
-        `Nút Tiếp tục chỉ dùng trong ${RESUME_LIMIT_MINUTES} phút sau khi bấm nhầm Check-out. Vui lòng báo quản lý xử lý trong Đối chiếu công.`,
+        'ÄÃ£ quÃ¡ thá»i gian tá»± má»Ÿ láº¡i',
+        `NÃºt Tiáº¿p tá»¥c chá»‰ dÃ¹ng trong ${RESUME_LIMIT_MINUTES} phÃºt sau khi báº¥m nháº§m Check-out. Vui lÃ²ng bÃ¡o quáº£n lÃ½ xá»­ lÃ½ trong Äá»‘i chiáº¿u cÃ´ng.`,
       );
       return;
     }
@@ -432,12 +432,12 @@ export default function StaffCheckinScreen({ navigation }) {
     const checkinTime = latestClosedRecord.checkIn || latestClosedRecord.check_in || '--:--';
 
     Alert.alert(
-      'Tiếp tục giờ làm?',
-      `Dùng khi nhân viên bấm nhầm check-out. App sẽ xóa giờ check-out ${checkoutTime} và mở lại ca bắt đầu lúc ${checkinTime}.`,
+      'Tiáº¿p tá»¥c giá» lÃ m?',
+      `DÃ¹ng khi nhÃ¢n viÃªn báº¥m nháº§m check-out. App sáº½ xÃ³a giá» check-out ${checkoutTime} vÃ  má»Ÿ láº¡i ca báº¯t Ä‘áº§u lÃºc ${checkinTime}.`,
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: 'Há»§y', style: 'cancel' },
         {
-          text: 'Tiếp tục',
+          text: 'Tiáº¿p tá»¥c',
           onPress: async () => {
             setIsSubmitting(true);
             try {
@@ -452,7 +452,7 @@ export default function StaffCheckinScreen({ navigation }) {
                 previousCheckOutAt: latestClosedRecord.check_out_at,
                 previousHours: latestClosedRecord.hours,
                 requestedBy: currentUser.id,
-                note: 'Nhân viên bấm Tiếp tục giờ làm sau khi check-out nhầm.',
+                note: 'NhÃ¢n viÃªn báº¥m Tiáº¿p tá»¥c giá» lÃ m sau khi check-out nháº§m.',
               });
               setAttendanceHistory((current) => current.map((record) => (
                 record.id === latestClosedRecord.id
@@ -486,8 +486,8 @@ export default function StaffCheckinScreen({ navigation }) {
               managerTargets.slice(0, 8).forEach((userId) => {
                 createInAppNotification({
                   userId,
-                  title: 'Có chỉnh công cần duyệt',
-                  body: `${currentUser.name || 'Nhân viên'} vừa mở lại ca sau khi check-out nhầm lúc ${checkoutTime}.`,
+                  title: 'CÃ³ chá»‰nh cÃ´ng cáº§n duyá»‡t',
+                  body: `${currentUser.name || 'NhÃ¢n viÃªn'} vá»«a má»Ÿ láº¡i ca sau khi check-out nháº§m lÃºc ${checkoutTime}.`,
                   type: 'attendance_correction',
                   route: 'AttendanceReview',
                   storeId: latestClosedRecord.store_id || currentUser.store_id,
@@ -499,10 +499,10 @@ export default function StaffCheckinScreen({ navigation }) {
                   },
                 });
               });
-              Alert.alert('Đã tiếp tục ca', 'Ca làm đã được mở lại. Khi kết thúc thật, bấm Check-out lại một lần nữa.');
+              Alert.alert('ÄÃ£ tiáº¿p tá»¥c ca', 'Ca lÃ m Ä‘Ã£ Ä‘Æ°á»£c má»Ÿ láº¡i. Khi káº¿t thÃºc tháº­t, báº¥m Check-out láº¡i má»™t láº§n ná»¯a.');
               if (refreshData) refreshData();
             } catch (error) {
-              Alert.alert('Không thể tiếp tục ca', error?.message || 'Vui lòng thử lại.');
+              Alert.alert('KhÃ´ng thá»ƒ tiáº¿p tá»¥c ca', error?.message || 'Vui lÃ²ng thá»­ láº¡i.');
             } finally {
               setIsSubmitting(false);
             }
@@ -584,8 +584,8 @@ export default function StaffCheckinScreen({ navigation }) {
         setAttendanceHistory((current) => [...current, normalizedRecord]);
 
         Alert.alert(
-          'Check-in thành công',
-          `${time} • ${scheduledShift ? `${getShiftLabel(scheduledShiftType)} tại ${getStoreName(targetStoreId)}` : 'Chấm công ngoài lịch, quản lý cần đối chiếu.'}`,
+          'Check-in thÃ nh cÃ´ng',
+          `${time} â€¢ ${scheduledShift ? `${getShiftLabel(scheduledShiftType)} táº¡i ${getStoreName(targetStoreId)}` : 'Cháº¥m cÃ´ng ngoÃ i lá»‹ch, quáº£n lÃ½ cáº§n Ä‘á»‘i chiáº¿u.'}`,
         );
       } else {
         const workedHours = calculateWorkedHours({
@@ -627,15 +627,15 @@ export default function StaffCheckinScreen({ navigation }) {
         )));
 
         Alert.alert(
-          'Check-out thành công',
-          `${time} • Tổng thời gian: ${formatDuration(workedHours)}${checkoutStatus.isEarlyLeave ? ` • Về sớm ${checkoutStatus.earlyLeaveMinutes} phút` : checkoutStatus.overtimeMinutes > 5 ? ` • Tăng ca ${checkoutStatus.overtimeMinutes} phút` : ''}`,
+          'Check-out thÃ nh cÃ´ng',
+          `${time} â€¢ Tá»•ng thá»i gian: ${formatDuration(workedHours)}${checkoutStatus.isEarlyLeave ? ` â€¢ Vá» sá»›m ${checkoutStatus.earlyLeaveMinutes} phÃºt` : checkoutStatus.overtimeMinutes > 5 ? ` â€¢ TÄƒng ca ${checkoutStatus.overtimeMinutes} phÃºt` : ''}`,
         );
       }
     } catch (error) {
-      console.error('Lỗi chấm công:', error);
+      console.error('Lá»—i cháº¥m cÃ´ng:', error);
       Alert.alert(
-        'Không thể chấm công',
-        error?.message || 'Đã có lỗi khi lưu dữ liệu.',
+        'KhÃ´ng thá»ƒ cháº¥m cÃ´ng',
+        error?.message || 'ÄÃ£ cÃ³ lá»—i khi lÆ°u dá»¯ liá»‡u.',
       );
     } finally {
       setIsSubmitting(false);
@@ -649,8 +649,8 @@ export default function StaffCheckinScreen({ navigation }) {
             <Ionicons name="arrow-back" size={24} color="#1565c0" />
           </TouchableOpacity>
           <View>
-            <Text style={styles.header}>Chấm công</Text>
-            <Text style={styles.headerCaption}>Xác thực thời gian làm việc</Text>
+            <Text style={styles.header}>Cháº¥m cÃ´ng</Text>
+            <Text style={styles.headerCaption}>XÃ¡c thá»±c thá»i gian lÃ m viá»‡c</Text>
           </View>
         </View>
 
@@ -659,26 +659,26 @@ export default function StaffCheckinScreen({ navigation }) {
             <View>
               <Text style={styles.statusDate}>{formatDate(today)}</Text>
               <Text style={styles.statusTitle}>
-                {currentRecord ? 'Bạn đang trong ca làm' : 'Chưa có ca đang mở'}
+                {currentRecord ? 'Báº¡n Ä‘ang trong ca lÃ m' : 'ChÆ°a cÃ³ ca Ä‘ang má»Ÿ'}
               </Text>
             </View>
             <View style={[styles.statusBadge, currentRecord ? styles.badgeActive : styles.badgeIdle]}>
               <Text style={[styles.statusBadgeText, currentRecord ? styles.badgeActiveText : styles.badgeIdleText]}>
-                {currentRecord ? 'ĐANG LÀM' : 'CHỜ VÀO CA'}
+                {currentRecord ? 'ÄANG LÃ€M' : 'CHá»œ VÃ€O CA'}
               </Text>
             </View>
           </View>
 
           <View style={styles.timeline}>
             <View style={styles.timelineItem}>
-              <Text style={styles.timelineLabel}>Vào ca</Text>
+              <Text style={styles.timelineLabel}>VÃ o ca</Text>
               <Text style={styles.timelineValue}>
                 {currentRecord?.checkIn || currentRecord?.check_in || latestRecord?.checkIn || latestRecord?.check_in || '--:--'}
               </Text>
             </View>
             <Ionicons name="arrow-forward" size={20} color="#94a3b8" />
             <View style={styles.timelineItem}>
-              <Text style={styles.timelineLabel}>Kết thúc</Text>
+              <Text style={styles.timelineLabel}>Káº¿t thÃºc</Text>
               <Text style={styles.timelineValue}>
                 {latestRecord?.checkOut || latestRecord?.check_out || '--:--'}
               </Text>
@@ -689,7 +689,7 @@ export default function StaffCheckinScreen({ navigation }) {
         <View style={styles.infoCard}>
           <Ionicons name="shield-checkmark-outline" size={24} color="#1565c0" />
           <Text style={styles.infoText}>
-            Thời gian bắt đầu và kết thúc ca làm việc sẽ được ghi nhận.
+            Thá»i gian báº¯t Ä‘áº§u vÃ  káº¿t thÃºc ca lÃ m viá»‡c sáº½ Ä‘Æ°á»£c ghi nháº­n.
           </Text>
         </View>
 
@@ -702,14 +702,14 @@ export default function StaffCheckinScreen({ navigation }) {
             />
             <Text style={styles.reminderText}>
               {checkoutReminder.isOverdue
-                ? `Ca ${checkoutReminder.shiftLabel} đã quá giờ ${checkoutReminder.endTime}. Nhớ Check-out để chốt giờ công.`
-                : `Còn ${checkoutReminder.minutesToEnd} phút đến giờ kết thúc ${checkoutReminder.shiftLabel}.`}
+                ? `Ca ${checkoutReminder.shiftLabel} Ä‘Ã£ quÃ¡ giá» ${checkoutReminder.endTime}. Nhá»› Check-out Ä‘á»ƒ chá»‘t giá» cÃ´ng.`
+                : `CÃ²n ${checkoutReminder.minutesToEnd} phÃºt Ä‘áº¿n giá» káº¿t thÃºc ${checkoutReminder.shiftLabel}.`}
             </Text>
           </View>
         ) : null}
 
         <View style={styles.scheduleCard}>
-          <Text style={styles.scheduleTitle}>Lịch đã duyệt hôm nay</Text>
+          <Text style={styles.scheduleTitle}>Lá»‹ch Ä‘Ã£ duyá»‡t hÃ´m nay</Text>
           {todayApprovedShifts.length > 0 ? (
             todayApprovedShifts.map((shift) => {
               const window = getShiftWindow(shift.shift_type);
@@ -724,7 +724,7 @@ export default function StaffCheckinScreen({ navigation }) {
               );
             })
           ) : (
-            <Text style={styles.scheduleEmpty}>Hôm nay chưa có ca đã duyệt. Nếu vẫn đi làm, lượt chấm công sẽ được đưa vào mục đối chiếu.</Text>
+            <Text style={styles.scheduleEmpty}>HÃ´m nay chÆ°a cÃ³ ca Ä‘Ã£ duyá»‡t. Náº¿u váº«n Ä‘i lÃ m, lÆ°á»£t cháº¥m cÃ´ng sáº½ Ä‘Æ°á»£c Ä‘Æ°a vÃ o má»¥c Ä‘á»‘i chiáº¿u.</Text>
           )}
         </View>
 
@@ -733,11 +733,11 @@ export default function StaffCheckinScreen({ navigation }) {
             {latestClosedRecord ? (
               <View style={styles.resumeCard}>
                 <View style={styles.resumeTextBlock}>
-                  <Text style={styles.resumeTitle}>Bấm nhầm Check-out?</Text>
+                  <Text style={styles.resumeTitle}>Báº¥m nháº§m Check-out?</Text>
                   <Text style={styles.resumeText}>
                     {latestClosedResumeInfo?.canResume
-                      ? `Mở lại ca đã check-out lúc ${latestClosedRecord.checkOut || latestClosedRecord.check_out || '--:--'} để tiếp tục. Còn ${latestClosedResumeInfo.remainingMinutes} phút.`
-                      : `Đã quá ${RESUME_LIMIT_MINUTES} phút. Báo quản lý duyệt chỉnh trong Đối chiếu công.`}
+                      ? `Má»Ÿ láº¡i ca Ä‘Ã£ check-out lÃºc ${latestClosedRecord.checkOut || latestClosedRecord.check_out || '--:--'} Ä‘á»ƒ tiáº¿p tá»¥c. CÃ²n ${latestClosedResumeInfo.remainingMinutes} phÃºt.`
+                      : `ÄÃ£ quÃ¡ ${RESUME_LIMIT_MINUTES} phÃºt. BÃ¡o quáº£n lÃ½ duyá»‡t chá»‰nh trong Äá»‘i chiáº¿u cÃ´ng.`}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -746,7 +746,7 @@ export default function StaffCheckinScreen({ navigation }) {
                   disabled={isSubmitting || !latestClosedResumeInfo?.canResume}
                 >
                   <Ionicons name="play-circle-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.resumeButtonText}>{latestClosedResumeInfo?.canResume ? 'Tiếp tục' : 'Quá hạn'}</Text>
+                  <Text style={styles.resumeButtonText}>{latestClosedResumeInfo?.canResume ? 'Tiáº¿p tá»¥c' : 'QuÃ¡ háº¡n'}</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -756,7 +756,7 @@ export default function StaffCheckinScreen({ navigation }) {
               disabled={isSubmitting}
             >
               <Ionicons name="log-in-outline" size={23} color="#fff" />
-              <Text style={styles.primaryButtonText}>Check-in vào ca</Text>
+              <Text style={styles.primaryButtonText}>Check-in vÃ o ca</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -766,12 +766,12 @@ export default function StaffCheckinScreen({ navigation }) {
             disabled={isSubmitting}
           >
             <Ionicons name="log-out-outline" size={23} color="#fff" />
-            <Text style={styles.primaryButtonText}>Check-out kết thúc ca</Text>
+            <Text style={styles.primaryButtonText}>Check-out káº¿t thÃºc ca</Text>
           </TouchableOpacity>
         )}
 
         <Text style={styles.note}>
-          Mỗi nhân viên chỉ có một ca đang mở tại một thời điểm.
+          Má»—i nhÃ¢n viÃªn chá»‰ cÃ³ má»™t ca Ä‘ang má»Ÿ táº¡i má»™t thá»i Ä‘iá»ƒm.
         </Text>
 
         {isOwner && (
@@ -780,7 +780,7 @@ export default function StaffCheckinScreen({ navigation }) {
             onPress={handleUpdateStoreLocation}
           >
             <Ionicons name="location-outline" size={20} color={COLORS.textMuted} style={{marginRight: 8}}/>
-            <Text style={{color: '#475569', fontWeight: 'bold'}}>Thiết lập tọa độ hiện tại cho Quán</Text>
+            <Text style={{color: '#475569', fontWeight: 'bold'}}>Thiáº¿t láº­p tá»a Ä‘á»™ hiá»‡n táº¡i cho QuÃ¡n</Text>
           </TouchableOpacity>
         )}
       </ScrollView>

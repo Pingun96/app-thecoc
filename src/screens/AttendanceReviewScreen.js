@@ -44,14 +44,14 @@ const formatMinutes = (minutes = 0) => {
 };
 
 const FILTERS = [
-  { key: 'ALL', label: 'Tất cả' },
-  { key: 'ACTION', label: 'Cần xử lý' },
-  { key: 'missing_checkin', label: 'Có lịch chưa check-in' },
-  { key: 'outside_schedule', label: 'Ngoài lịch / sai quán' },
-  { key: 'missing_checkout', label: 'Thiếu checkout' },
-  { key: 'late', label: 'Đi trễ' },
-  { key: 'early_leave', label: 'Về sớm' },
-  { key: 'overtime', label: 'Tăng ca' },
+  { key: 'ALL', label: 'Táº¥t cáº£' },
+  { key: 'ACTION', label: 'Cáº§n xá»­ lÃ½' },
+  { key: 'missing_checkin', label: 'CÃ³ lá»‹ch chÆ°a check-in' },
+  { key: 'outside_schedule', label: 'NgoÃ i lá»‹ch / sai quÃ¡n' },
+  { key: 'missing_checkout', label: 'Thiáº¿u checkout' },
+  { key: 'late', label: 'Äi trá»…' },
+  { key: 'early_leave', label: 'Vá» sá»›m' },
+  { key: 'overtime', label: 'TÄƒng ca' },
 ];
 
 export default function AttendanceReviewScreen({ navigation }) {
@@ -145,7 +145,7 @@ export default function AttendanceReviewScreen({ navigation }) {
 
   const rangeLabel = rangeStart === rangeEnd
     ? formatDate(rangeStart)
-    : `${formatDate(rangeStart)} → ${formatDate(rangeEnd)}`;
+    : `${formatDate(rangeStart)} â†’ ${formatDate(rangeEnd)}`;
 
   const severityStyle = (severity) => {
     if (severity === 'danger') return styles.severityDanger;
@@ -167,18 +167,18 @@ export default function AttendanceReviewScreen({ navigation }) {
 
   const approveOutsideAttendance = (row) => {
     if (!row?.record?.user_id || !row?.record?.store_id) {
-      Alert.alert('Chưa đủ dữ liệu', 'Lượt chấm công này thiếu nhân viên hoặc chi nhánh nên chưa thể duyệt vào lịch.');
+      Alert.alert('ChÆ°a Ä‘á»§ dá»¯ liá»‡u', 'LÆ°á»£t cháº¥m cÃ´ng nÃ y thiáº¿u nhÃ¢n viÃªn hoáº·c chi nhÃ¡nh nÃªn chÆ°a thá»ƒ duyá»‡t vÃ o lá»‹ch.');
       return;
     }
 
     const shiftType = row.shiftType || 'MORNING';
     Alert.alert(
-      'Duyệt vào lịch',
-      `Tạo ${getShiftLabel(shiftType)} đã duyệt cho ${row.staff?.name || 'nhân viên này'} tại ${row.store?.name || 'chi nhánh này'}?`,
+      'Duyá»‡t vÃ o lá»‹ch',
+      `Táº¡o ${getShiftLabel(shiftType)} Ä‘Ã£ duyá»‡t cho ${row.staff?.name || 'nhÃ¢n viÃªn nÃ y'} táº¡i ${row.store?.name || 'chi nhÃ¡nh nÃ y'}?`,
       [
-        { text: 'Huỷ', style: 'cancel' },
+        { text: 'Huá»·', style: 'cancel' },
         {
-          text: 'Duyệt',
+          text: 'Duyá»‡t',
           onPress: async () => {
             try {
               const newShift = {
@@ -194,9 +194,9 @@ export default function AttendanceReviewScreen({ navigation }) {
               if (error) throw error;
 
               setShiftRegistrations((current) => [...(current || []), newShift]);
-              Alert.alert('Đã duyệt', 'Lượt chấm công đã được gắn vào lịch làm.');
+              Alert.alert('ÄÃ£ duyá»‡t', 'LÆ°á»£t cháº¥m cÃ´ng Ä‘Ã£ Ä‘Æ°á»£c gáº¯n vÃ o lá»‹ch lÃ m.');
             } catch (error) {
-              Alert.alert('Không thể duyệt', error.message || 'Vui lòng thử lại.');
+              Alert.alert('KhÃ´ng thá»ƒ duyá»‡t', error.message || 'Vui lÃ²ng thá»­ láº¡i.');
             }
           },
         },
@@ -207,12 +207,12 @@ export default function AttendanceReviewScreen({ navigation }) {
   const renderStoreFilters = () => {
     if (displayStoreId !== 'ALL') return null;
     return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow} decelerationRate="fast" scrollEventThrottle={16}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
         <TouchableOpacity
           style={[styles.filterChip, storeFilter === 'ALL' && styles.filterChipActive]}
           onPress={() => setStoreFilter('ALL')}
         >
-          <Text style={[styles.filterChipText, storeFilter === 'ALL' && styles.filterChipTextActive]}>Tất cả quán</Text>
+          <Text style={[styles.filterChipText, storeFilter === 'ALL' && styles.filterChipTextActive]}>Táº¥t cáº£ quÃ¡n</Text>
         </TouchableOpacity>
         {availableStores.map((store) => (
           <TouchableOpacity
@@ -234,14 +234,12 @@ export default function AttendanceReviewScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.header}>Đối chiếu công</Text>
-          <Text style={styles.caption}>Lọc vi phạm theo quán để chốt lương minh bạch</Text>
+          <Text style={styles.header}>Äá»‘i chiáº¿u cÃ´ng</Text>
+          <Text style={styles.caption}>Lá»c vi pháº¡m theo quÃ¡n Ä‘á»ƒ chá»‘t lÆ°Æ¡ng minh báº¡ch</Text>
         </View>
       </View>
 
-      <ScrollView 
-        decelerationRate="fast"
-        scrollEventThrottle={16}
+      <ScrollView
         style={styles.flexScroll}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} tintColor={COLORS.primary} />}
@@ -251,7 +249,7 @@ export default function AttendanceReviewScreen({ navigation }) {
           <TouchableOpacity style={styles.rangeButton} onPress={() => setShowDateModal(true)}>
             <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.rangeLabel}>Khoảng thời gian</Text>
+              <Text style={styles.rangeLabel}>Khoáº£ng thá»i gian</Text>
               <Text style={styles.rangeValue}>{rangeLabel}</Text>
             </View>
             <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
@@ -262,7 +260,7 @@ export default function AttendanceReviewScreen({ navigation }) {
             <TextInput
               value={searchText}
               onChangeText={setSearchText}
-              placeholder="Tìm nhân viên, quán, lỗi..."
+              placeholder="TÃ¬m nhÃ¢n viÃªn, quÃ¡n, lá»—i..."
               placeholderTextColor="#94a3b8"
               style={styles.searchInput}
             />
@@ -270,7 +268,7 @@ export default function AttendanceReviewScreen({ navigation }) {
 
           {renderStoreFilters()}
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow} decelerationRate="fast" scrollEventThrottle={16}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
             {FILTERS.map((filter) => (
               <TouchableOpacity
                 key={filter.key}
@@ -286,35 +284,35 @@ export default function AttendanceReviewScreen({ navigation }) {
         <View style={styles.summaryGrid}>
           <View style={[styles.summaryBox, styles.severityDanger]}>
             <Text style={styles.summaryNumber}>{summary.danger}</Text>
-            <Text style={styles.summaryLabel}>Cần xử lý</Text>
+            <Text style={styles.summaryLabel}>Cáº§n xá»­ lÃ½</Text>
           </View>
           <View style={[styles.summaryBox, styles.severityWarning]}>
             <Text style={styles.summaryNumber}>{summary.warning}</Text>
-            <Text style={styles.summaryLabel}>Cảnh báo</Text>
+            <Text style={styles.summaryLabel}>Cáº£nh bÃ¡o</Text>
           </View>
           <View style={[styles.summaryBox, styles.severityInfo]}>
             <Text style={styles.summaryNumber}>{summary.info}</Text>
-            <Text style={styles.summaryLabel}>Tăng ca</Text>
+            <Text style={styles.summaryLabel}>TÄƒng ca</Text>
           </View>
         </View>
 
         <View style={styles.payrollCard}>
           <View style={styles.payrollRow}>
-            <Text style={styles.payrollLabel}>Ảnh hưởng chốt lương</Text>
-            <Text style={styles.payrollValue}>{summary.payrollRisk} mục</Text>
+            <Text style={styles.payrollLabel}>áº¢nh hÆ°á»Ÿng chá»‘t lÆ°Æ¡ng</Text>
+            <Text style={styles.payrollValue}>{summary.payrollRisk} má»¥c</Text>
           </View>
           <View style={styles.payrollMiniGrid}>
-            <Text style={styles.payrollMini}>Trễ: {formatMinutes(summary.lateMinutes)}</Text>
-            <Text style={styles.payrollMini}>Về sớm: {formatMinutes(summary.earlyMinutes)}</Text>
-            <Text style={styles.payrollMini}>Tăng ca: {formatMinutes(summary.overtimeMinutes)}</Text>
+            <Text style={styles.payrollMini}>Trá»…: {formatMinutes(summary.lateMinutes)}</Text>
+            <Text style={styles.payrollMini}>Vá» sá»›m: {formatMinutes(summary.earlyMinutes)}</Text>
+            <Text style={styles.payrollMini}>TÄƒng ca: {formatMinutes(summary.overtimeMinutes)}</Text>
           </View>
         </View>
 
         {filteredRows.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="checkmark-circle-outline" size={42} color={COLORS.accent} />
-            <Text style={styles.emptyTitle}>Không có trường hợp phù hợp</Text>
-            <Text style={styles.emptyText}>Thử đổi khoảng ngày, quán hoặc bộ lọc vi phạm.</Text>
+            <Text style={styles.emptyTitle}>KhÃ´ng cÃ³ trÆ°á»ng há»£p phÃ¹ há»£p</Text>
+            <Text style={styles.emptyText}>Thá»­ Ä‘á»•i khoáº£ng ngÃ y, quÃ¡n hoáº·c bá»™ lá»c vi pháº¡m.</Text>
           </View>
         ) : (
           filteredRows.map((row) => {
@@ -332,24 +330,24 @@ export default function AttendanceReviewScreen({ navigation }) {
                   <Text style={styles.dateBadge}>{formatDate(row.date)}</Text>
                 </View>
 
-                <Text style={styles.staffName}>{row.staff?.name || `Nhân viên ${row.shift?.user_id || row.record?.user_id}`}</Text>
+                <Text style={styles.staffName}>{row.staff?.name || `NhÃ¢n viÃªn ${row.shift?.user_id || row.record?.user_id}`}</Text>
                 <View style={styles.metaGrid}>
-                  <Text style={styles.metaText}>Quán: {row.store?.name || 'Chưa rõ'}</Text>
+                  <Text style={styles.metaText}>QuÃ¡n: {row.store?.name || 'ChÆ°a rÃµ'}</Text>
                   <Text style={styles.metaText}>Ca: {getShiftLabel(row.shiftType)}</Text>
-                  <Text style={styles.metaText}>Khung ca: {shiftWindow ? `${shiftWindow.start} - ${shiftWindow.end}` : 'Ngoài lịch'}</Text>
-                  <Text style={styles.metaText}>Thực tế: {row.record ? `${checkIn} - ${checkOut}` : 'Chưa chấm công'}</Text>
-                  {row.record ? <Text style={styles.metaText}>Giờ công ghi nhận: {workedHours.toFixed(2)}h</Text> : null}
+                  <Text style={styles.metaText}>Khung ca: {shiftWindow ? `${shiftWindow.start} - ${shiftWindow.end}` : 'NgoÃ i lá»‹ch'}</Text>
+                  <Text style={styles.metaText}>Thá»±c táº¿: {row.record ? `${checkIn} - ${checkOut}` : 'ChÆ°a cháº¥m cÃ´ng'}</Text>
+                  {row.record ? <Text style={styles.metaText}>Giá» cÃ´ng ghi nháº­n: {workedHours.toFixed(2)}h</Text> : null}
                 </View>
 
                 <View style={styles.payrollImpactBox}>
                   <Ionicons name="wallet-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.payrollImpactText}>{row.payrollImpact || 'Cần kiểm tra trước khi chốt lương.'}</Text>
+                  <Text style={styles.payrollImpactText}>{row.payrollImpact || 'Cáº§n kiá»ƒm tra trÆ°á»›c khi chá»‘t lÆ°Æ¡ng.'}</Text>
                 </View>
 
                 {row.type === 'outside_schedule' && (
                   <TouchableOpacity style={styles.approveBtn} onPress={() => approveOutsideAttendance(row)}>
                     <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                    <Text style={styles.approveBtnText}>Duyệt vào lịch</Text>
+                    <Text style={styles.approveBtnText}>Duyá»‡t vÃ o lá»‹ch</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -366,7 +364,7 @@ export default function AttendanceReviewScreen({ navigation }) {
         initialEndDate={rangeEnd}
         COLORS={COLORS}
         isDarkMode={isDarkMode}
-        title="Chọn khoảng đối chiếu công"
+        title="Chá»n khoáº£ng Ä‘á»‘i chiáº¿u cÃ´ng"
       />
     </SafeAreaView>
   );

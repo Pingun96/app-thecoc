@@ -70,9 +70,9 @@ export default function DashboardScreen({ navigation }) {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Chào buổi sáng';
-    if (hour < 18) return 'Chào buổi chiều';
-    return 'Chào buổi tối';
+    if (hour < 12) return 'ChÃ o buá»•i sÃ¡ng';
+    if (hour < 18) return 'ChÃ o buá»•i chiá»u';
+    return 'ChÃ o buá»•i tá»‘i';
   };
 
   const getThemeStyles = () => {
@@ -139,16 +139,16 @@ export default function DashboardScreen({ navigation }) {
       setIsCheckingUpdate(true);
       const update = await Updates.checkForUpdateAsync();
       if (update.isAvailable) {
-        Alert.alert('Có bản cập nhật mới!', 'Đang tiến hành tải xuống...');
+        Alert.alert('CÃ³ báº£n cáº­p nháº­t má»›i!', 'Äang tiáº¿n hÃ nh táº£i xuá»‘ng...');
         await Updates.fetchUpdateAsync();
-        Alert.alert('Thành công', 'Tải xong! App sẽ khởi động lại ngay.', [
+        Alert.alert('ThÃ nh cÃ´ng', 'Táº£i xong! App sáº½ khá»Ÿi Ä‘á»™ng láº¡i ngay.', [
           { text: 'OK', onPress: () => Updates.reloadAsync() }
         ]);
       } else {
-        Alert.alert('Thông báo', 'Bạn đang dùng phiên bản mới nhất rồi!');
+        Alert.alert('ThÃ´ng bÃ¡o', 'Báº¡n Ä‘ang dÃ¹ng phiÃªn báº£n má»›i nháº¥t rá»“i!');
       }
     } catch (error) {
-      Alert.alert('Lỗi cập nhật', error.message);
+      Alert.alert('Lá»—i cáº­p nháº­t', error.message);
     } finally {
       setIsCheckingUpdate(false);
     }
@@ -161,7 +161,7 @@ export default function DashboardScreen({ navigation }) {
 
   const handleUpdateProfile = async () => {
     if (currentUser?.role === 'OWNER') {
-      Alert.alert('Tính năng này', 'Tài khoản chủ cửa hàng hiện tại là tĩnh, không thay đổi được.');
+      Alert.alert('TÃ­nh nÄƒng nÃ y', 'TÃ i khoáº£n chá»§ cá»­a hÃ ng hiá»‡n táº¡i lÃ  tÄ©nh, khÃ´ng thay Ä‘á»•i Ä‘Æ°á»£c.');
       return;
     }
     setIsSavingProfile(true);
@@ -175,13 +175,13 @@ export default function DashboardScreen({ navigation }) {
         if (error) throw error;
 
         setCurrentUser({...currentUser, ...updates});
-        Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
+        Alert.alert('ThÃ nh cÃ´ng', 'Cáº­p nháº­t thÃ´ng tin thÃ nh cÃ´ng!');
         setShowProfileModal(false);
       } else {
         setShowProfileModal(false);
       }
     } catch (e) {
-      Alert.alert('Lỗi', e.message);
+      Alert.alert('Lá»—i', e.message);
     } finally {
       setIsSavingProfile(false);
     }
@@ -190,7 +190,7 @@ export default function DashboardScreen({ navigation }) {
   const isOwner = currentUser?.role === 'OWNER';
   const viewableStores = currentUser?.permissions?.viewable_stores || [];
 
-  // Hiển thị thanh chọn store nếu là OWNER hoặc được cấp quyền xem nhiều hơn 1 chi nhánh
+  // Hiá»ƒn thá»‹ thanh chá»n store náº¿u lÃ  OWNER hoáº·c Ä‘Æ°á»£c cáº¥p quyá»n xem nhiá»u hÆ¡n 1 chi nhÃ¡nh
   const canShowStoreSelector = isOwner || viewableStores.length > 1;
 
   let displayStoreId = currentUser?.store_id;
@@ -217,14 +217,14 @@ export default function DashboardScreen({ navigation }) {
   const totalMyHours = myHistory.reduce((sum, r) => sum + (r.hours || 0), 0);
   const totalMyWage = totalMyHours * (currentUser?.wage || 0);
 
-  // Hàm kiểm tra quyền
+  // HÃ m kiá»ƒm tra quyá»n
   const hasPermission = (featureKey) => {
     if (currentUser?.role === 'OWNER') return true;
 
     const permissions = currentUser?.permissions || {};
     const hasExplicitPermissions = Object.keys(permissions).length > 0;
 
-    // Tương thích tài khoản quản lý cũ chưa có object permissions.
+    // TÆ°Æ¡ng thÃ­ch tÃ i khoáº£n quáº£n lÃ½ cÅ© chÆ°a cÃ³ object permissions.
     if (currentUser?.role === 'MANAGER' && !hasExplicitPermissions) return true;
 
     if (featureKey === 'finance') {
@@ -240,7 +240,7 @@ export default function DashboardScreen({ navigation }) {
 
   const handleNav = (featureKey, routeName, staffRouteName, fallbackAction) => {
     if (!hasPermission(featureKey)) {
-      alert('Bạn chưa được cấp quyền truy cập tính năng này!');
+      alert('Báº¡n chÆ°a Ä‘Æ°á»£c cáº¥p quyá»n truy cáº­p tÃ­nh nÄƒng nÃ y!');
       return;
     }
 
@@ -260,14 +260,14 @@ export default function DashboardScreen({ navigation }) {
     const allowed = hasPermission(featureKey);
     const compactTitleMap = {
       cashier: 'Giao ca',
-      inventory: 'Kho hàng',
-      payroll: 'Bảng lương',
-      finance: 'Tài chính',
+      inventory: 'Kho hÃ ng',
+      payroll: 'Báº£ng lÆ°Æ¡ng',
+      finance: 'TÃ i chÃ­nh',
     };
     const compactTitle = routeName === 'AttendanceReview'
-      ? 'Đối chiếu'
+      ? 'Äá»‘i chiáº¿u'
       : featureKey === 'hr'
-        ? (currentUser?.role === 'STAFF' ? 'Chấm công' : 'Nhân sự')
+        ? (currentUser?.role === 'STAFF' ? 'Cháº¥m cÃ´ng' : 'NhÃ¢n sá»±')
         : compactTitleMap[featureKey] || title;
     const iconColorMap = {
       cashier: '#16a34a',
@@ -318,14 +318,14 @@ export default function DashboardScreen({ navigation }) {
           <View style={styles.headerTextContainer}>
             <Text style={[styles.greetingText, { color: theme.greetingColor }]}>{getGreeting()},</Text>
             <Text style={[styles.nameText, { color: theme.nameColor }]} numberOfLines={1}>
-              {currentUser?.name || 'Thành viên The Cốc'}
+              {currentUser?.name || 'ThÃ nh viÃªn The Cá»‘c'}
             </Text>
             <Text style={[styles.roleText, { color: theme.roleColor }]}>
               {currentUser?.role === 'OWNER'
-                ? 'Chủ cửa hàng'
+                ? 'Chá»§ cá»­a hÃ ng'
                 : currentUser?.role === 'MANAGER'
-                  ? 'Quản lý'
-                  : 'Nhân viên'}
+                  ? 'Quáº£n lÃ½'
+                  : 'NhÃ¢n viÃªn'}
             </Text>
           </View>
         </TouchableOpacity>
@@ -359,23 +359,23 @@ export default function DashboardScreen({ navigation }) {
         </View>
       </View>
 
-      {/* CHỌN CHI NHÁNH */}
+      {/* CHá»ŒN CHI NHÃNH */}
       {canShowStoreSelector && (
         <View style={{ paddingHorizontal: 20, paddingTop: 15 }}>
-          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6b7280', marginBottom: 10 }}>Dữ liệu hiển thị cho:</Text>
+          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6b7280', marginBottom: 10 }}>Dá»¯ liá»‡u hiá»ƒn thá»‹ cho:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storeSelector}>
 
-            {/* TẤT CẢ CHI NHÁNH CHỈ DÀNH CHO OWNER */}
+            {/* Táº¤T Cáº¢ CHI NHÃNH CHá»ˆ DÃ€NH CHO OWNER */}
             {isOwner && (
               <TouchableOpacity
                 style={[styles.storeChip, selectedStoreId === 'ALL' && styles.storeChipActive]}
                 onPress={() => setSelectedStoreId('ALL')}
               >
-                <Text style={[styles.storeChipText, selectedStoreId === 'ALL' && styles.storeChipTextActive]}>Tất cả Chi nhánh</Text>
+                <Text style={[styles.storeChipText, selectedStoreId === 'ALL' && styles.storeChipTextActive]}>Táº¥t cáº£ Chi nhÃ¡nh</Text>
               </TouchableOpacity>
             )}
 
-            {/* CÁC CHI NHÁNH ĐƯỢC PHÉP XEM */}
+            {/* CÃC CHI NHÃNH ÄÆ¯á»¢C PHÃ‰P XEM */}
             {storeList.filter(s => isOwner || viewableStores.includes(s.id)).map(store => (
               <TouchableOpacity
                 key={store.id}
@@ -392,15 +392,15 @@ export default function DashboardScreen({ navigation }) {
       {/* ERROR BANNER */}
       {dataError ? (
         <TouchableOpacity style={{ backgroundColor: '#fee2e2', padding: 15, marginHorizontal: 20, borderRadius: 10, marginTop: 10 }} onPress={refreshData}>
-          <Text style={{ color: '#991b1b', fontWeight: 'bold' }}>Lỗi tải dữ liệu: {dataError}</Text>
-          <Text style={{ color: '#991b1b', fontSize: 12 }}>Chạm vào đây để thử tải lại.</Text>
+          <Text style={{ color: '#991b1b', fontWeight: 'bold' }}>Lá»—i táº£i dá»¯ liá»‡u: {dataError}</Text>
+          <Text style={{ color: '#991b1b', fontSize: 12 }}>Cháº¡m vÃ o Ä‘Ã¢y Ä‘á»ƒ thá»­ táº£i láº¡i.</Text>
         </TouchableOpacity>
       ) : null}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
         {/* QUICK STATS */}
-        <Text style={styles.sectionTitle}>Tổng quan {currentUser?.role === 'STAFF' ? 'cá nhân' : 'hôm nay'}</Text>
+        <Text style={styles.sectionTitle}>Tá»•ng quan {currentUser?.role === 'STAFF' ? 'cÃ¡ nhÃ¢n' : 'hÃ´m nay'}</Text>
         <View style={styles.statsRow}>
           {isDataLoading && staffList.length === 0 ? (
             <>
@@ -417,7 +417,7 @@ export default function DashboardScreen({ navigation }) {
                   {currentUser?.role === 'STAFF' ? totalMyHours.toFixed(1) + 'h' : activeStaffCount}
                 </Text>
                 <Text style={styles.statLabel}>
-                  {currentUser?.role === 'STAFF' ? 'Tổng giờ làm' : 'Nhân sự'}
+                  {currentUser?.role === 'STAFF' ? 'Tá»•ng giá» lÃ m' : 'NhÃ¢n sá»±'}
                 </Text>
               </View>
 
@@ -426,10 +426,10 @@ export default function DashboardScreen({ navigation }) {
                   <MaterialCommunityIcons name="currency-usd" size={24} color="#ff9800" />
                 </View>
                 <Text style={styles.statValue}>
-                  {currentUser?.role === 'STAFF' ? totalMyWage.toLocaleString() : todaysEstimatedCost.toLocaleString()}đ
+                  {currentUser?.role === 'STAFF' ? totalMyWage.toLocaleString() : todaysEstimatedCost.toLocaleString()}Ä‘
                 </Text>
                 <Text style={styles.statLabel}>
-                  {currentUser?.role === 'STAFF' ? 'Lương tạm tính' : 'Chi phí lương'}
+                  {currentUser?.role === 'STAFF' ? 'LÆ°Æ¡ng táº¡m tÃ­nh' : 'Chi phÃ­ lÆ°Æ¡ng'}
                 </Text>
               </View>
             </>
@@ -437,34 +437,34 @@ export default function DashboardScreen({ navigation }) {
         </View>
 
         {/* 2x2 GRID MENU */}
-        <Text style={styles.sectionTitle}>Tính năng {currentUser?.role === 'STAFF' ? 'làm việc' : 'quản lý'}</Text>
+        <Text style={styles.sectionTitle}>TÃ­nh nÄƒng {currentUser?.role === 'STAFF' ? 'lÃ m viá»‡c' : 'quáº£n lÃ½'}</Text>
         <View style={styles.gridContainer}>
-          {renderGridItem('Giao Ca & Doanh Thu', 'Quản lý Két & Chốt Ca', 'cash-register', 'Material', '#e8f5e9', 'cashier', 'Shifts', 'Shifts')}
-          {renderGridItem('Kho Hàng', 'Tồn kho & Yêu cầu', 'warehouse', 'Material', '#fff3e0', 'inventory', 'Inventory', 'Inventory')}
-          {renderGridItem(currentUser?.role === 'STAFF' ? 'Chấm Công' : 'Nhân Sự', currentUser?.role === 'STAFF' ? 'Định vị GPS / Camera' : 'Hồ sơ & Phân quyền', currentUser?.role === 'STAFF' ? "scan-circle" : "id-card", 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
-          {currentUser?.role !== 'STAFF' && renderGridItem('Đối Chiếu Công', 'Lịch làm vs chấm công', 'clipboard-check-outline', 'Material', '#dcfce7', 'hr', 'AttendanceReview', 'AttendanceReview')}
-          {renderGridItem('Bảng Lương', 'Bảng lương chi tiết', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'Payroll', 'Payroll')}
-          {renderGridItem('Tài Chính', 'Doanh thu & Lợi nhuận', 'chart-line', 'Material', '#ede9fe', 'finance', 'Finance', 'Finance')}
+          {renderGridItem('Giao Ca & Doanh Thu', 'Quáº£n lÃ½ KÃ©t & Chá»‘t Ca', 'cash-register', 'Material', '#e8f5e9', 'cashier', 'Shifts', 'Shifts')}
+          {renderGridItem('Kho HÃ ng', 'Tá»“n kho & YÃªu cáº§u', 'warehouse', 'Material', '#fff3e0', 'inventory', 'Inventory', 'Inventory')}
+          {renderGridItem(currentUser?.role === 'STAFF' ? 'Cháº¥m CÃ´ng' : 'NhÃ¢n Sá»±', currentUser?.role === 'STAFF' ? 'Äá»‹nh vá»‹ GPS / Camera' : 'Há»“ sÆ¡ & PhÃ¢n quyá»n', currentUser?.role === 'STAFF' ? "scan-circle" : "id-card", 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
+          {currentUser?.role !== 'STAFF' && renderGridItem('Äá»‘i Chiáº¿u CÃ´ng', 'Lá»‹ch lÃ m vs cháº¥m cÃ´ng', 'clipboard-check-outline', 'Material', '#dcfce7', 'hr', 'AttendanceReview', 'AttendanceReview')}
+          {renderGridItem('Báº£ng LÆ°Æ¡ng', 'Báº£ng lÆ°Æ¡ng chi tiáº¿t', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'Payroll', 'Payroll')}
+          {renderGridItem('TÃ i ChÃ­nh', 'Doanh thu & Lá»£i nhuáº­n', 'chart-line', 'Material', '#ede9fe', 'finance', 'Finance', 'Finance')}
         </View>
 
       </ScrollView>
 
-      {/* MODAL CẬP NHẬT HỒ SƠ */}
+      {/* MODAL Cáº¬P NHáº¬T Há»’ SÆ  */}
       <Modal visible={showProfileModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Cập Nhật Cá Nhân</Text>
+            <Text style={styles.modalTitle}>Cáº­p Nháº­t CÃ¡ NhÃ¢n</Text>
 
-            <Text style={styles.modalLabel}>Đổi mật khẩu mới (Mặc định: 123):</Text>
+            <Text style={styles.modalLabel}>Äá»•i máº­t kháº©u má»›i (Máº·c Ä‘á»‹nh: 123):</Text>
             <TextInput
               style={styles.modalInput}
               secureTextEntry
-              placeholder="Bỏ trống nếu không đổi"
+              placeholder="Bá» trá»‘ng náº¿u khÃ´ng Ä‘á»•i"
               value={newPassword}
               onChangeText={setNewPassword}
             />
 
-            <Text style={styles.modalLabel}>Link ảnh đại diện (Avatar URL):</Text>
+            <Text style={styles.modalLabel}>Link áº£nh Ä‘áº¡i diá»‡n (Avatar URL):</Text>
             <TextInput
               style={styles.modalInput}
               placeholder="https://..."
@@ -474,10 +474,10 @@ export default function DashboardScreen({ navigation }) {
 
             <View style={styles.modalBtnRow}>
               <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#e5e7eb'}]} onPress={() => setShowProfileModal(false)}>
-                <Text style={[styles.modalBtnText, {color: '#4b5563'}]}>Hủy</Text>
+                <Text style={[styles.modalBtnText, {color: '#4b5563'}]}>Há»§y</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#1976d2'}]} onPress={handleUpdateProfile} disabled={isSavingProfile}>
-                {isSavingProfile ? <ActivityIndicator color="#fff" size="small"/> : <Text style={styles.modalBtnText}>Lưu</Text>}
+                {isSavingProfile ? <ActivityIndicator color="#fff" size="small"/> : <Text style={styles.modalBtnText}>LÆ°u</Text>}
               </TouchableOpacity>
             </View>
           </View>

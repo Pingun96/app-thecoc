@@ -123,11 +123,11 @@ export default function ShiftScreen({ navigation }) {
   const [showHistoryDateModal, setShowHistoryDateModal] = useState(false);
   const currentOpenShift = shifts.find(s => s.status === 'OPEN' && s.store_id === storeIdToView);
 
-  // === MỞ CA ===
+  // === Má»ž CA ===
   const [openingCash, setOpeningCash] = useState('');
   const handleOpenShift = async (periodName) => {
-    if (storeIdToView === 'ALL') { alert('Vui lòng chọn 1 chi nhánh!'); return; }
-    if (!openingCash) { alert('Nhập tiền đầu ca!'); return; }
+    if (storeIdToView === 'ALL') { alert('Vui lÃ²ng chá»n 1 chi nhÃ¡nh!'); return; }
+    if (!openingCash) { alert('Nháº­p tiá»n Ä‘áº§u ca!'); return; }
     const newShift = {
       id: `shift_${Date.now()}`, store_id: storeIdToView,
       opened_by: currentUser.id, opened_by_name: currentUser.name,
@@ -138,10 +138,10 @@ export default function ShiftScreen({ navigation }) {
     };
     await supabase.from('shifts').insert([newShift]);
     setShifts([...shifts, newShift]);
-    alert(`Mở ${periodName} thành công!`);
+    alert(`Má»Ÿ ${periodName} thÃ nh cÃ´ng!`);
   };
 
-  // === CHỐT CA (MẪU 16) ===
+  // === CHá»T CA (MáºªU 16) ===
   const [inventoryCheck, setInventoryCheck] = useState({}); // { itemId: endStock }
   const [revCash, setRevCash] = useState('');
   const [revMomo, setRevMomo] = useState('');
@@ -235,13 +235,13 @@ export default function ShiftScreen({ navigation }) {
 
   const openReportImageExternally = async (url) => {
     if (!url) {
-      Alert.alert('Chưa có ảnh', 'App chưa lấy được link ảnh báo cáo để mở.');
+      Alert.alert('ChÆ°a cÃ³ áº£nh', 'App chÆ°a láº¥y Ä‘Æ°á»£c link áº£nh bÃ¡o cÃ¡o Ä‘á»ƒ má»Ÿ.');
       return;
     }
     try {
       await Linking.openURL(url);
     } catch (error) {
-      Alert.alert('Không mở được ảnh', error?.message || 'Vui lòng thử lại sau.');
+      Alert.alert('KhÃ´ng má»Ÿ Ä‘Æ°á»£c áº£nh', error?.message || 'Vui lÃ²ng thá»­ láº¡i sau.');
     }
   };
 
@@ -380,7 +380,7 @@ export default function ShiftScreen({ navigation }) {
   });
   const currentExpectedCash = currentOpenShift ? currentTotals.expectedCash : 0;
   const currentCashDiff = currentOpenShift ? currentTotals.discrepancy : 0;
-  const formatCurrency = (value) => `${Math.round(Number(value) || 0).toLocaleString('vi-VN')}đ`;
+  const formatCurrency = (value) => `${Math.round(Number(value) || 0).toLocaleString('vi-VN')}Ä‘`;
   const ochaUpdatedAt = ochaRevenue?.updated_at
     || ochaRevenue?.updatedAt
     || ochaRevenue?.synced_at
@@ -391,7 +391,7 @@ export default function ShiftScreen({ navigation }) {
     || ochaRevenue?.created_at
     || ochaRevenue?.createdAt;
   const formatOchaSyncTime = (value) => {
-    if (!value) return 'Chưa có giờ cập nhật';
+    if (!value) return 'ChÆ°a cÃ³ giá» cáº­p nháº­t';
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return String(value);
     return parsed.toLocaleString('vi-VN', {
@@ -468,15 +468,15 @@ export default function ShiftScreen({ navigation }) {
   };
   const historyPeriodLabel = () => {
     if (historyPeriod === 'custom') {
-      return `${formatDateKey(historyRange.start) || '...'} → ${formatDateKey(historyRange.end) || '...'}`;
+      return `${formatDateKey(historyRange.start) || '...'} â†’ ${formatDateKey(historyRange.end) || '...'}`;
     }
     return {
-      all: 'Tất cả',
-      today: 'Hôm nay',
-      yesterday: 'Hôm qua',
-      month: 'Tháng này',
-      lastMonth: 'Tháng trước',
-    }[historyPeriod] || 'Tất cả';
+      all: 'Táº¥t cáº£',
+      today: 'HÃ´m nay',
+      yesterday: 'HÃ´m qua',
+      month: 'ThÃ¡ng nÃ y',
+      lastMonth: 'ThÃ¡ng trÆ°á»›c',
+    }[historyPeriod] || 'Táº¥t cáº£';
   };
   const applyHistoryRange = (start, end) => {
     setHistoryRange({ start, end });
@@ -546,7 +546,7 @@ export default function ShiftScreen({ navigation }) {
         store_id: shift.store_id,
         created_by: currentUser?.id,
         approved_by: currentUser?.id,
-        note: `Kiểm kho báo cáo ca ${shift.opened_at || shift.id} bởi ${currentUser?.name || 'Nhân viên'}: ${formatQuantity(startStock)} → ${formatQuantity(endStock)} ${inv.unit || ''}`,
+        note: `Kiá»ƒm kho bÃ¡o cÃ¡o ca ${shift.opened_at || shift.id} bá»Ÿi ${currentUser?.name || 'NhÃ¢n viÃªn'}: ${formatQuantity(startStock)} â†’ ${formatQuantity(endStock)} ${inv.unit || ''}`,
       });
     }
 
@@ -580,7 +580,7 @@ export default function ShiftScreen({ navigation }) {
       // Update to Supabase
       const { error } = await supabase.from('shifts').update({ inventory_check: finalInvCheck }).eq('id', currentOpenShift.id);
       if (error) {
-        Alert.alert('Lỗi mạng', 'Không thể lưu lên máy chủ: ' + error.message);
+        Alert.alert('Lá»—i máº¡ng', 'KhÃ´ng thá»ƒ lÆ°u lÃªn mÃ¡y chá»§: ' + error.message);
         return;
       }
 
@@ -599,9 +599,9 @@ export default function ShiftScreen({ navigation }) {
       });
       setInventoryItems(updatedInventoryItems);
 
-      Alert.alert('Thành công', 'Đã lưu phiếu kiểm kho và cập nhật log kho!');
+      Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ lÆ°u phiáº¿u kiá»ƒm kho vÃ  cáº­p nháº­t log kho!');
     } catch(e) {
-      Alert.alert('Lỗi ứng dụng', 'Chi tiết: ' + e.message);
+      Alert.alert('Lá»—i á»©ng dá»¥ng', 'Chi tiáº¿t: ' + e.message);
     }
   };
 
@@ -616,11 +616,11 @@ export default function ShiftScreen({ navigation }) {
       };
       if (useCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') return Alert.alert('Lỗi', 'Cần quyền truy cập camera để chụp ảnh.');
+        if (status !== 'granted') return Alert.alert('Lá»—i', 'Cáº§n quyá»n truy cáº­p camera Ä‘á»ƒ chá»¥p áº£nh.');
         result = await ImagePicker.launchCameraAsync(compatibleImageOptions);
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') return Alert.alert('Lỗi', 'Cần quyền truy cập thư viện ảnh.');
+        if (status !== 'granted') return Alert.alert('Lá»—i', 'Cáº§n quyá»n truy cáº­p thÆ° viá»‡n áº£nh.');
         result = await ImagePicker.launchImageLibraryAsync({
           ...compatibleImageOptions,
           allowsMultipleSelection: true,
@@ -634,13 +634,13 @@ export default function ShiftScreen({ navigation }) {
         setReportImages((prev) => {
           const merged = [...prev, ...newUris].filter((uri, index, arr) => arr.indexOf(uri) === index);
           if (merged.length > 6) {
-            Alert.alert('Giới hạn ảnh', 'Mỗi phiếu chốt ca nên tối đa 6 ảnh để tránh đầy dung lượng.');
+            Alert.alert('Giá»›i háº¡n áº£nh', 'Má»—i phiáº¿u chá»‘t ca nÃªn tá»‘i Ä‘a 6 áº£nh Ä‘á»ƒ trÃ¡nh Ä‘áº§y dung lÆ°á»£ng.');
           }
           return merged.slice(0, 6);
         });
       }
     } catch(e) {
-      Alert.alert('Lỗi', 'Không thể chọn ảnh: ' + e.message);
+      Alert.alert('Lá»—i', 'KhÃ´ng thá»ƒ chá»n áº£nh: ' + e.message);
     }
   };
 
@@ -661,13 +661,13 @@ export default function ShiftScreen({ navigation }) {
           if (reader.result && reader.result.byteLength > 0) {
             resolve(reader.result);
           } else {
-            reject(new Error('Ảnh đọc được nhưng dung lượng bằng 0 byte.'));
+            reject(new Error('áº¢nh Ä‘á»c Ä‘Æ°á»£c nhÆ°ng dung lÆ°á»£ng báº±ng 0 byte.'));
           }
         };
-        reader.onerror = () => reject(new Error('Không thể đọc dữ liệu ảnh.'));
+        reader.onerror = () => reject(new Error('KhÃ´ng thá»ƒ Ä‘á»c dá»¯ liá»‡u áº£nh.'));
         reader.readAsArrayBuffer(xhr.response);
       };
-      xhr.onerror = () => reject(new Error('Không thể mở file ảnh trên thiết bị.'));
+      xhr.onerror = () => reject(new Error('KhÃ´ng thá»ƒ má»Ÿ file áº£nh trÃªn thiáº¿t bá»‹.'));
       xhr.responseType = 'blob';
       xhr.open('GET', uri, true);
       xhr.send(null);
@@ -678,14 +678,14 @@ export default function ShiftScreen({ navigation }) {
     try {
       const imageBuffer = await readImageAsArrayBuffer(uri);
       if (!imageBuffer?.byteLength) {
-        throw new Error('Ảnh đang bị rỗng 0 byte, vui lòng chụp/chọn lại ảnh.');
+        throw new Error('áº¢nh Ä‘ang bá»‹ rá»—ng 0 byte, vui lÃ²ng chá»¥p/chá»n láº¡i áº£nh.');
       }
 
       const uriWithoutQuery = String(uri).split('?')[0];
       const rawExt = uriWithoutQuery.includes('.') ? uriWithoutQuery.split('.').pop() : 'jpg';
       const normalizedExt = String(rawExt).toLowerCase();
       if (['heic', 'heif'].includes(normalizedExt)) {
-        throw new Error('Ảnh HEIC của iPhone chưa upload được. App đã chuyển sang chế độ lấy ảnh JPG; vui lòng chọn/chụp lại ảnh sau khi cập nhật.');
+        throw new Error('áº¢nh HEIC cá»§a iPhone chÆ°a upload Ä‘Æ°á»£c. App Ä‘Ã£ chuyá»ƒn sang cháº¿ Ä‘á»™ láº¥y áº£nh JPG; vui lÃ²ng chá»n/chá»¥p láº¡i áº£nh sau khi cáº­p nháº­t.');
       }
       const fileExt = ['jpg', 'jpeg', 'png', 'webp'].includes(normalizedExt) ? normalizedExt : 'jpg';
       const contentType = fileExt === 'png'
@@ -712,7 +712,7 @@ export default function ShiftScreen({ navigation }) {
   const handleCloseShift = () => {
     const aCashStr = String(actualCash).trim();
     if (aCashStr === '') {
-      Alert.alert('Lỗi', 'Vui lòng đếm két và nhập "TIỀN TRONG KÉT THỰC ĐẾM" (nhập 0 nếu két trống)!');
+      Alert.alert('Lá»—i', 'Vui lÃ²ng Ä‘áº¿m kÃ©t vÃ  nháº­p "TIá»€N TRONG KÃ‰T THá»°C Äáº¾M" (nháº­p 0 náº¿u kÃ©t trá»‘ng)!');
       return;
     }
 
@@ -739,15 +739,15 @@ export default function ShiftScreen({ navigation }) {
     const hasWarning = discrepancy !== 0;
 
     const confirmMessage = hasWarning
-      ? `⚠️ Két đang lệch, cần kiểm tra lại trước khi nộp\n\nTiền đầu giờ (1): ${formatCurrency(currentOpenShift.opening_cash)}\nDoanh thu Ocha/tổng (3): ${formatCurrency(closeTotals.grossRevenue)}\nOnline: -${formatCurrency(closeTotals.nonCash)}\nGiảm bill (4): -${formatCurrency(disc)}\nTiền chi (5): -${formatCurrency(exp)}\n\nKét phải có: ${formatCurrency(expectedCash)}\nKét thực đếm (2): ${formatCurrency(aCash)}\nLệch két: ${formatCurrency(discrepancy)}\n\nBạn vẫn muốn nộp báo cáo không?`
-      : `Doanh thu và két đang khớp.\n\nKét phải có: ${formatCurrency(expectedCash)}\nKét thực đếm (2): ${formatCurrency(aCash)}\n\nBạn có chắc chắn muốn nộp báo cáo doanh thu và chốt két không?`;
+      ? `âš ï¸ KÃ©t Ä‘ang lá»‡ch, cáº§n kiá»ƒm tra láº¡i trÆ°á»›c khi ná»™p\n\nTiá»n Ä‘áº§u giá» (1): ${formatCurrency(currentOpenShift.opening_cash)}\nDoanh thu Ocha/tá»•ng (3): ${formatCurrency(closeTotals.grossRevenue)}\nOnline: -${formatCurrency(closeTotals.nonCash)}\nGiáº£m bill (4): -${formatCurrency(disc)}\nTiá»n chi (5): -${formatCurrency(exp)}\n\nKÃ©t pháº£i cÃ³: ${formatCurrency(expectedCash)}\nKÃ©t thá»±c Ä‘áº¿m (2): ${formatCurrency(aCash)}\nLá»‡ch kÃ©t: ${formatCurrency(discrepancy)}\n\nBáº¡n váº«n muá»‘n ná»™p bÃ¡o cÃ¡o khÃ´ng?`
+      : `Doanh thu vÃ  kÃ©t Ä‘ang khá»›p.\n\nKÃ©t pháº£i cÃ³: ${formatCurrency(expectedCash)}\nKÃ©t thá»±c Ä‘áº¿m (2): ${formatCurrency(aCash)}\n\nBáº¡n cÃ³ cháº¯c cháº¯n muá»‘n ná»™p bÃ¡o cÃ¡o doanh thu vÃ  chá»‘t kÃ©t khÃ´ng?`;
 
     Alert.alert(
-      'Xác nhận Chốt Két',
+      'XÃ¡c nháº­n Chá»‘t KÃ©t',
       confirmMessage,
       [
-        { text: 'Hủy', style: 'cancel' },
-        { text: 'Chốt', style: 'destructive', onPress: async () => {
+        { text: 'Há»§y', style: 'cancel' },
+        { text: 'Chá»‘t', style: 'destructive', onPress: async () => {
             try {
               setIsUploading(true);
               let imageUrl = null;
@@ -772,7 +772,7 @@ export default function ShiftScreen({ navigation }) {
 
               const { error } = await supabase.from('shifts').update(updatedShift).eq('id', currentOpenShift.id);
               if (error) {
-                Alert.alert('Lỗi mạng', 'Không thể lưu dữ liệu: ' + error.message);
+                Alert.alert('Lá»—i máº¡ng', 'KhÃ´ng thá»ƒ lÆ°u dá»¯ liá»‡u: ' + error.message);
                 return;
               }
 
@@ -780,14 +780,14 @@ export default function ShiftScreen({ navigation }) {
 
               setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
 
-              Alert.alert('Thành công', 'Đã nộp Báo Cáo Doanh Thu (Chốt Ca)!');
+              Alert.alert('ThÃ nh cÃ´ng', 'ÄÃ£ ná»™p BÃ¡o CÃ¡o Doanh Thu (Chá»‘t Ca)!');
               setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({}); setReportImages([]);
               setIsUploading(false);
               try { await AsyncStorage.removeItem(CACHE_KEY); } catch(e){}
             } catch(e) {
               setIsUploading(false);
-              const message = e?.message || 'Không thể nộp báo cáo.';
-              Alert.alert(message.includes('HEIC') ? 'Ảnh chưa đúng định dạng' : 'Lỗi nộp báo cáo', message);
+              const message = e?.message || 'KhÃ´ng thá»ƒ ná»™p bÃ¡o cÃ¡o.';
+              Alert.alert(message.includes('HEIC') ? 'áº¢nh chÆ°a Ä‘Ãºng Ä‘á»‹nh dáº¡ng' : 'Lá»—i ná»™p bÃ¡o cÃ¡o', message);
             }
           }
         }
@@ -817,9 +817,9 @@ export default function ShiftScreen({ navigation }) {
       setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
       setSelectedShiftForDetail(null);
       
-      // Kho đã được đồng bộ khi nhân viên lưu/nộp báo cáo ca bằng log điều chỉnh cố định theo ca.
+      // Kho Ä‘Ã£ Ä‘Æ°á»£c Ä‘á»“ng bá»™ khi nhÃ¢n viÃªn lÆ°u/ná»™p bÃ¡o cÃ¡o ca báº±ng log Ä‘iá»u chá»‰nh cá»‘ Ä‘á»‹nh theo ca.
       
-      // Tự động ghi log trừ tiền nếu lệch két âm
+      // Tá»± Ä‘á»™ng ghi log trá»« tiá»n náº¿u lá»‡ch kÃ©t Ã¢m
       if (approvedTotals.discrepancy < 0 && shift.closed_by) {
         try {
           const dateParts = shift.opened_at.split(' ')[0].split('/'); // [DD, MM, YYYY]
@@ -833,7 +833,7 @@ export default function ShiftScreen({ navigation }) {
               bonus_hours: 0,
               bonus_money: 0,
               penalty_money: Math.abs(approvedTotals.discrepancy),
-              note: `Hệ thống tự trừ tiền do lệch két âm ${Math.abs(approvedTotals.discrepancy).toLocaleString('vi-VN')}đ (ca ${shift.opened_at.split(' ')[0]})`
+              note: `Há»‡ thá»‘ng tá»± trá»« tiá»n do lá»‡ch kÃ©t Ã¢m ${Math.abs(approvedTotals.discrepancy).toLocaleString('vi-VN')}Ä‘ (ca ${shift.opened_at.split(' ')[0]})`
             };
             await supabase.from('payroll_adjustments').upsert([newAdj]);
             
@@ -846,32 +846,32 @@ export default function ShiftScreen({ navigation }) {
             }
           }
         } catch (err) {
-          console.log('Lỗi auto log penalty:', err);
+          console.log('Lá»—i auto log penalty:', err);
         }
       }
 
-      alert('Đã duyệt chốt ca thành công!');
+      alert('ÄÃ£ duyá»‡t chá»‘t ca thÃ nh cÃ´ng!');
 
       // Notify the person who closed the shift
       if (shift.closed_by) {
         const targetStaff = staffList.find(s => s.id === shift.closed_by);
         if (targetStaff) {
-          sendPushNotification(targetStaff.push_token, 'Duyệt chốt ca', `Quản lý đã duyệt báo cáo chốt ca ngày ${shift.opened_at.split(' ')[0]} của bạn.`, {}, targetStaff.id);
+          sendPushNotification(targetStaff.push_token, 'Duyá»‡t chá»‘t ca', `Quáº£n lÃ½ Ä‘Ã£ duyá»‡t bÃ¡o cÃ¡o chá»‘t ca ngÃ y ${shift.opened_at.split(' ')[0]} cá»§a báº¡n.`, {}, targetStaff.id);
         }
       }
     } catch (e) {
-      alert('Lỗi: ' + e.message);
+      alert('Lá»—i: ' + e.message);
     }
   };
 
   const handleRecallShiftReport = async (shift) => {
     Alert.alert(
-      'Thu hồi báo cáo',
-      'Bạn có chắc chắn muốn thu hồi báo cáo chốt ca này để chỉnh sửa lại không?',
+      'Thu há»“i bÃ¡o cÃ¡o',
+      'Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n thu há»“i bÃ¡o cÃ¡o chá»‘t ca nÃ y Ä‘á»ƒ chá»‰nh sá»­a láº¡i khÃ´ng?',
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: 'Há»§y', style: 'cancel' },
         { 
-          text: 'Thu hồi', 
+          text: 'Thu há»“i', 
           style: 'destructive',
           onPress: async () => {
             try {
@@ -885,9 +885,9 @@ export default function ShiftScreen({ navigation }) {
               if (error) throw error;
               setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
               setSelectedShiftForDetail(null);
-              alert('Đã thu hồi báo cáo thành công. Bạn có thể chỉnh sửa lại ở mục Kiểm Kho và Doanh Thu.');
+              alert('ÄÃ£ thu há»“i bÃ¡o cÃ¡o thÃ nh cÃ´ng. Báº¡n cÃ³ thá»ƒ chá»‰nh sá»­a láº¡i á»Ÿ má»¥c Kiá»ƒm Kho vÃ  Doanh Thu.');
             } catch (e) {
-              alert('Lỗi: ' + e.message);
+              alert('Lá»—i: ' + e.message);
             }
           }
         }
@@ -897,12 +897,12 @@ export default function ShiftScreen({ navigation }) {
 
   const handleRejectShiftReport = async (shift) => {
     Alert.alert(
-      'Từ chối báo cáo',
-      'Bạn có chắc chắn muốn HỦY chốt ca này và yêu cầu nhân viên làm lại không?',
+      'Tá»« chá»‘i bÃ¡o cÃ¡o',
+      'Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n Há»¦Y chá»‘t ca nÃ y vÃ  yÃªu cáº§u nhÃ¢n viÃªn lÃ m láº¡i khÃ´ng?',
       [
-        { text: 'Bỏ qua', style: 'cancel' },
+        { text: 'Bá» qua', style: 'cancel' },
         { 
-          text: 'Từ chối', 
+          text: 'Tá»« chá»‘i', 
           style: 'destructive',
           onPress: async () => {
             try {
@@ -917,16 +917,16 @@ export default function ShiftScreen({ navigation }) {
               
               setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
               setSelectedShiftForDetail(null);
-              alert('Đã từ chối báo cáo và chuyển lại trạng thái ĐANG MỞ!');
+              alert('ÄÃ£ tá»« chá»‘i bÃ¡o cÃ¡o vÃ  chuyá»ƒn láº¡i tráº¡ng thÃ¡i ÄANG Má»ž!');
               
               if (shift.closed_by) {
                 const targetStaff = staffList.find(s => s.id === shift.closed_by);
                 if (targetStaff) {
-                  sendPushNotification(targetStaff.push_token, 'Báo cáo bị từ chối', `Quản lý đã yêu cầu làm lại báo cáo chốt ca ngày ${shift.opened_at.split(' ')[0]}.`, {}, targetStaff.id);
+                  sendPushNotification(targetStaff.push_token, 'BÃ¡o cÃ¡o bá»‹ tá»« chá»‘i', `Quáº£n lÃ½ Ä‘Ã£ yÃªu cáº§u lÃ m láº¡i bÃ¡o cÃ¡o chá»‘t ca ngÃ y ${shift.opened_at.split(' ')[0]}.`, {}, targetStaff.id);
                 }
               }
             } catch (e) {
-              alert('Lỗi: ' + e.message);
+              alert('Lá»—i: ' + e.message);
             }
           }
         }
@@ -936,12 +936,12 @@ export default function ShiftScreen({ navigation }) {
 
   const handleUndoApproveShiftReport = async (shift) => {
     Alert.alert(
-      'Hủy duyệt báo cáo',
-      'Bạn có chắc chắn muốn HỦY DUYỆT phiếu chốt ca này? Báo cáo sẽ bị trả về trạng thái ĐANG MỞ để nhân viên làm lại, và khoản phạt lệch két (nếu có) sẽ bị xóa.',
+      'Há»§y duyá»‡t bÃ¡o cÃ¡o',
+      'Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n Há»¦Y DUYá»†T phiáº¿u chá»‘t ca nÃ y? BÃ¡o cÃ¡o sáº½ bá»‹ tráº£ vá» tráº¡ng thÃ¡i ÄANG Má»ž Ä‘á»ƒ nhÃ¢n viÃªn lÃ m láº¡i, vÃ  khoáº£n pháº¡t lá»‡ch kÃ©t (náº¿u cÃ³) sáº½ bá»‹ xÃ³a.',
       [
-        { text: 'Bỏ qua', style: 'cancel' },
+        { text: 'Bá» qua', style: 'cancel' },
         { 
-          text: 'Hủy duyệt', 
+          text: 'Há»§y duyá»‡t', 
           style: 'destructive',
           onPress: async () => {
             try {
@@ -964,16 +964,16 @@ export default function ShiftScreen({ navigation }) {
 
               setShifts(shifts.map(s => s.id === shift.id ? { ...s, ...updateData } : s));
               setSelectedShiftForDetail(null);
-              alert('Đã hủy duyệt! Phiếu chốt ca đã trở lại trạng thái ĐANG MỞ.');
+              alert('ÄÃ£ há»§y duyá»‡t! Phiáº¿u chá»‘t ca Ä‘Ã£ trá»Ÿ láº¡i tráº¡ng thÃ¡i ÄANG Má»ž.');
               
               if (shift.closed_by) {
                 const targetStaff = staffList.find(s => s.id === shift.closed_by);
                 if (targetStaff) {
-                  sendPushNotification(targetStaff.push_token, 'Báo cáo bị hủy duyệt', `Quản lý đã hủy duyệt báo cáo chốt ca ngày ${shift.opened_at.split(' ')[0]} và yêu cầu làm lại.`, {}, targetStaff.id);
+                  sendPushNotification(targetStaff.push_token, 'BÃ¡o cÃ¡o bá»‹ há»§y duyá»‡t', `Quáº£n lÃ½ Ä‘Ã£ há»§y duyá»‡t bÃ¡o cÃ¡o chá»‘t ca ngÃ y ${shift.opened_at.split(' ')[0]} vÃ  yÃªu cáº§u lÃ m láº¡i.`, {}, targetStaff.id);
                 }
               }
             } catch (e) {
-              alert('Lỗi: ' + e.message);
+              alert('Lá»—i: ' + e.message);
             }
           }
         }
@@ -1020,7 +1020,7 @@ export default function ShiftScreen({ navigation }) {
           <View style={styles.calculatorModal}>
             <View style={styles.calculatorHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.calculatorTitle}>Máy tính nhanh</Text>
+                <Text style={styles.calculatorTitle}>MÃ¡y tÃ­nh nhanh</Text>
                 <Text style={styles.calculatorSubtitle} numberOfLines={1}>{calculatorTarget?.label}</Text>
               </View>
               <TouchableOpacity onPress={closeMoneyCalculator} style={styles.calculatorCloseBtn}>
@@ -1038,7 +1038,7 @@ export default function ShiftScreen({ navigation }) {
                 const isApply = key === 'apply';
                 const isAction = ['+', '-', 'back', 'clear'].includes(key);
                 const label = key === 'back'
-                  ? '⌫'
+                  ? 'âŒ«'
                   : key === 'clear'
                     ? 'C'
                     : key === 'apply'
@@ -1080,7 +1080,7 @@ export default function ShiftScreen({ navigation }) {
         <TouchableOpacity
           style={[styles.moneyCalculatorBtn, isHighlight && {borderColor: '#f44336'}]}
           onPress={() => openMoneyCalculator(label, value, setter)}
-          accessibilityLabel={`Mở máy tính cho ${label}`}
+          accessibilityLabel={`Má»Ÿ mÃ¡y tÃ­nh cho ${label}`}
         >
           <Ionicons name="calculator-outline" size={20} color={isHighlight ? '#f44336' : COLORS.primary} />
         </TouchableOpacity>
@@ -1092,21 +1092,21 @@ export default function ShiftScreen({ navigation }) {
     <View style={styles.historyFilterCard}>
       <View style={styles.historyFilterHeader}>
         <View>
-          <Text style={styles.historyFilterTitle}>Lọc báo cáo theo ngày nộp</Text>
-          <Text style={styles.historyFilterSubtitle}>Đang xem: {historyPeriodLabel()}</Text>
+          <Text style={styles.historyFilterTitle}>Lá»c bÃ¡o cÃ¡o theo ngÃ y ná»™p</Text>
+          <Text style={styles.historyFilterSubtitle}>Äang xem: {historyPeriodLabel()}</Text>
         </View>
         <TouchableOpacity style={styles.historyCalendarBtn} onPress={() => setShowHistoryDateModal(true)}>
           <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
-          <Text style={styles.historyCalendarText}>Tùy chọn</Text>
+          <Text style={styles.historyCalendarText}>TÃ¹y chá»n</Text>
         </TouchableOpacity>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyQuickRow} decelerationRate="fast" scrollEventThrottle={16}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyQuickRow}>
         {[
-          ['all', 'Tất cả'],
-          ['today', 'Hôm nay'],
-          ['yesterday', 'Hôm qua'],
-          ['month', 'Tháng này'],
-          ['lastMonth', 'Tháng trước'],
+          ['all', 'Táº¥t cáº£'],
+          ['today', 'HÃ´m nay'],
+          ['yesterday', 'HÃ´m qua'],
+          ['month', 'ThÃ¡ng nÃ y'],
+          ['lastMonth', 'ThÃ¡ng trÆ°á»›c'],
         ].map(([value, label]) => (
           <TouchableOpacity
             key={value}
@@ -1126,12 +1126,12 @@ export default function ShiftScreen({ navigation }) {
       {data.length === 0 && (
         <View style={styles.emptyHistoryBox}>
           <Ionicons name="receipt-outline" size={42} color={COLORS.textMuted} />
-          <Text style={styles.emptyHistoryText}>Không có báo cáo trong khoảng thời gian này.</Text>
+          <Text style={styles.emptyHistoryText}>KhÃ´ng cÃ³ bÃ¡o cÃ¡o trong khoáº£ng thá»i gian nÃ y.</Text>
         </View>
       )}
       {data.map(item => {
         let dateStr = item.opened_at.split(' ')[0];
-        let periodStr = item.opened_at.includes('Sáng') ? 'Ca Sáng' : (item.opened_at.includes('Chiều') ? 'Ca Chiều' : '');
+        let periodStr = item.opened_at.includes('SÃ¡ng') ? 'Ca SÃ¡ng' : (item.opened_at.includes('Chiá»u') ? 'Ca Chiá»u' : '');
         let openTimeStr = item.opened_at.split(' ').pop();
         let closeTimeStr = item.closed_at ? item.closed_at.split(' ').pop() : '';
         let submittedDateStr = getShiftSubmittedDateKey(item);
@@ -1142,32 +1142,32 @@ export default function ShiftScreen({ navigation }) {
         return (
           <TouchableOpacity key={item.id} style={[styles.historyCard, isDiscrepancy && {borderColor: '#f44336', borderWidth: 2}]} onPress={() => setSelectedShiftForDetail(item)}>
             <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 8}}>
-              <Text style={{fontWeight: 'bold', fontSize: 16, color: isDiscrepancy ? '#f44336' : '#1976d2'}}>{dateStr} {periodStr ? `- ${periodStr}` : ''} {isDiscrepancy ? '(Lệch)' : ''}</Text>
+              <Text style={{fontWeight: 'bold', fontSize: 16, color: isDiscrepancy ? '#f44336' : '#1976d2'}}>{dateStr} {periodStr ? `- ${periodStr}` : ''} {isDiscrepancy ? '(Lá»‡ch)' : ''}</Text>
               <Text style={{color: COLORS.text, fontWeight: 'bold'}}>{storeList.find(s=>s.id===item.store_id)?.name}</Text>
             </View>
-            <Text style={styles.hText}>Mở ca lúc: {openTimeStr} ({item.opened_by_name})</Text>
-            <Text style={styles.hText}>Chốt ca lúc: {closeTimeStr} ({item.closed_by_name})</Text>
-            <Text style={styles.hText}>Ngày nộp: {formatDateKey(submittedDateStr)}</Text>
+            <Text style={styles.hText}>Má»Ÿ ca lÃºc: {openTimeStr} ({item.opened_by_name})</Text>
+            <Text style={styles.hText}>Chá»‘t ca lÃºc: {closeTimeStr} ({item.closed_by_name})</Text>
+            <Text style={styles.hText}>NgÃ y ná»™p: {formatDateKey(submittedDateStr)}</Text>
             <View style={{backgroundColor: '#f5f5f5', padding: 10, borderRadius: 8, marginTop: 10}}>
-              <Text style={{fontWeight: 'bold'}}>DOANH THU OCHA/TỔNG: {formatCurrency(itemTotals.grossRevenue)}</Text>
+              <Text style={{fontWeight: 'bold'}}>DOANH THU OCHA/Tá»”NG: {formatCurrency(itemTotals.grossRevenue)}</Text>
               <Text style={styles.hText}>- Momo/Grab/Shopee: -{formatCurrency(itemTotals.nonCash)}</Text>
-              <Text style={styles.hText}>- Giảm bill: -{formatCurrency(item.discount)}</Text>
-              <Text style={styles.hText}>- Chi phí: -{item.expenses.toLocaleString()}đ ({item.expenses_note || 'Trống'})</Text>
+              <Text style={styles.hText}>- Giáº£m bill: -{formatCurrency(item.discount)}</Text>
+              <Text style={styles.hText}>- Chi phÃ­: -{item.expenses.toLocaleString()}Ä‘ ({item.expenses_note || 'Trá»‘ng'})</Text>
               <View style={{height: 1, backgroundColor: '#ddd', marginVertical: 8}}/>
-              <Text style={styles.hText}>Doanh thu tiền mặt trong ca: {formatCurrency(itemTotals.cashRevenue)}</Text>
-              <Text style={styles.hText}>Tiền đầu giờ: {item.opening_cash.toLocaleString()}đ</Text>
-              <Text style={styles.hText}>Két phải có: {formatCurrency(itemTotals.expectedCash)}</Text>
-              <Text style={styles.hText}>Két thực đếm: {item.closing_cash_actual.toLocaleString()}đ</Text>
+              <Text style={styles.hText}>Doanh thu tiá»n máº·t trong ca: {formatCurrency(itemTotals.cashRevenue)}</Text>
+              <Text style={styles.hText}>Tiá»n Ä‘áº§u giá»: {item.opening_cash.toLocaleString()}Ä‘</Text>
+              <Text style={styles.hText}>KÃ©t pháº£i cÃ³: {formatCurrency(itemTotals.expectedCash)}</Text>
+              <Text style={styles.hText}>KÃ©t thá»±c Ä‘áº¿m: {item.closing_cash_actual.toLocaleString()}Ä‘</Text>
               <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: COLORS.border}}>
-                <Text style={{fontSize: 16, fontWeight: 'bold'}}>Chênh Lệch:</Text>
+                <Text style={{fontSize: 16, fontWeight: 'bold'}}>ChÃªnh Lá»‡ch:</Text>
                 <Text style={{fontSize: 16, fontWeight: 'bold', color: itemTotals.discrepancy < 0 ? '#f44336' : (itemTotals.discrepancy > 0 ? '#4caf50' : '#333')}}>
                   {itemTotals.discrepancy > 0 ? '+' : ''}{formatCurrency(itemTotals.discrepancy)}
                 </Text>
               </View>
               {activeTab === 'PENDING' && (
-                <Text style={{textAlign: 'center', color: '#f59e0b', fontWeight: 'bold', marginTop: 15, fontSize: 14}}>Trạng thái: Đang chờ duyệt</Text>
+                <Text style={{textAlign: 'center', color: '#f59e0b', fontWeight: 'bold', marginTop: 15, fontSize: 14}}>Tráº¡ng thÃ¡i: Äang chá» duyá»‡t</Text>
               )}
-              <Text style={{textAlign: 'center', color: '#1976d2', marginTop: 10, fontSize: 12, fontStyle: 'italic'}}>Chạm để xem chi tiết & thao tác</Text>
+              <Text style={{textAlign: 'center', color: '#1976d2', marginTop: 10, fontSize: 12, fontStyle: 'italic'}}>Cháº¡m Ä‘á»ƒ xem chi tiáº¿t & thao tÃ¡c</Text>
             </View>
           </TouchableOpacity>
         );
@@ -1190,30 +1190,30 @@ export default function ShiftScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 10}}>
-              <Text style={{fontSize: 18, fontWeight: 'bold', color: '#1976d2'}}>Chi Tiết Báo Cáo Chốt Ca</Text>
+              <Text style={{fontSize: 18, fontWeight: 'bold', color: '#1976d2'}}>Chi Tiáº¿t BÃ¡o CÃ¡o Chá»‘t Ca</Text>
               <TouchableOpacity onPress={() => setSelectedShiftForDetail(null)}>
                 <Ionicons name="close" size={24} color={isDarkMode ? '#0f172a' : COLORS.text} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" scrollEventThrottle={16}>
+            <ScrollView showsVerticalScrollIndicator={false}>
               <View style={{marginBottom: 15}}>
-                <Text style={{fontWeight: 'bold'}}>Chi nhánh: {storeList.find(s=>s.id===item.store_id)?.name}</Text>
-                <Text>Người mở ca: {item.opened_by_name} lúc {item.opened_at}</Text>
-                <Text>Người nộp báo cáo: {item.closed_by_name} lúc {item.closed_at}</Text>
+                <Text style={{fontWeight: 'bold'}}>Chi nhÃ¡nh: {storeList.find(s=>s.id===item.store_id)?.name}</Text>
+                <Text>NgÆ°á»i má»Ÿ ca: {item.opened_by_name} lÃºc {item.opened_at}</Text>
+                <Text>NgÆ°á»i ná»™p bÃ¡o cÃ¡o: {item.closed_by_name} lÃºc {item.closed_at}</Text>
                 {item.status === 'CLOSED' && item.approved_by_name && (
-                  <Text style={{color: '#4caf50', fontWeight: 'bold'}}>Người duyệt báo cáo: {item.approved_by_name} lúc {item.approved_at}</Text>
+                  <Text style={{color: '#4caf50', fontWeight: 'bold'}}>NgÆ°á»i duyá»‡t bÃ¡o cÃ¡o: {item.approved_by_name} lÃºc {item.approved_at}</Text>
                 )}
-                <Text style={{fontWeight: 'bold', color: item.status === 'CLOSED' ? '#4caf50' : '#f59e0b', marginTop: 5}}>Trạng thái: {item.status === 'CLOSED' ? 'Đã duyệt' : 'Chờ duyệt'}</Text>
+                <Text style={{fontWeight: 'bold', color: item.status === 'CLOSED' ? '#4caf50' : '#f59e0b', marginTop: 5}}>Tráº¡ng thÃ¡i: {item.status === 'CLOSED' ? 'ÄÃ£ duyá»‡t' : 'Chá» duyá»‡t'}</Text>
               </View>
 
-              <Text style={[styles.sectionTitle, {fontSize: 14}]}>KIỂM KÊ KHO HÀNG</Text>
+              <Text style={[styles.sectionTitle, {fontSize: 14}]}>KIá»‚M KÃŠ KHO HÃ€NG</Text>
               {invCheck.length > 0 ? (
                 <View style={styles.detailBox}>
                   <View style={{flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 5, marginBottom: 5}}>
-                    <Text style={{flex: 2, fontWeight: 'bold'}}>Mặt hàng</Text>
-                    <Text style={{flex: 1, fontWeight: 'bold', textAlign: 'right'}}>Tồn đầu</Text>
-                    <Text style={{flex: 1, fontWeight: 'bold', textAlign: 'right'}}>Tồn cuối</Text>
+                    <Text style={{flex: 2, fontWeight: 'bold'}}>Máº·t hÃ ng</Text>
+                    <Text style={{flex: 1, fontWeight: 'bold', textAlign: 'right'}}>Tá»“n Ä‘áº§u</Text>
+                    <Text style={{flex: 1, fontWeight: 'bold', textAlign: 'right'}}>Tá»“n cuá»‘i</Text>
                   </View>
                   {invCheck.map((inv, idx) => (
                     <View key={idx} style={{flexDirection: 'row', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#f3f4f6'}}>
@@ -1224,25 +1224,25 @@ export default function ShiftScreen({ navigation }) {
                   ))}
                 </View>
               ) : (
-                <Text style={[styles.emptyText, {fontStyle: 'italic', marginBottom: 15}]}>Không có dữ liệu kiểm kho</Text>
+                <Text style={[styles.emptyText, {fontStyle: 'italic', marginBottom: 15}]}>KhÃ´ng cÃ³ dá»¯ liá»‡u kiá»ƒm kho</Text>
               )}
 
-              <Text style={[styles.sectionTitle, {fontSize: 14}]}>DOANH THU & KÉT TIỀN</Text>
+              <Text style={[styles.sectionTitle, {fontSize: 14}]}>DOANH THU & KÃ‰T TIá»€N</Text>
               <View style={styles.detailBox}>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Tiền mặt (Đầu ca):</Text><Text style={{fontWeight: 'bold'}}>{item.opening_cash.toLocaleString()}đ</Text></View>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Ocha/Tổng:</Text><Text style={{fontWeight: 'bold', color: '#1976d2'}}>{formatCurrency(detailTotals.grossRevenue)}</Text></View>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Momo:</Text><Text style={{fontWeight: 'bold', color: '#d82d8b'}}>{item.rev_momo.toLocaleString()}đ</Text></View>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Grab:</Text><Text style={{fontWeight: 'bold', color: '#00a5cf'}}>{item.rev_grab.toLocaleString()}đ</Text></View>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Shopee:</Text><Text style={{fontWeight: 'bold', color: '#ee4d2d'}}>{item.rev_shopee.toLocaleString()}đ</Text></View>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Giảm Bill:</Text><Text style={{fontWeight: 'bold', color: '#f59e0b'}}>-{item.discount.toLocaleString()}đ</Text></View>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Chi phí ({item.expenses_note || 'Trống'}):</Text><Text style={{fontWeight: 'bold', color: '#f44336'}}>-{item.expenses.toLocaleString()}đ</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Tiá»n máº·t (Äáº§u ca):</Text><Text style={{fontWeight: 'bold'}}>{item.opening_cash.toLocaleString()}Ä‘</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Ocha/Tá»•ng:</Text><Text style={{fontWeight: 'bold', color: '#1976d2'}}>{formatCurrency(detailTotals.grossRevenue)}</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Momo:</Text><Text style={{fontWeight: 'bold', color: '#d82d8b'}}>{item.rev_momo.toLocaleString()}Ä‘</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Grab:</Text><Text style={{fontWeight: 'bold', color: '#00a5cf'}}>{item.rev_grab.toLocaleString()}Ä‘</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Shopee:</Text><Text style={{fontWeight: 'bold', color: '#ee4d2d'}}>{item.rev_shopee.toLocaleString()}Ä‘</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Giáº£m Bill:</Text><Text style={{fontWeight: 'bold', color: '#f59e0b'}}>-{item.discount.toLocaleString()}Ä‘</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Chi phÃ­ ({item.expenses_note || 'Trá»‘ng'}):</Text><Text style={{fontWeight: 'bold', color: '#f44336'}}>-{item.expenses.toLocaleString()}Ä‘</Text></View>
                 
                 <View style={{height: 1, backgroundColor: '#ddd', marginVertical: 8}}/>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text style={{fontWeight: 'bold'}}>Doanh thu tiền mặt trong ca:</Text><Text style={{fontWeight: 'bold'}}>{formatCurrency(detailTotals.cashRevenue)}</Text></View>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text style={{fontWeight: 'bold'}}>Két phải có:</Text><Text style={{fontWeight: 'bold'}}>{formatCurrency(detailTotals.expectedCash)}</Text></View>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Két thực đếm:</Text><Text style={{fontWeight: 'bold', color: '#15803d'}}>{item.closing_cash_actual.toLocaleString()}đ</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text style={{fontWeight: 'bold'}}>Doanh thu tiá»n máº·t trong ca:</Text><Text style={{fontWeight: 'bold'}}>{formatCurrency(detailTotals.cashRevenue)}</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text style={{fontWeight: 'bold'}}>KÃ©t pháº£i cÃ³:</Text><Text style={{fontWeight: 'bold'}}>{formatCurrency(detailTotals.expectedCash)}</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>KÃ©t thá»±c Ä‘áº¿m:</Text><Text style={{fontWeight: 'bold', color: '#15803d'}}>{item.closing_cash_actual.toLocaleString()}Ä‘</Text></View>
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}>
-                  <Text style={{fontWeight: 'bold'}}>Lệch két:</Text>
+                  <Text style={{fontWeight: 'bold'}}>Lá»‡ch kÃ©t:</Text>
                   <Text style={{fontWeight: 'bold', color: detailTotals.discrepancy < 0 ? '#f44336' : (detailTotals.discrepancy > 0 ? '#4caf50' : '#333')}}>
                     {detailTotals.discrepancy > 0 ? '+' : ''}{formatCurrency(detailTotals.discrepancy)}
                   </Text>
@@ -1251,11 +1251,11 @@ export default function ShiftScreen({ navigation }) {
 
               {hasReportImages ? (
                 <>
-                  <Text style={[styles.sectionTitle, {fontSize: 14, marginTop: 10}]}>HÌNH ẢNH BÁO CÁO ({detailReportImageUrls.length || parseReportImages(item.report_image).length})</Text>
+                  <Text style={[styles.sectionTitle, {fontSize: 14, marginTop: 10}]}>HÃŒNH áº¢NH BÃO CÃO ({detailReportImageUrls.length || parseReportImages(item.report_image).length})</Text>
                   {isResolvingReportImage ? (
                     <View style={styles.reportImageLoading}>
                       <ActivityIndicator color={COLORS.primary} />
-                      <Text style={styles.reportImageLoadingText}>Đang tải ảnh báo cáo...</Text>
+                      <Text style={styles.reportImageLoadingText}>Äang táº£i áº£nh bÃ¡o cÃ¡o...</Text>
                     </View>
                   ) : detailReportImageUrls.length > 0 ? (
                     <>
@@ -1270,18 +1270,18 @@ export default function ShiftScreen({ navigation }) {
                               onError={() => setReportImageLoadState((prev) => ({...prev, [url]: 'failed'}))}
                             />
                             <View style={styles.detailImageFooter}>
-                              <Text style={styles.detailImageIndex}>Ảnh {index + 1}/{detailReportImageUrls.length}</Text>
+                              <Text style={styles.detailImageIndex}>áº¢nh {index + 1}/{detailReportImageUrls.length}</Text>
                               <TouchableOpacity style={styles.openImageInlineBtn} onPress={() => openReportImageExternally(url)}>
                                 <Ionicons name="open-outline" size={16} color={COLORS.primary} style={{marginRight: 6}} />
-                                <Text style={styles.openImageInlineText}>Mở ảnh lớn</Text>
+                                <Text style={styles.openImageInlineText}>Má»Ÿ áº£nh lá»›n</Text>
                               </TouchableOpacity>
                             </View>
                             {loadState === 'failed' && (
                               <View style={styles.reportImageError}>
                                 <Ionicons name="alert-circle-outline" size={28} color="#991b1b" />
-                                <Text style={styles.reportImageErrorText}>Ảnh {index + 1} có link nhưng app chưa tải được. Người duyệt không nên duyệt khi chưa xem đủ ảnh.</Text>
+                                <Text style={styles.reportImageErrorText}>áº¢nh {index + 1} cÃ³ link nhÆ°ng app chÆ°a táº£i Ä‘Æ°á»£c. NgÆ°á»i duyá»‡t khÃ´ng nÃªn duyá»‡t khi chÆ°a xem Ä‘á»§ áº£nh.</Text>
                                 <TouchableOpacity style={styles.openImageBtn} onPress={() => openReportImageExternally(url)}>
-                                  <Text style={styles.openImageBtnText}>Mở ảnh ngoài app</Text>
+                                  <Text style={styles.openImageBtnText}>Má»Ÿ áº£nh ngoÃ i app</Text>
                                 </TouchableOpacity>
                               </View>
                             )}
@@ -1292,14 +1292,14 @@ export default function ShiftScreen({ navigation }) {
                   ) : (
                     <View style={styles.reportImageError}>
                       <Ionicons name="image-outline" size={28} color="#991b1b" />
-                      <Text style={styles.reportImageErrorText}>Không thể mở ảnh báo cáo. Vui lòng thử tải lại hoặc kiểm tra quyền bucket shift_reports.</Text>
+                      <Text style={styles.reportImageErrorText}>KhÃ´ng thá»ƒ má»Ÿ áº£nh bÃ¡o cÃ¡o. Vui lÃ²ng thá»­ táº£i láº¡i hoáº·c kiá»ƒm tra quyá»n bucket shift_reports.</Text>
                     </View>
                   )}
                 </>
               ) : (
                 <View style={styles.reportImageError}>
                   <Ionicons name="image-outline" size={28} color="#991b1b" />
-                  <Text style={styles.reportImageErrorText}>Phiếu này chưa có hình ảnh báo cáo. Người duyệt không nên duyệt khi thiếu ảnh.</Text>
+                  <Text style={styles.reportImageErrorText}>Phiáº¿u nÃ y chÆ°a cÃ³ hÃ¬nh áº£nh bÃ¡o cÃ¡o. NgÆ°á»i duyá»‡t khÃ´ng nÃªn duyá»‡t khi thiáº¿u áº£nh.</Text>
                 </View>
               )}
 
@@ -1309,17 +1309,17 @@ export default function ShiftScreen({ navigation }) {
               <>
                 <TouchableOpacity style={{backgroundColor: canApproveWithImage ? '#4caf50' : '#9ca3af', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
                   if (!canApproveWithImage) {
-                    Alert.alert('Chưa thể duyệt', 'Cần mở và thấy hình ảnh báo cáo trước khi duyệt phiếu chốt ca.');
+                    Alert.alert('ChÆ°a thá»ƒ duyá»‡t', 'Cáº§n má»Ÿ vÃ  tháº¥y hÃ¬nh áº£nh bÃ¡o cÃ¡o trÆ°á»›c khi duyá»‡t phiáº¿u chá»‘t ca.');
                     return;
                   }
                   handleApproveShiftReport(item);
                 }}>
-                  <Text style={{color: '#fff', fontWeight: 'bold'}}>{canApproveWithImage ? 'Duyệt Chốt Ca' : 'Chưa thấy ảnh - chưa thể duyệt'}</Text>
+                  <Text style={{color: '#fff', fontWeight: 'bold'}}>{canApproveWithImage ? 'Duyá»‡t Chá»‘t Ca' : 'ChÆ°a tháº¥y áº£nh - chÆ°a thá»ƒ duyá»‡t'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={{backgroundColor: '#f59e0b', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
                   handleRejectShiftReport(item);
                 }}>
-                  <Text style={{color: '#fff', fontWeight: 'bold'}}>Từ Chối (Yêu cầu làm lại)</Text>
+                  <Text style={{color: '#fff', fontWeight: 'bold'}}>Tá»« Chá»‘i (YÃªu cáº§u lÃ m láº¡i)</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -1328,7 +1328,7 @@ export default function ShiftScreen({ navigation }) {
               <TouchableOpacity style={{backgroundColor: '#f44336', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
                 handleRecallShiftReport(item);
               }}>
-                <Text style={{color: '#fff', fontWeight: 'bold'}}>Thu Hồi Báo Cáo</Text>
+                <Text style={{color: '#fff', fontWeight: 'bold'}}>Thu Há»“i BÃ¡o CÃ¡o</Text>
               </TouchableOpacity>
             )}
 
@@ -1336,12 +1336,12 @@ export default function ShiftScreen({ navigation }) {
               <TouchableOpacity style={{backgroundColor: '#ef4444', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
                 handleUndoApproveShiftReport(item);
               }}>
-                <Text style={{color: '#fff', fontWeight: 'bold'}}>Hủy Duyệt (Yêu cầu làm lại)</Text>
+                <Text style={{color: '#fff', fontWeight: 'bold'}}>Há»§y Duyá»‡t (YÃªu cáº§u lÃ m láº¡i)</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity style={{backgroundColor: '#1976d2', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => setSelectedShiftForDetail(null)}>
-              <Text style={{color: '#fff', fontWeight: 'bold'}}>Đóng</Text>
+              <Text style={{color: '#fff', fontWeight: 'bold'}}>ÄÃ³ng</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1355,25 +1355,25 @@ export default function ShiftScreen({ navigation }) {
         <View style={styles.stickyTopBar}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
-          <Text style={styles.header}>Báo Cáo Mẫu 16</Text>
+          <Text style={styles.header}>BÃ¡o CÃ¡o Máº«u 16</Text>
         </View>
 
         <View style={styles.tabContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} decelerationRate="fast" scrollEventThrottle={16}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <TouchableOpacity style={[styles.tabBtn, activeTab === 'INVENTORY' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('INVENTORY')}>
-              <Text style={[styles.tabText, activeTab === 'INVENTORY' && styles.tabTextActive]}>Kiểm Kho</Text>
+              <Text style={[styles.tabText, activeTab === 'INVENTORY' && styles.tabTextActive]}>Kiá»ƒm Kho</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.tabBtn, activeTab === 'CASH' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('CASH')}>
-              <Text style={[styles.tabText, activeTab === 'CASH' && styles.tabTextActive]}>Két & Doanh Thu</Text>
+              <Text style={[styles.tabText, activeTab === 'CASH' && styles.tabTextActive]}>KÃ©t & Doanh Thu</Text>
             </TouchableOpacity>
           {(!isStaff) && (
             <TouchableOpacity style={[styles.tabBtn, activeTab === 'PENDING' && styles.tabBtnActive]} onPress={() => setActiveTab('PENDING')}>
-              <Text style={[styles.tabText, activeTab === 'PENDING' && styles.tabTextActive]}>Chờ Duyệt</Text>
+              <Text style={[styles.tabText, activeTab === 'PENDING' && styles.tabTextActive]}>Chá» Duyá»‡t</Text>
             </TouchableOpacity>
           )}
           {(!isStaff) && (
             <TouchableOpacity style={[styles.tabBtn, activeTab === 'HISTORY' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('HISTORY')}>
-              <Text style={[styles.tabText, activeTab === 'HISTORY' && styles.tabTextActive]}>Lịch Sử</Text>
+              <Text style={[styles.tabText, activeTab === 'HISTORY' && styles.tabTextActive]}>Lá»‹ch Sá»­</Text>
             </TouchableOpacity>
           )}
           </ScrollView>
@@ -1382,8 +1382,6 @@ export default function ShiftScreen({ navigation }) {
         </View>
 
         <ScrollView 
-          decelerationRate="fast"
-          scrollEventThrottle={16} 
           showsVerticalScrollIndicator={false} 
           contentContainerStyle={{ paddingBottom: 80 }} 
           style={styles.mainScroll}
@@ -1395,24 +1393,24 @@ export default function ShiftScreen({ navigation }) {
           {(activeTab === 'INVENTORY' || activeTab === 'CASH') && (!hasCashierPerm ? (
             <View style={{padding: 20, alignItems: 'center', marginTop: 50}}>
               <Ionicons name="lock-closed" size={60} color={COLORS.textMuted} />
-              <Text style={{fontSize: 18, color: COLORS.textMuted, marginTop: 15, textAlign: 'center'}}>Bạn không được cấp quyền Thu Ngân / Bán Hàng để thực hiện chức năng này.</Text>
+              <Text style={{fontSize: 18, color: COLORS.textMuted, marginTop: 15, textAlign: 'center'}}>Báº¡n khÃ´ng Ä‘Æ°á»£c cáº¥p quyá»n Thu NgÃ¢n / BÃ¡n HÃ ng Ä‘á»ƒ thá»±c hiá»‡n chá»©c nÄƒng nÃ y.</Text>
             </View>
           ) : (
             <View>
               {storeIdToView === 'ALL' ? (
-                <View style={styles.section}><Text style={{textAlign:'center', color:'#f44336'}}>Vui lòng chọn 1 chi nhánh để Giao Ca!</Text></View>
+                <View style={styles.section}><Text style={{textAlign:'center', color:'#f44336'}}>Vui lÃ²ng chá»n 1 chi nhÃ¡nh Ä‘á»ƒ Giao Ca!</Text></View>
               ) : !currentOpenShift ? (
                 <View style={styles.section}>
-                  <View style={{alignItems: 'center', marginBottom: 20}}><MaterialCommunityIcons name="cash-register" size={60} color="#9ca3af" /><Text style={styles.sectionTitle}>CHƯA MỞ CA LÀM VIỆC</Text></View>
-                  {renderMoneyInput('Tiền mặt đầu ca có trong két (VNĐ):', openingCash, setOpeningCash, false, 'Nhập số tiền...')}
+                  <View style={{alignItems: 'center', marginBottom: 20}}><MaterialCommunityIcons name="cash-register" size={60} color="#9ca3af" /><Text style={styles.sectionTitle}>CHÆ¯A Má»ž CA LÃ€M VIá»†C</Text></View>
+                  {renderMoneyInput('Tiá»n máº·t Ä‘áº§u ca cÃ³ trong kÃ©t (VNÄ):', openingCash, setOpeningCash, false, 'Nháº­p sá»‘ tiá»n...')}
                   
                   {(() => {
                     const todaysShifts = shifts.filter(s => s.store_id === storeIdToView && s.opened_at.startsWith(todayStr));
-                    const hasMorning = todaysShifts.some(s => s.opened_at.includes('(Ca Sáng)'));
-                    const hasAfternoon = todaysShifts.some(s => s.opened_at.includes('(Ca Chiều)'));
+                    const hasMorning = todaysShifts.some(s => s.opened_at.includes('(Ca SÃ¡ng)'));
+                    const hasAfternoon = todaysShifts.some(s => s.opened_at.includes('(Ca Chiá»u)'));
                     
                     if (hasMorning && hasAfternoon) {
-                      return <Text style={{color: '#f44336', textAlign: 'center', marginTop: 15, fontWeight: 'bold'}}>Hôm nay đã mở đủ 2 ca (Sáng & Chiều).</Text>;
+                      return <Text style={{color: '#f44336', textAlign: 'center', marginTop: 15, fontWeight: 'bold'}}>HÃ´m nay Ä‘Ã£ má»Ÿ Ä‘á»§ 2 ca (SÃ¡ng & Chiá»u).</Text>;
                     }
 
                     const currentHour = new Date().getHours();
@@ -1422,19 +1420,19 @@ export default function ShiftScreen({ navigation }) {
                       <View style={{marginTop: 15}}>
                         {isMorningTime ? (
                           !hasMorning ? (
-                            <TouchableOpacity style={styles.openBtn} onPress={() => handleOpenShift('Ca Sáng')}>
-                              <Text style={styles.btnText}>MỞ CA SÁNG (Trước 12h)</Text>
+                            <TouchableOpacity style={styles.openBtn} onPress={() => handleOpenShift('Ca SÃ¡ng')}>
+                              <Text style={styles.btnText}>Má»ž CA SÃNG (TrÆ°á»›c 12h)</Text>
                             </TouchableOpacity>
                           ) : (
-                            <Text style={{color: '#f59e0b', textAlign: 'center', fontStyle: 'italic'}}>Ca Sáng đã được mở. Vui lòng chờ đến sau 12h trưa để mở Ca Chiều.</Text>
+                            <Text style={{color: '#f59e0b', textAlign: 'center', fontStyle: 'italic'}}>Ca SÃ¡ng Ä‘Ã£ Ä‘Æ°á»£c má»Ÿ. Vui lÃ²ng chá» Ä‘áº¿n sau 12h trÆ°a Ä‘á»ƒ má»Ÿ Ca Chiá»u.</Text>
                           )
                         ) : (
                           !hasAfternoon ? (
-                            <TouchableOpacity style={[styles.openBtn, {backgroundColor: '#f59e0b'}]} onPress={() => handleOpenShift('Ca Chiều')}>
-                              <Text style={styles.btnText}>MỞ CA CHIỀU (Sau 12h)</Text>
+                            <TouchableOpacity style={[styles.openBtn, {backgroundColor: '#f59e0b'}]} onPress={() => handleOpenShift('Ca Chiá»u')}>
+                              <Text style={styles.btnText}>Má»ž CA CHIá»€U (Sau 12h)</Text>
                             </TouchableOpacity>
                           ) : (
-                            <Text style={{color: '#f59e0b', textAlign: 'center', fontStyle: 'italic'}}>Ca Chiều đã được mở.</Text>
+                            <Text style={{color: '#f59e0b', textAlign: 'center', fontStyle: 'italic'}}>Ca Chiá»u Ä‘Ã£ Ä‘Æ°á»£c má»Ÿ.</Text>
                           )
                         )}
                       </View>
@@ -1444,18 +1442,18 @@ export default function ShiftScreen({ navigation }) {
               ) : (
                 <View>
                   <View style={[styles.section, styles.openShiftBanner]}>
-                    <Text style={styles.openShiftTitle}>🟢 ĐANG TRONG CA: {storeList.find(s=>s.id===storeIdToView)?.name}</Text>
-                    <Text style={styles.openShiftMeta}>Mở lúc: {currentOpenShift.opened_at} bởi {currentOpenShift.opened_by_name}</Text>
+                    <Text style={styles.openShiftTitle}>ðŸŸ¢ ÄANG TRONG CA: {storeList.find(s=>s.id===storeIdToView)?.name}</Text>
+                    <Text style={styles.openShiftMeta}>Má»Ÿ lÃºc: {currentOpenShift.opened_at} bá»Ÿi {currentOpenShift.opened_by_name}</Text>
                   </View>
 
-                  {/* PHẦN 1: KIỂM KHO */}
+                  {/* PHáº¦N 1: KIá»‚M KHO */}
                   {activeTab === 'INVENTORY' && (
                   <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>PHẦN 1: KIỂM KÊ KHO HÀNG</Text>
+                    <Text style={styles.sectionTitle}>PHáº¦N 1: KIá»‚M KÃŠ KHO HÃ€NG</Text>
                     <View style={styles.tableHeader}>
-                      <Text style={[styles.cell, {flex: 2}]}>Tên Hàng</Text>
-                      <Text style={[styles.cell, {flex: 1}]}>Tồn Đầu</Text>
-                      <Text style={[styles.cell, {flex: 1.5}]}>Tồn Cuối</Text>
+                      <Text style={[styles.cell, {flex: 2}]}>TÃªn HÃ ng</Text>
+                      <Text style={[styles.cell, {flex: 1}]}>Tá»“n Äáº§u</Text>
+                      <Text style={[styles.cell, {flex: 1.5}]}>Tá»“n Cuá»‘i</Text>
                     </View>
                     {storeInventoryWithStock.map(item => (
                       <View key={item.id} style={styles.tableRow}>
@@ -1473,61 +1471,61 @@ export default function ShiftScreen({ navigation }) {
                   </View>
                   )}
 
-                  {/* PHẦN 2: DOANH THU & KÉT */}
+                  {/* PHáº¦N 2: DOANH THU & KÃ‰T */}
                   {activeTab === 'CASH' && (
                   <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>PHẦN 2: DOANH THU & KÉT TIỀN</Text>
-                    <Text style={styles.infoText}>Tiền đầu giờ (1): {currentOpenShift.opening_cash.toLocaleString()}đ</Text>
+                    <Text style={styles.sectionTitle}>PHáº¦N 2: DOANH THU & KÃ‰T TIá»€N</Text>
+                    <Text style={styles.infoText}>Tiá»n Ä‘áº§u giá» (1): {currentOpenShift.opening_cash.toLocaleString()}Ä‘</Text>
 
                     {isLoadingOcha ? (
                       <View style={styles.revenueSourceBox}>
                         <View style={styles.ochaInlineLoading}>
                           <ActivityIndicator color={COLORS.primary} style={{marginRight: 8}} />
-                          <Text style={styles.ochaManualHint}>Đang tải doanh thu Ocha...</Text>
+                          <Text style={styles.ochaManualHint}>Äang táº£i doanh thu Ocha...</Text>
                         </View>
                       </View>
                     ) : ochaAmount > 0 ? (
                       <View style={styles.revenueSourceBox}>
-                        <Text style={styles.ochaAmountLabel}>Doanh thu Ocha/Tổng doanh thu (3)</Text>
+                        <Text style={styles.ochaAmountLabel}>Doanh thu Ocha/Tá»•ng doanh thu (3)</Text>
                         <Text style={styles.ochaAmountValue}>{formatCurrency(sourceRevenue)}</Text>
-                        <Text style={styles.ochaSyncText}>Cập nhật lúc: {ochaSyncLabel}</Text>
-                        <Text style={styles.ochaManualHint}>Chỉ chốt khi Ocha đã đồng bộ hết bill cuối ca.</Text>
+                        <Text style={styles.ochaSyncText}>Cáº­p nháº­t lÃºc: {ochaSyncLabel}</Text>
+                        <Text style={styles.ochaManualHint}>Chá»‰ chá»‘t khi Ocha Ä‘Ã£ Ä‘á»“ng bá»™ háº¿t bill cuá»‘i ca.</Text>
                       </View>
-                    ) : renderMoneyInput('Doanh thu Ocha/Tổng doanh thu (3):', revCash, setRevCash)}
-                    {renderMoneyInput('Tổng tiền giảm bill (4):', discount, setDiscount)}
-                    {renderMoneyInput('Tổng tiền MOMO:', revMomo, setRevMomo)}
-                    {renderMoneyInput('Tổng tiền GRAB:', revGrab, setRevGrab)}
-                    {renderMoneyInput('Tổng tiền SHOPEE FOOD:', revShopee, setRevShopee)}
+                    ) : renderMoneyInput('Doanh thu Ocha/Tá»•ng doanh thu (3):', revCash, setRevCash)}
+                    {renderMoneyInput('Tá»•ng tiá»n giáº£m bill (4):', discount, setDiscount)}
+                    {renderMoneyInput('Tá»•ng tiá»n MOMO:', revMomo, setRevMomo)}
+                    {renderMoneyInput('Tá»•ng tiá»n GRAB:', revGrab, setRevGrab)}
+                    {renderMoneyInput('Tá»•ng tiá»n SHOPEE FOOD:', revShopee, setRevShopee)}
 
                     <View style={{flexDirection: 'column', marginBottom: 4}}>
-                      {renderMoneyInput('Tiền chi trong ngày (5):', expenses, setExpenses)}
-                      <Text style={styles.label}>Ghi chú chi:</Text>
-                      <TextInput style={styles.input} placeholder="Mua đá, trà, linh tinh..." value={expensesNote} onChangeText={setExpensesNote} />
+                      {renderMoneyInput('Tiá»n chi trong ngÃ y (5):', expenses, setExpenses)}
+                      <Text style={styles.label}>Ghi chÃº chi:</Text>
+                      <TextInput style={styles.input} placeholder="Mua Ä‘Ã¡, trÃ , linh tinh..." value={expensesNote} onChangeText={setExpensesNote} />
                     </View>
 
-                    {renderMoneyInput('TIỀN TRONG KÉT THỰC ĐẾM (2):', actualCash, setActualCash, true, 'Đếm két...')}
+                    {renderMoneyInput('TIá»€N TRONG KÃ‰T THá»°C Äáº¾M (2):', actualCash, setActualCash, true, 'Äáº¿m kÃ©t...')}
 
                     <View style={styles.previewBox}>
-                      <Text style={styles.previewTitle}>Xem Trước Báo Cáo:</Text>
-                      <Text style={styles.previewText}>Tiền đầu giờ (1): {formatCurrency(currentOpenShift.opening_cash)}</Text>
-                      <Text style={styles.previewText}>Doanh thu Ocha/tổng (3): {formatCurrency(sourceRevenue)}</Text>
+                      <Text style={styles.previewTitle}>Xem TrÆ°á»›c BÃ¡o CÃ¡o:</Text>
+                      <Text style={styles.previewText}>Tiá»n Ä‘áº§u giá» (1): {formatCurrency(currentOpenShift.opening_cash)}</Text>
+                      <Text style={styles.previewText}>Doanh thu Ocha/tá»•ng (3): {formatCurrency(sourceRevenue)}</Text>
                       <Text style={styles.previewText}>Online: -{formatCurrency(currentTotals.nonCash)}</Text>
-                      <Text style={styles.previewText}>Giảm bill (4): -{formatCurrency(manualDiscount)}</Text>
-                      <Text style={styles.previewText}>Tiền chi (5): -{formatCurrency(manualExpenses)}</Text>
-                      <Text style={styles.previewText}>Két phải có: {formatCurrency(currentExpectedCash)}</Text>
-                      <Text style={styles.previewText}>Két thực đếm (2): {formatCurrency(manualActualCash)}</Text>
-                      <Text style={styles.previewFormula}>Két phải có = (1) + (3) - Online - (4) - (5)</Text>
-                      <Text style={[styles.previewText, currentCashDiff === 0 ? styles.okText : styles.dangerText]}>Lệch két: {formatCurrency(currentCashDiff)}</Text>
+                      <Text style={styles.previewText}>Giáº£m bill (4): -{formatCurrency(manualDiscount)}</Text>
+                      <Text style={styles.previewText}>Tiá»n chi (5): -{formatCurrency(manualExpenses)}</Text>
+                      <Text style={styles.previewText}>KÃ©t pháº£i cÃ³: {formatCurrency(currentExpectedCash)}</Text>
+                      <Text style={styles.previewText}>KÃ©t thá»±c Ä‘áº¿m (2): {formatCurrency(manualActualCash)}</Text>
+                      <Text style={styles.previewFormula}>KÃ©t pháº£i cÃ³ = (1) + (3) - Online - (4) - (5)</Text>
+                      <Text style={[styles.previewText, currentCashDiff === 0 ? styles.okText : styles.dangerText]}>Lá»‡ch kÃ©t: {formatCurrency(currentCashDiff)}</Text>
                     </View>
 
                     <View style={{marginTop: 15, marginBottom: 10}}>
-                      <Text style={[styles.label, {marginTop: 0}]}>Hình ảnh báo cáo (Tùy chọn):</Text>
+                      <Text style={[styles.label, {marginTop: 0}]}>HÃ¬nh áº£nh bÃ¡o cÃ¡o (TÃ¹y chá»n):</Text>
                       {reportImages.length > 0 && (
                         <View style={styles.selectedImagesGrid}>
                           {reportImages.map((uri, index) => (
                             <View key={`${uri}_${index}`} style={styles.selectedImageWrap}>
                               <Image source={{uri}} style={styles.selectedReportImage} />
-                              <Text style={styles.selectedImageLabel}>Ảnh {index + 1}/{reportImages.length}</Text>
+                              <Text style={styles.selectedImageLabel}>áº¢nh {index + 1}/{reportImages.length}</Text>
                               <TouchableOpacity
                                 style={styles.removeImageBtn}
                                 onPress={() => setReportImages((prev) => prev.filter((_, idx) => idx !== index))}
@@ -1541,14 +1539,14 @@ export default function ShiftScreen({ navigation }) {
                       <View style={{flexDirection: 'row', gap: 10, marginTop: 5}}>
                         <TouchableOpacity style={styles.mediaBtn} onPress={() => handlePickImage(true)}>
                           <Ionicons name="camera" size={20} color="#4f46e5" style={{marginRight: 5}}/>
-                          <Text style={styles.mediaBtnText}>{reportImages.length > 0 ? 'Chụp thêm' : 'Chụp ảnh'}</Text>
+                          <Text style={styles.mediaBtnText}>{reportImages.length > 0 ? 'Chá»¥p thÃªm' : 'Chá»¥p áº£nh'}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.mediaBtn} onPress={() => handlePickImage(false)}>
                           <Ionicons name="image" size={20} color="#4f46e5" style={{marginRight: 5}}/>
-                          <Text style={styles.mediaBtnText}>{reportImages.length > 0 ? 'Thêm từ thư viện' : 'Thư viện'}</Text>
+                          <Text style={styles.mediaBtnText}>{reportImages.length > 0 ? 'ThÃªm tá»« thÆ° viá»‡n' : 'ThÆ° viá»‡n'}</Text>
                         </TouchableOpacity>
                       </View>
-                      <Text style={styles.imageHelperText}>Tối đa 6 ảnh/phiếu. Ảnh sẽ giữ nguyên khung, không crop nội dung.</Text>
+                      <Text style={styles.imageHelperText}>Tá»‘i Ä‘a 6 áº£nh/phiáº¿u. áº¢nh sáº½ giá»¯ nguyÃªn khung, khÃ´ng crop ná»™i dung.</Text>
                     </View>
                   </View>
                   )}
@@ -1562,7 +1560,7 @@ export default function ShiftScreen({ navigation }) {
         {activeTab === 'INVENTORY' && currentOpenShift && storeIdToView !== 'ALL' && (
           <View style={styles.fixedBottomBar}>
             <TouchableOpacity style={[styles.closeBtnFixed, {backgroundColor: '#1976d2'}]} onPress={handleSaveInventory}>
-              <Text style={styles.btnText}>LƯU PHIẾU KIỂM KHO</Text>
+              <Text style={styles.btnText}>LÆ¯U PHIáº¾U KIá»‚M KHO</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1573,10 +1571,10 @@ export default function ShiftScreen({ navigation }) {
               {isUploading ? (
                 <View style={{flexDirection: 'row', alignItems: 'center'}}>
                   <ActivityIndicator size="small" color="#fff" style={{marginRight: 10}} />
-                  <Text style={styles.btnText}>ĐANG XỬ LÝ...</Text>
+                  <Text style={styles.btnText}>ÄANG Xá»¬ LÃ...</Text>
                 </View>
               ) : (
-                <Text style={styles.btnText}>XÁC NHẬN NỘP DOANH THU (CHỐT CA)</Text>
+                <Text style={styles.btnText}>XÃC NHáº¬N Ná»˜P DOANH THU (CHá»T CA)</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -1592,7 +1590,7 @@ export default function ShiftScreen({ navigation }) {
         initialEndDate={historyRange.end}
         COLORS={COLORS}
         isDarkMode={isDarkMode}
-        title="Chọn ngày xem lịch sử chốt ca"
+        title="Chá»n ngÃ y xem lá»‹ch sá»­ chá»‘t ca"
       />
     </SafeAreaView>
   );
