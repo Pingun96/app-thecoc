@@ -35,20 +35,21 @@ export default function DashboardScreen({ navigation }) {
   } = useContext(AppContext);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  // Đọc safe-area-inset-top thật từ CSS env() vì useSafeAreaInsets trả 0 trên iOS PWA
+  // Đọc safe-area-inset-top thật từ DOM vì useSafeAreaInsets trả 0 trên iOS PWA
   const [safeAreaTop, setSafeAreaTop] = useState(insets.top || 0);
   useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
       const readSAT = () => {
-        const val = parseInt(
-          getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0',
-          10
-        );
-        setSafeAreaTop(val > 0 ? val : (insets.top || 0));
+        // Cách duy nhất đọc env() ra số thật: tạo div, set padding, đọc computed
+        const el = document.createElement('div');
+        el.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;padding-top:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none;';
+        document.body.appendChild(el);
+        const sat = parseFloat(getComputedStyle(el).paddingTop) || 0;
+        document.body.removeChild(el);
+        setSafeAreaTop(sat > 0 ? sat : (insets.top || 0));
       };
       readSAT();
-      // Đọc lại sau 500ms để chắc chắn CSS đã load
-      const t = setTimeout(readSAT, 500);
+      const t = setTimeout(readSAT, 300);
       return () => clearTimeout(t);
     } else {
       setSafeAreaTop(insets.top || 0);
