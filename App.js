@@ -152,9 +152,6 @@ const navigateFromNotificationData = (data = {}) => {
   navigationRef.navigate('Notifications');
 };
 
-const tabBarH = Platform.OS === 'web' ? 82 : Platform.OS === 'ios' ? 84 : 62;
-const tabBarPB = Platform.OS === 'web' ? 8 : Platform.OS === 'ios' ? 22 : 7;
-
 function MainTabs() {
   const {
     COLORS,
@@ -162,6 +159,24 @@ function MainTabs() {
     currentUser,
     attendanceHistory = [],
   } = useContext(AppContext);
+
+  // Đọc bottom safe area thực tế từ iOS (home indicator height: ~34px)
+  const [webSafeBottom, setWebSafeBottom] = React.useState(34);
+  React.useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const read = () => {
+        const val = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--sab')
+        );
+        if (!isNaN(val) && val > 0) setWebSafeBottom(val);
+      };
+      read();
+      setTimeout(read, 500);
+    }
+  }, []);
+
+  const tabBarH = Platform.OS === 'web' ? 56 + webSafeBottom : Platform.OS === 'ios' ? 84 : 62;
+  const tabBarPB = Platform.OS === 'web' ? webSafeBottom + 2 : Platform.OS === 'ios' ? 22 : 7;
 
   const today = getLocalDateKey();
   const hasOpenAttendance = Boolean(
