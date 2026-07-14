@@ -3,27 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
-    <!-- ===== iOS PWA META TAGS ===== -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="The Cốc" />
-    <meta name="application-name" content="The Cốc" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <!-- ===== THECOC PWA META ===== -->
+    <meta name="application-name" content="The Coc" />
     <meta name="theme-color" content="#208AEF" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="The Coc" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="512x512" href="/icons/thecoc-icon-512.png" />
-    <!-- iPhone 15 Pro Max -->
-    <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
-    <!-- iPhone 14 Pro -->
-    <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
-    <!-- iPhone 13/14 -->
-    <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/icons/thecoc-icon-512.png" />
-    <!-- iPhone SE -->
-    <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/icons/thecoc-icon-512.png" />
-    <title>The Cốc</title>
+    <link rel="apple-touch-icon" href="/icons/thecoc-apple-v4.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/thecoc-icon-v4-512.png" />
+    <title>The Coc</title>
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
       /* These styles make the body full-height */
@@ -36,51 +28,67 @@
         overflow: hidden;
       }
       /* These styles make the root element full-height */
-        /* ===== iOS NATIVE FEEL ===== */
+        /* ===== THECOC PWA SHELL ===== */
         :root {
-          --sat: env(safe-area-inset-top, 0px);
-          --sab: env(safe-area-inset-bottom, 0px);
-          --sar: env(safe-area-inset-right, 0px);
-          --sal: env(safe-area-inset-left, 0px);
+          --thecoc-page-bg: #F8FAFC;
+          --thecoc-shell-bg: #F8FAFC;
+          --thecoc-pwa-height: 100dvh;
         }
-        * { -webkit-tap-highlight-color: transparent; }
-        * { touch-action: manipulation; }
+        * {
+          box-sizing: border-box;
+          -webkit-tap-highlight-color: transparent;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        html {
+          height: -webkit-fill-available;
+          background: var(--thecoc-page-bg);
+        }
         html, body, #root {
           width: 100%;
           height: 100%;
           min-height: 100%;
           margin: 0;
           padding: 0;
-          background: #FFFFFF;
+          background: var(--thecoc-shell-bg);
+        }
+        html, body {
+          overflow-x: hidden;
+          overflow-y: auto;
+          touch-action: auto;
         }
         @supports (height: 100dvh) {
           html, body, #root {
-            height: 100dvh;
-            min-height: 100dvh;
+            height: var(--thecoc-pwa-height);
+            min-height: var(--thecoc-pwa-height);
+            background: var(--thecoc-shell-bg);
           }
         }
         body {
-          position: fixed;
-          inset: 0;
-          overflow: hidden;
-          -webkit-user-select: none;
-          user-select: none;
+          position: static;
           overscroll-behavior: none;
           -webkit-font-smoothing: antialiased;
+          -webkit-user-select: none;
+          user-select: none;
         }
         #root {
           display: flex;
-          overflow: hidden;
+          overflow: visible;
           isolation: isolate;
         }
-        input, textarea { -webkit-user-select: auto; user-select: auto; font-size: 16px !important; }
-        a, img { -webkit-touch-callout: none; }
-        ::-webkit-scrollbar { display: none; }
-        * { scrollbar-width: none; -ms-overflow-style: none; }
-        /* ===== TAB BAR: đảm bảo không bị home indicator che trên iOS PWA ===== */
-        div[style*="position: fixed"][style*="bottom: 0px"][style*="left: 0px"][style*="right: 0px"] {
-          padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-          box-sizing: content-box !important;
+        [style*="overflow"] {
+          -webkit-overflow-scrolling: touch;
+        }
+        input, textarea {
+          -webkit-user-select: auto;
+          user-select: auto;
+          font-size: 16px !important;
+        }
+        a, img {
+          -webkit-touch-callout: none;
+        }
+        ::-webkit-scrollbar {
+          display: none;
         }
       /* === */
       #root {
@@ -98,6 +106,6 @@
     </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
-  <script src="/expo-static/static/js/web/AppEntry-aae94ffdd6d3665757dcc3f7852d57e0.js" defer></script>
+  <script src="/expo-static/static/js/web/AppEntry-02ecc07c080317b0d21a8e9ea21a5ac7.js" defer></script>
 </body>
 </html>

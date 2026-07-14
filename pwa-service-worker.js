@@ -1,14 +1,14 @@
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-const CACHE_NAME = 'thecoc-pwa-v2.6.4';
+const CACHE_NAME = 'thecoc-pwa-v3.0.0';
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const withBase = (path) => `${BASE_PATH}${path}`;
 const APP_SHELL = [
   withBase('/'),
   withBase('/manifest.webmanifest'),
   withBase('/offline.html'),
-  withBase('/icons/thecoc-icon-512.png'),
-  withBase('/icons/apple-touch-icon.png'),
+  withBase('/icons/thecoc-icon-v4-512.png'),
+  withBase('/icons/thecoc-apple-v4.png'),
 ];
 
 self.addEventListener('install', (event) => {
@@ -36,12 +36,6 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
-
-const isFreshAsset = (url) => (
-  url.pathname.includes('/expo-static/static/js/')
-  || url.pathname.includes('/expo-static/static/css/')
-  || /\.(?:js|css|html|json|webmanifest)$/i.test(url.pathname)
-);
 
 const putCache = async (key, response) => {
   if (response && response.status === 200) {
@@ -72,23 +66,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (isFreshAsset(url)) {
-    event.respondWith(
-      fetchFresh(request).catch(() => caches.match(request))
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(request).then((cached) => (
-      cached || fetch(request).then((response) => {
-        putCache(request, response);
-        return response;
-      })
-    ))
-  );
+  // Always prefer the network when it is available so a new bundle, icon font,
+  // or image cannot be mixed with a previous app version. Cache is offline-only.
+  event.respondWith(fetchFresh(request).catch(() => caches.match(request)));
 });
-
 // ===== NOTIFICATION CLICK: Navigate đến đúng màn hình khi bấm thông báo =====
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
