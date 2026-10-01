@@ -1,6 +1,6 @@
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-const CACHE_NAME = 'thecoc-pwa-v3.0.1';
+const CACHE_NAME = 'thecoc-pwa-v3.1.0';
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const withBase = (path) => `${BASE_PATH}${path}`;
 const APP_SHELL = [
@@ -109,4 +109,5 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
 

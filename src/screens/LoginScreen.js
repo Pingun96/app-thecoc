@@ -153,7 +153,7 @@ const getStyles = (COLORS) => StyleSheet.create({
   brand: { alignItems: 'center', marginBottom: 20 },
   brandPanel: { width: '100%', maxWidth: 410, alignItems: 'center', backgroundColor: '#000000', borderRadius: 24, paddingHorizontal: 18, paddingVertical: 16, shadowColor: '#020617', shadowOpacity: 0.23, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
   logo: { width: '100%', height: 118 },
-  brandLine: { width: 42, height: 2, backgroundColor: '#86efac', borderRadius: 99, marginTop: 1, marginBottom: 8 },
+  brandLine: { width: 42, height: 2, backgroundColor: '#10B981', borderRadius: 99, marginTop: 1, marginBottom: 8 },
   brandCaption: { color: '#cbd5e1', fontSize: 13, fontWeight: '700', letterSpacing: 0.2 },
   formCard: { backgroundColor: COLORS.card, borderRadius: 20, padding: 20, shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   welcome: { color: COLORS.text, fontSize: 23, fontWeight: '900' },

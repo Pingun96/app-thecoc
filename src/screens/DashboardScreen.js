@@ -49,28 +49,14 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const getThemeStyles = () => {
-    if (isDarkMode) {
-      return {
-        headerBg: '#1e293b',
-        nameColor: '#ffffff',
-        greetingColor: '#94a3b8',
-        roleColor: '#4ade80',
-        iconColor: '#60a5fa',
-        borderWidth: 0,
-        borderColor: 'transparent',
-      };
-    }
-    const hour = new Date().getHours();
-    const isMorning = hour < 12;
-    const isAfternoon = hour >= 12 && hour < 18;
     return {
-      headerBg: isMorning ? '#dcfce7' : isAfternoon ? '#fef9c3' : '#1f2937',
-      nameColor: isMorning ? '#166534' : isAfternoon ? '#9a3412' : '#ffffff',
-      greetingColor: isMorning ? '#15803d' : isAfternoon ? '#c2410c' : '#9ca3af',
-      roleColor: isMorning ? '#16a34a' : isAfternoon ? '#d97706' : '#86efac',
-      iconColor: isMorning ? '#166534' : isAfternoon ? '#9a3412' : '#60a5fa',
-      borderWidth: isAfternoon ? 2 : 0,
-      borderColor: isAfternoon ? '#fde047' : 'transparent',
+      headerBg: isDarkMode ? '#064E3B' : '#047857',
+      nameColor: '#ffffff',
+      greetingColor: '#A7F3D0',
+      roleColor: '#6EE7B7',
+      iconColor: '#ffffff',
+      borderWidth: 0,
+      borderColor: 'transparent',
     };
   };
   const theme = getThemeStyles();
@@ -85,7 +71,7 @@ export default function DashboardScreen({ navigation }) {
     const themeMeta = document.head.querySelector('meta[name="theme-color"]');
     const defaultShellBg = '#F8FAFC';
     const dashboardShellBg = COLORS.bg;
-    const defaultThemeColor = '#208AEF';
+    const defaultThemeColor = '#047857';
 
     const applyHeaderShellColor = () => {
       root.style.setProperty('--thecoc-shell-bg', dashboardShellBg);
@@ -372,12 +358,12 @@ export default function DashboardScreen({ navigation }) {
         ? (currentUser?.role === 'STAFF' ? 'Chấm công' : 'Nhân sự')
         : compactTitleMap[featureKey] || title;
     const iconColorMap = {
-      cashier: '#16a34a',
-      inventory: '#f97316',
-      central_warehouse: '#7c3aed',
-      payroll: '#d97706',
-      finance: '#7c3aed',
-      hr: routeName === 'AttendanceReview' ? '#0d9488' : '#2563eb',
+      cashier: '#059669',
+      inventory: '#D97706',
+      central_warehouse: '#475569',
+      payroll: '#047857',
+      finance: '#047857',
+      hr: routeName === 'AttendanceReview' ? '#0d9488' : '#0D9488',
     };
     const safeIconColor = iconColor || iconColorMap[featureKey] || COLORS.primary;
 
@@ -523,7 +509,7 @@ export default function DashboardScreen({ navigation }) {
         <View style={styles.monthlyStatsRow}>
           <View style={styles.monthlyStatCard}>
             <View style={[styles.monthlyStatIcon, { backgroundColor: '#e3f2fd' }]}>
-              <Ionicons name="time-outline" size={20} color="#1976d2" />
+              <Ionicons name="time-outline" size={20} color="#047857" />
             </View>
             <View style={styles.monthlyStatContent}>
               <Text style={styles.monthlyStatValue}>{dashboardHours.toFixed(1)}h</Text>
@@ -563,8 +549,8 @@ export default function DashboardScreen({ navigation }) {
             accessibilityRole="button"
             accessibilityLabel="Lịch làm"
           >
-            <View style={[styles.gridIconBox, { backgroundColor: '#EAF2FF' }]}>
-              <Ionicons name="calendar-outline" size={width <= 360 ? 34 : 36} color="#2563EB" />
+            <View style={[styles.gridIconBox, { backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="calendar-outline" size={width <= 360 ? 34 : 36} color="#047857" />
             </View>
             <Text style={styles.gridItemTitle}>Lịch làm</Text>
           </TouchableOpacity>          <TouchableOpacity
@@ -579,13 +565,13 @@ export default function DashboardScreen({ navigation }) {
             </View>
             <Text style={styles.gridItemTitle}>{currentUser?.role === 'STAFF' ? 'Bổ sung công' : 'Yêu cầu công'}</Text>
           </TouchableOpacity>
-          {renderGridItem('Giao Ca & Doanh Thu', 'Quản lý Két & Chốt Ca', 'cash-register', 'Material', '#e8f5e9', 'cashier', 'Shifts', 'Shifts')}
-          {renderGridItem('Kho Hàng', 'Tồn kho & Yêu cầu', 'warehouse', 'Material', '#fff3e0', 'inventory', 'Inventory', 'Inventory')}
-          {renderGridItem('Kho Tổng', 'Duyệt xuất hàng', 'package-variant-closed', 'Material', '#ede9fe', 'central_warehouse', 'CentralWarehouse', 'CentralWarehouse')}
-          {currentUser?.role !== 'STAFF' && renderGridItem('Nhân Sự', 'Hồ sơ & Phân quyền', 'id-card', 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
-          {currentUser?.role !== 'STAFF' && renderGridItem('Đối Chiếu Công', 'Lịch làm vs chấm công', 'clipboard-check-outline', 'Material', '#dcfce7', 'hr', 'AttendanceReview', 'AttendanceReview')}
-          {renderGridItem('Bảng Lương', 'Bảng lương chi tiết', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'Payroll', 'Payroll')}
-          {renderGridItem('Tài Chính', 'Doanh thu & Lợi nhuận', 'chart-line', 'Material', '#ede9fe', 'finance', 'Finance', 'Finance')}
+          {renderGridItem('Giao Ca & Doanh Thu', 'Quản lý Két & Chốt Ca', 'cash-register', 'Material', '#ECFDF5', 'cashier', 'Shifts', 'Shifts')}
+          {renderGridItem('Kho Hàng', 'Tồn kho & Yêu cầu', 'warehouse', 'Material', '#FEF3C7', 'inventory', 'Inventory', 'Inventory')}
+          {renderGridItem('Kho Tổng', 'Duyệt xuất hàng', 'package-variant-closed', 'Material', '#F1F5F9', 'central_warehouse', 'CentralWarehouse', 'CentralWarehouse')}
+          {currentUser?.role !== 'STAFF' && renderGridItem('Nhân Sự', 'Hồ sơ & Phân quyền', 'id-card', 'Ionicons', '#F0FDFA', 'hr', 'StaffManagement', 'StaffCheckin')}
+          {currentUser?.role !== 'STAFF' && renderGridItem('Đối Chiếu Công', 'Lịch làm vs chấm công', 'clipboard-check-outline', 'Material', '#ECFDF5', 'hr', 'AttendanceReview', 'AttendanceReview')}
+          {renderGridItem('Bảng Lương', 'Bảng lương chi tiết', 'wallet-outline', 'Material', '#ECFDF5', 'payroll', 'Payroll', 'Payroll')}
+          {renderGridItem('Tài Chính', 'Doanh thu & Lợi nhuận', 'chart-line', 'Material', '#F1F5F9', 'finance', 'Finance', 'Finance')}
         </View>
 
       </ScrollView>
@@ -617,7 +603,7 @@ export default function DashboardScreen({ navigation }) {
               <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#e5e7eb'}]} onPress={() => setShowProfileModal(false)}>
                 <Text style={[styles.modalBtnText, {color: '#4b5563'}]}>Hủy</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#1976d2'}]} onPress={handleUpdateProfile} disabled={isSavingProfile}>
+              <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#047857'}]} onPress={handleUpdateProfile} disabled={isSavingProfile}>
                 {isSavingProfile ? <ActivityIndicator color="#fff" size="small"/> : <Text style={styles.modalBtnText}>Lưu</Text>}
               </TouchableOpacity>
             </View>
@@ -643,7 +629,7 @@ const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
   themeModeDot: { position: 'absolute', right: 8, top: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.accent },
   storeSelector: { flexDirection: 'row' },
   storeChip: { backgroundColor: COLORS.border, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 10, height: 36, justifyContent: 'center' },
-  storeChipActive: { backgroundColor: '#1976d2' },
+  storeChipActive: { backgroundColor: '#047857' },
   storeChipText: { color: COLORS.textMuted, fontWeight: 'bold', fontSize: 13 },
   storeChipTextActive: { color: '#fff' },
   scrollContent: { padding: 20, paddingBottom: 40 },

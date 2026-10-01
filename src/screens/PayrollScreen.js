@@ -299,13 +299,13 @@ export default function PayrollScreen({ navigation }) {
 
         {/* Nút thao tác */}
         {isStaff && item.id === currentUser.id && !staff_confirmed && (
-          <TouchableOpacity style={[styles.approveBtn, {backgroundColor: '#1976d2'}]} onPress={() => handleApprove(item, 'STAFF')}>
+          <TouchableOpacity style={[styles.approveBtn, {backgroundColor: '#047857'}]} onPress={() => handleApprove(item, 'STAFF')}>
             <Text style={styles.approveBtnText}>TÔI XÁC NHẬN GIỜ & LƯƠNG ĐÚNG</Text>
           </TouchableOpacity>
         )}
         
         {isManager && staff_confirmed && !manager_confirmed && (
-          <TouchableOpacity style={[styles.approveBtn, {backgroundColor: '#1976d2'}]} onPress={() => handleApprove(item, 'MANAGER')}>
+          <TouchableOpacity style={[styles.approveBtn, {backgroundColor: '#047857'}]} onPress={() => handleApprove(item, 'MANAGER')}>
             <Text style={styles.approveBtnText}>QUẢN LÝ XÁC NHẬN PHIẾU LƯƠNG</Text>
           </TouchableOpacity>
         )}
@@ -395,7 +395,7 @@ export default function PayrollScreen({ navigation }) {
     .toolbar { position: fixed; top: 12px; right: 12px; left: 12px; z-index: 20; display: flex; justify-content: flex-end; gap: 8px; pointer-events: none; }
     .toolbar button, .toolbar a { pointer-events: auto; border: 0; border-radius: 10px; color: white; padding: 10px 14px; font-weight: 700; cursor: pointer; text-decoration: none; font-size: 14px; box-shadow: 0 8px 20px rgba(15,23,42,.16); }
     .print-btn { background: #0f766e; }
-    .back-btn { background: #2563eb; }
+    .back-btn { background: #047857; }
     .close-btn { background: #475569; }
     @media (max-width: 640px) { .toolbar { top: auto; bottom: 14px; justify-content: center; flex-wrap: wrap; } .toolbar button, .toolbar a { flex: 1; text-align: center; padding: 12px 10px; } .sheet { padding-bottom: 92px; } }
   </style>
@@ -527,18 +527,18 @@ export default function PayrollScreen({ navigation }) {
       <View style={[styles.stickyTopBar, isIosStandalonePwa && styles.stickyTopBarPwa]}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#1976d2" />
+          <Ionicons name="arrow-back" size={24} color="#047857" />
         </TouchableOpacity>
         <Text style={styles.header}>Bảng Lương</Text>
       </View>
 
       <View style={styles.monthSelector}>
         <TouchableOpacity style={styles.monthBtn} onPress={() => setMonthOffset(monthOffset - 1)}>
-          <Ionicons name="chevron-back" size={24} color="#1976d2" />
+          <Ionicons name="chevron-back" size={24} color="#047857" />
         </TouchableOpacity>
         <Text style={styles.monthText}>{selectedMonth.label}</Text>
         <TouchableOpacity style={styles.monthBtn} onPress={() => setMonthOffset(monthOffset + 1)} disabled={monthOffset >= 0}>
-          <Ionicons name="chevron-forward" size={24} color={monthOffset >= 0 ? "#ccc" : "#1976d2"} />
+          <Ionicons name="chevron-forward" size={24} color={monthOffset >= 0 ? "#ccc" : "#047857"} />
         </TouchableOpacity>
       </View>
       </View>
@@ -650,7 +650,7 @@ export default function PayrollScreen({ navigation }) {
                       <Text style={styles.adjTitle}>Lương & Thưởng / Phạt</Text>
                       {isOwner && !item.approval.owner_confirmed && (
                         <TouchableOpacity style={styles.adjEditBtn} onPress={() => openAdjustmentModal(item)}>
-                          <Ionicons name="pencil" size={14} color="#1976d2" />
+                          <Ionicons name="pencil" size={14} color="#047857" />
                           <Text style={styles.adjEditText}>Điều chỉnh</Text>
                         </TouchableOpacity>
                       )}
@@ -742,7 +742,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   monthBtn: { padding: 5 },
   monthText: { fontSize: 18, fontWeight: 'bold', color: COLORS.primary },
   
-  summaryCard: { backgroundColor: '#1976d2', padding: 20, borderRadius: 12, marginBottom: 20, elevation: 4 },
+  summaryCard: { backgroundColor: '#047857', padding: 20, borderRadius: 12, marginBottom: 20, elevation: 4 },
   summaryHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
   summaryTitle: { color: '#e3f2fd', fontSize: 16, marginBottom: 5 },
   summaryAmount: { color: '#fff', fontSize: 30, fontWeight: 'bold' },
@@ -782,13 +782,13 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   negativeText: { color: '#dc2626' },
   
   adjBlock: { backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', padding: 12, borderRadius: 8, marginBottom: 15 },
-  adjTitle: { fontWeight: 'bold', color: isDarkMode ? '#93c5fd' : '#1976d2' },
+  adjTitle: { fontWeight: 'bold', color: isDarkMode ? '#93c5fd' : '#047857' },
   adjEditBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDarkMode ? '#1e3a8a' : '#bbdefb', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 15 },
-  adjEditText: { color: isDarkMode ? '#bfdbfe' : '#1976d2', fontSize: 12, marginLeft: 4, fontWeight: '700' },
+  adjEditText: { color: isDarkMode ? '#bfdbfe' : '#047857', fontSize: 12, marginLeft: 4, fontWeight: '700' },
   adjText: { fontSize: 13, color: COLORS.text },
 
   progressBlock: { backgroundColor: COLORS.card, padding: 15, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, marginBottom: 15 },
-  progressTitle: { fontWeight: 'bold', color: isDarkMode ? '#93c5fd' : '#1976d2' },
+  progressTitle: { fontWeight: 'bold', color: isDarkMode ? '#93c5fd' : '#047857' },
   stepRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   stepText: { fontSize: 14, color: COLORS.textMuted, marginLeft: 8 },
   stepTextActive: { color: COLORS.text, fontWeight: 'bold' },
@@ -801,7 +801,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   recordRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   recordDate: { width: 90, color: COLORS.text, fontWeight: 'bold' },
   recordTime: { flex: 1, color: COLORS.textMuted, textAlign: 'center' },
-  recordHours: { width: 50, color: '#1976d2', fontWeight: 'bold', textAlign: 'right' },
+  recordHours: { width: 50, color: '#047857', fontWeight: 'bold', textAlign: 'right' },
   emptyText: { color: COLORS.textMuted, fontStyle: 'italic' },
 
   // Modal Styles

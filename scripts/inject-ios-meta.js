@@ -8,7 +8,7 @@ let html = fs.readFileSync(indexPath, 'utf8');
 const pwaMetaTags = `
     <!-- ===== THECOC PWA META ===== -->
     <meta name="application-name" content="The Coc" />
-    <meta name="theme-color" content="#F8FAFC" />
+    <meta name="theme-color" content="#047857" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="The Coc" />

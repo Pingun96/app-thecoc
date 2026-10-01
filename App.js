@@ -121,13 +121,13 @@ const THEMES = {
     text: '#0F172A',
     textMuted: '#64748B',
     border: '#E2E8F0',
-    primary: '#166534',
+    primary: '#047857',
     accent: '#10B981',
     danger: '#EF4444',
     inputBg: '#f8fafc',
     inputBorder: '#cbd5e1',
     inputText: '#172033',
-    headerBg: '#1f2937',
+    headerBg: '#047857',
   },
   dark: {
     bg: '#0F172A',
@@ -583,3 +583,4 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 });
+

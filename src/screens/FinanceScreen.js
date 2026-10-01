@@ -41,12 +41,12 @@ function formatDate(dateStr) {
 
 const THEMES = {
   light: {
-    bg: '#F8FAFC', card: '#FFFFFF', primary: '#3B82F6', accent: '#10B981',
+    bg: '#F8FAFC', card: '#FFFFFF', primary: '#047857', accent: '#10B981',
     text: '#0F172A', textMuted: '#64748B', danger: '#EF4444', border: '#E2E8F0',
     chartBarDim: 'rgba(59,130,246,0.18)', modalBg: 'rgba(0,0,0,0.4)'
   },
   dark: {
-    bg: '#0F172A', card: '#1E293B', primary: '#3B82F6', accent: '#10B981',
+    bg: '#0F172A', card: '#1E293B', primary: '#047857', accent: '#10B981',
     text: '#F8FAFC', textMuted: '#94A3B8', danger: '#EF4444', border: '#334155',
     chartBarDim: 'rgba(59,130,246,0.15)', modalBg: 'rgba(0,0,0,0.6)'
   }
@@ -415,7 +415,7 @@ export default function FinanceScreen({ navigation }) {
   if (storeIdToView === 'ALL' && sortedRevenues.length > 0) {
     const storeRev = {};
     sortedRevenues.forEach(r => { storeRev[r.store_id] = (storeRev[r.store_id] || 0) + Number(r.total_amount); });
-    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
+    const colors = ['#047857', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
     let ci = 0;
     Object.keys(storeRev).forEach(sId => {
       if (storeRev[sId] > 0) {

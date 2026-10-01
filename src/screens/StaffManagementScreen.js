@@ -354,7 +354,7 @@ export default function StaffManagementScreen({ navigation }) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#1976d2" />
+            <Ionicons name="arrow-back" size={24} color="#047857" />
           </TouchableOpacity>
           <Text style={styles.header}>Quản Lý Nhân Sự</Text>
         </View>
@@ -411,7 +411,7 @@ export default function StaffManagementScreen({ navigation }) {
               <View key={staff.id} style={styles.staffCard}>
                 <View style={{flex: 1}}>
                   <Text style={styles.staffName}>
-                    {staff.name} <Text style={{fontSize: 12, color: staff.role === 'MANAGER' ? '#e91e63' : '#1976d2'}}>({staff.role === 'MANAGER' ? 'QUẢN LÝ' : 'NHÂN VIÊN'})</Text>
+                    {staff.name} <Text style={{fontSize: 12, color: staff.role === 'MANAGER' ? '#e91e63' : '#047857'}}>({staff.role === 'MANAGER' ? 'QUẢN LÝ' : 'NHÂN VIÊN'})</Text>
                   </Text>
                   <Text style={styles.staffDetail}>SĐT: {staff.phone} - Lương: {staff.wage.toLocaleString()}đ/h</Text>
                   <Text style={styles.staffDetail}>Loại: <Text style={{fontWeight: 'bold', color: staff.is_part_time ? '#ff9800' : '#4CAF50'}}>{staff.is_part_time ? 'Part-Time' : 'Full-Time'}</Text> - Gốc: {storeList.find(s=>s.id === staff.store_id)?.name}</Text>
@@ -425,7 +425,7 @@ export default function StaffManagementScreen({ navigation }) {
                          Quản lý: {staff.permissions?.viewable_stores?.length || 1} cửa hàng
                        </Text>
                     ) : (
-                       <Text style={{fontSize: 12, color: '#1976d2', marginLeft: 15, fontWeight: 'bold'}}>
+                       <Text style={{fontSize: 12, color: '#047857', marginLeft: 15, fontWeight: 'bold'}}>
                          Làm việc: {staff.permissions?.viewable_stores?.length || 1} cửa hàng
                        </Text>
                     )}
@@ -512,8 +512,8 @@ export default function StaffManagementScreen({ navigation }) {
                 </View>
 
                 {(currentUser?.role === 'OWNER' || currentUser?.role === 'MANAGER') && (
-                  <View style={[styles.permBox, {borderColor: role === 'MANAGER' ? '#e91e63' : '#1976d2'}]}>
-                    <Text style={{fontWeight: 'bold', color: role === 'MANAGER' ? '#e91e63' : '#1976d2', marginBottom: 10}}>
+                  <View style={[styles.permBox, {borderColor: role === 'MANAGER' ? '#e91e63' : '#047857'}]}>
+                    <Text style={{fontWeight: 'bold', color: role === 'MANAGER' ? '#e91e63' : '#047857', marginBottom: 10}}>
                       {role === 'MANAGER' ? '🌐 Cấp quyền xem dữ liệu chi nhánh khác:' : '🌐 Cấp quyền làm việc tại chi nhánh khác:'}
                     </Text>
                     {managedBusinessStores.map(store => {
@@ -525,7 +525,7 @@ export default function StaffManagementScreen({ navigation }) {
                             value={isHomeStore ? true : perms.viewable_stores.includes(store.id)}
                             disabled={isHomeStore}
                             onValueChange={()=>toggleViewableStore(store.id)}
-                            trackColor={{true: role === 'MANAGER' ? '#e91e63' : '#1976d2'}}
+                            trackColor={{true: role === 'MANAGER' ? '#e91e63' : '#047857'}}
                           />
                         </View>
                       );
@@ -646,8 +646,8 @@ export default function StaffManagementScreen({ navigation }) {
                   </View>
 
                   {(currentUser?.role === 'OWNER' || currentUser?.role === 'MANAGER') && (
-                    <View style={[styles.permBox, {borderColor: editingStaff.role === 'MANAGER' ? '#e91e63' : '#1976d2'}]}>
-                      <Text style={{fontWeight: 'bold', color: editingStaff.role === 'MANAGER' ? '#e91e63' : '#1976d2', marginBottom: 10}}>
+                    <View style={[styles.permBox, {borderColor: editingStaff.role === 'MANAGER' ? '#e91e63' : '#047857'}]}>
+                      <Text style={{fontWeight: 'bold', color: editingStaff.role === 'MANAGER' ? '#e91e63' : '#047857', marginBottom: 10}}>
                         {editingStaff.role === 'MANAGER' ? '🌐 Cấp quyền xem dữ liệu chi nhánh khác:' : '🌐 Cấp quyền làm việc tại chi nhánh khác:'}
                       </Text>
                       {managedBusinessStores.map(store => {
@@ -659,7 +659,7 @@ export default function StaffManagementScreen({ navigation }) {
                               value={isHomeStore ? true : !!editingStaff.permissions?.viewable_stores?.includes(store.id)}
                               disabled={isHomeStore}
                               onValueChange={()=>toggleEditViewableStore(store.id)}
-                              trackColor={{true: editingStaff.role === 'MANAGER' ? '#e91e63' : '#1976d2'}}
+                              trackColor={{true: editingStaff.role === 'MANAGER' ? '#e91e63' : '#047857'}}
                             />
                           </View>
                         );
@@ -753,7 +753,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 12, paddingHorizontal: 12, marginBottom: 15 },
   searchInput: { flex: 1, minHeight: 44, paddingLeft: 8, color: COLORS.text },
   filterChip: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: COLORS.inputBg, borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: COLORS.border },
-  filterChipActive: { backgroundColor: '#1976d2', borderColor: '#1976d2' },
+  filterChipActive: { backgroundColor: '#047857', borderColor: '#047857' },
   filterChipText: { color: COLORS.textMuted, fontWeight: 'bold' },
   filterChipTextActive: { color: '#fff' },
   label: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 5, marginTop: 10 },
@@ -764,7 +764,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   passwordHintText: { color: '#1d4ed8', fontWeight: '700', marginLeft: 8 },
   roleRow: { flexDirection: 'row', marginBottom: 10 },
   roleChip: { flex: 1, padding: 10, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, alignItems: 'center', marginRight: 5 },
-  roleChipActive: { backgroundColor: '#1976d2', borderColor: '#1976d2' },
+  roleChipActive: { backgroundColor: '#047857', borderColor: '#047857' },
   roleText: { fontWeight: 'bold', color: COLORS.textMuted },
   storeSelectRow: { flexDirection: 'row', marginTop: 5 },
   storeChip: { backgroundColor: COLORS.inputBg, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10, borderWidth: 1, borderColor: COLORS.border },
@@ -787,9 +787,9 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   staffDetail: { color: COLORS.textMuted, fontSize: 13, marginBottom: 2 },
   statusRow: { flexDirection: 'row', marginTop: 5, alignItems: 'center' },
   editBtn: { backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
-  editBtnText: { color: '#1976d2', fontWeight: 'bold' },
+  editBtnText: { color: '#047857', fontWeight: 'bold' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: COLORS.card, borderRadius: 12, padding: 20, maxHeight: '80%', borderWidth: 1, borderColor: COLORS.border },
   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: COLORS.text, textAlign: 'center' },
-  fab: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#1976d2', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowOffset: { width: 0, height: 2 }, shadowRadius: 5 }
+  fab: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#047857', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowOffset: { width: 0, height: 2 }, shadowRadius: 5 }
 });

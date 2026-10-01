@@ -1156,7 +1156,7 @@ export default function ShiftScreen({ navigation }) {
         return (
           <TouchableOpacity key={item.id} style={[styles.historyCard, isDiscrepancy && {borderColor: '#f44336', borderWidth: 2}]} onPress={() => setSelectedShiftForDetail(item)}>
             <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 8}}>
-              <Text style={{fontWeight: 'bold', fontSize: 16, color: isDiscrepancy ? '#f44336' : '#1976d2'}}>{dateStr} {periodStr ? `- ${periodStr}` : ''} {isDiscrepancy ? '(Lệch)' : ''}</Text>
+              <Text style={{fontWeight: 'bold', fontSize: 16, color: isDiscrepancy ? '#f44336' : '#047857'}}>{dateStr} {periodStr ? `- ${periodStr}` : ''} {isDiscrepancy ? '(Lệch)' : ''}</Text>
               <Text style={{color: COLORS.text, fontWeight: 'bold'}}>{storeList.find(s=>s.id===item.store_id)?.name}</Text>
             </View>
             <Text style={styles.hText}>Mở ca lúc: {openTimeStr} ({item.opened_by_name})</Text>
@@ -1180,7 +1180,7 @@ export default function ShiftScreen({ navigation }) {
               {activeTab === 'PENDING' && (
                 <Text style={{textAlign: 'center', color: '#f59e0b', fontWeight: 'bold', marginTop: 15, fontSize: 14}}>Trạng thái: Đang chờ duyệt</Text>
               )}
-              <Text style={{textAlign: 'center', color: '#1976d2', marginTop: 10, fontSize: 12, fontStyle: 'italic'}}>Chạm để xem chi tiết & thao tác</Text>
+              <Text style={{textAlign: 'center', color: '#047857', marginTop: 10, fontSize: 12, fontStyle: 'italic'}}>Chạm để xem chi tiết & thao tác</Text>
             </View>
           </TouchableOpacity>
         );
@@ -1202,7 +1202,7 @@ export default function ShiftScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 10}}>
-              <Text style={{fontSize: 18, fontWeight: 'bold', color: '#1976d2'}}>Chi Tiết Báo Cáo Chốt Ca</Text>
+              <Text style={{fontSize: 18, fontWeight: 'bold', color: '#047857'}}>Chi Tiết Báo Cáo Chốt Ca</Text>
               <TouchableOpacity onPress={() => setSelectedShiftForDetail(null)}>
                 <Ionicons name="close" size={24} color={isDarkMode ? '#0f172a' : COLORS.text} />
               </TouchableOpacity>
@@ -1242,7 +1242,7 @@ export default function ShiftScreen({ navigation }) {
               <Text style={[styles.sectionTitle, {fontSize: 14}]}>DOANH THU & KÉT TIỀN</Text>
               <View style={styles.detailBox}>
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Tiền mặt (Đầu ca):</Text><Text style={{fontWeight: 'bold'}}>{item.opening_cash.toLocaleString()}đ</Text></View>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Tiền Mặt:</Text><Text style={{fontWeight: 'bold', color: '#1976d2'}}>{item.rev_cash.toLocaleString()}đ</Text></View>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Tiền Mặt:</Text><Text style={{fontWeight: 'bold', color: '#047857'}}>{item.rev_cash.toLocaleString()}đ</Text></View>
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Momo:</Text><Text style={{fontWeight: 'bold', color: '#d82d8b'}}>{item.rev_momo.toLocaleString()}đ</Text></View>
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Grab:</Text><Text style={{fontWeight: 'bold', color: '#00a5cf'}}>{item.rev_grab.toLocaleString()}đ</Text></View>
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}><Text>Doanh thu Shopee:</Text><Text style={{fontWeight: 'bold', color: '#ee4d2d'}}>{item.rev_shopee.toLocaleString()}đ</Text></View>
@@ -1352,7 +1352,7 @@ export default function ShiftScreen({ navigation }) {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity style={{backgroundColor: '#1976d2', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => setSelectedShiftForDetail(null)}>
+            <TouchableOpacity style={{backgroundColor: '#047857', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => setSelectedShiftForDetail(null)}>
               <Text style={{color: '#fff', fontWeight: 'bold'}}>Đóng</Text>
             </TouchableOpacity>
           </View>
@@ -1632,7 +1632,7 @@ export default function ShiftScreen({ navigation }) {
         {/* FIXED BOTTOM BUTTON FOR CLOSING SHIFT */}
         {activeTab === 'INVENTORY' && currentOpenShift && storeIdToView !== 'ALL' && (
           <View style={styles.fixedBottomBar}>
-            <TouchableOpacity style={[styles.closeBtnFixed, {backgroundColor: '#1976d2'}]} onPress={handleSaveInventory}>
+            <TouchableOpacity style={[styles.closeBtnFixed, {backgroundColor: '#047857'}]} onPress={handleSaveInventory}>
               <Text style={styles.btnText}>LƯU PHIẾU KIỂM KHO</Text>
             </TouchableOpacity>
           </View>

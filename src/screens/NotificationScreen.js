@@ -171,5 +171,5 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   unreadText: { fontWeight: 'bold' },
   body: { fontSize: 14, color: COLORS.textMuted, marginBottom: 5 },
   time: { fontSize: 12, color: COLORS.textMuted },
-  unreadDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#1976d2', marginLeft: 10 },
+  unreadDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#047857', marginLeft: 10 },
 });

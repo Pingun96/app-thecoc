@@ -533,11 +533,11 @@ export default function ShiftScheduleScreen({ navigation }) {
 
         <View style={styles.weekSelector}>
           <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
-            <Ionicons name="chevron-back" size={24} color="#1976d2" />
+            <Ionicons name="chevron-back" size={24} color="#047857" />
           </TouchableOpacity>
           <Text style={styles.weekText}>{weekRangeText}</Text>
           <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset + 1)}>
-            <Ionicons name="chevron-forward" size={24} color="#1976d2" />
+            <Ionicons name="chevron-forward" size={24} color="#047857" />
           </TouchableOpacity>
         </View>
 
@@ -652,11 +652,11 @@ export default function ShiftScheduleScreen({ navigation }) {
 
         <View style={styles.weekSelector}>
           <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
-            <Ionicons name="chevron-back" size={24} color="#1976d2" />
+            <Ionicons name="chevron-back" size={24} color="#047857" />
           </TouchableOpacity>
           <Text style={styles.weekText}>{weekRangeText}</Text>
           <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset + 1)}>
-            <Ionicons name="chevron-forward" size={24} color="#1976d2" />
+            <Ionicons name="chevron-forward" size={24} color="#047857" />
           </TouchableOpacity>
         </View>
 
@@ -746,11 +746,11 @@ export default function ShiftScheduleScreen({ navigation }) {
 
       <View style={styles.weekSelector}>
         <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset - 1)}>
-          <Ionicons name="chevron-back" size={24} color="#1976d2" />
+          <Ionicons name="chevron-back" size={24} color="#047857" />
         </TouchableOpacity>
         <Text style={styles.weekText}>{weekRangeText}</Text>
         <TouchableOpacity style={styles.weekBtn} onPress={() => setWeekOffset(weekOffset + 1)}>
-          <Ionicons name="chevron-forward" size={24} color="#1976d2" />
+          <Ionicons name="chevron-forward" size={24} color="#047857" />
         </TouchableOpacity>
       </View>
 
@@ -953,7 +953,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                               setShowAssignModal(true);
                             }}
                           >
-                            <Ionicons name="add" size={14} color="#1976d2" />
+                            <Ionicons name="add" size={14} color="#047857" />
                             <Text style={styles.addBtnTextSmall}>Xếp</Text>
                           </TouchableOpacity>
                         )}
@@ -983,7 +983,7 @@ export default function ShiftScheduleScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#1976d2" />
+          <Ionicons name="arrow-back" size={24} color="#047857" />
         </TouchableOpacity>
         <Text style={styles.header}>Quản lý Lịch Làm Việc</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative', marginRight: 10 }}>
@@ -1057,7 +1057,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                     <Text style={styles.staffSelectName}>{staff.name}</Text>
                     <Text style={styles.staffSelectRole}>{staff.role === 'MANAGER' ? 'Quản Lý' : staff.role === 'STAFF' ? 'Nhân Viên' : 'Chủ Cửa Hàng'}</Text>
                   </View>
-                  <Ionicons name="add-circle" size={24} color="#1976d2" />
+                  <Ionicons name="add-circle" size={24} color="#047857" />
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1127,7 +1127,7 @@ export default function ShiftScheduleScreen({ navigation }) {
                     <Text style={styles.staffSelectName}>{staff.name}</Text>
                     <Text style={styles.staffSelectRole}>{staff.role === 'MANAGER' ? 'Quản Lý' : staff.role === 'STAFF' ? 'Nhân Viên' : 'Chủ Cửa Hàng'}</Text>
                   </View>
-                  <Ionicons name="swap-horizontal" size={24} color="#1976d2" />
+                  <Ionicons name="swap-horizontal" size={24} color="#047857" />
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1157,8 +1157,8 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   weekText: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary },
   dateText: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 10 },
   shiftRow: { flexDirection: 'row', gap: 10 },
-  shiftBtn: { flex: 1, borderWidth: 1, borderColor: '#1976d2', padding: 12, borderRadius: 8, alignItems: 'center' },
-  shiftDrafted: { backgroundColor: '#1976d2' },
+  shiftBtn: { flex: 1, borderWidth: 1, borderColor: '#047857', padding: 12, borderRadius: 8, alignItems: 'center' },
+  shiftDrafted: { backgroundColor: '#047857' },
   shiftSubmitted: { backgroundColor: '#4CAF50', borderColor: '#4CAF50' },
   shiftPending: { backgroundColor: '#ff9800', borderColor: '#ff9800' },
   shiftFull: { backgroundColor: COLORS.inputBg, borderColor: COLORS.border },
@@ -1204,7 +1204,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   staffingStep: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? '#1e3a5f' : '#e8f3ff' },
   staffingNumber: { minWidth: 14, textAlign: 'center', color: COLORS.text, fontSize: 12, fontWeight: '900' },  horizontalScroll: { padding: 10, paddingRight: 20 },
   dayColumn: { width: 160, marginRight: 10, backgroundColor: COLORS.card, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
-  dayColHeader: { backgroundColor: '#1976d2', color: '#fff', textAlign: 'center', paddingVertical: 6, fontWeight: 'bold', fontSize: 12 },
+  dayColHeader: { backgroundColor: '#047857', color: '#fff', textAlign: 'center', paddingVertical: 6, fontWeight: 'bold', fontSize: 12 },
   dayColBody: { padding: 5 },
   shiftBox: { marginBottom: 8, borderRadius: 6, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
   shiftBoxHeader: { paddingVertical: 4, paddingHorizontal: 6, borderBottomWidth: 1, borderBottomColor: COLORS.border },
@@ -1214,7 +1214,7 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   staffBadgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 0 },
   staffBadgeText: { fontSize: 11, color: COLORS.text, flex: 1, fontWeight: '600' },
   addBtnSmall: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? '#0f2a44' : '#e3f2fd', paddingVertical: 5, borderRadius: 4, marginTop: 4, borderWidth: 1, borderColor: isDarkMode ? '#1d4ed8' : '#bbdefb' },
-  addBtnTextSmall: { color: isDarkMode ? '#93c5fd' : '#1976d2', fontWeight: 'bold', fontSize: 11, marginLeft: 2 },
+  addBtnTextSmall: { color: isDarkMode ? '#93c5fd' : '#047857', fontWeight: 'bold', fontSize: 11, marginLeft: 2 },
   iconActionBtn: { padding: 5, marginLeft: 2 },
 
   // Modal styles
