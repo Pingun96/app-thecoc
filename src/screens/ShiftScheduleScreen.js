@@ -5,9 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 import { Alert } from '../utils/alert';
 import { scheduleShiftReminder, getManagersToNotify, sendPushNotification, sendNotificationToUser } from '../services/NotificationService';
+import { canAccessStore, hasPermission } from '../utils/permissions';
 
 export default function ShiftScheduleScreen({ navigation }) {
-  const { currentUser, selectedStoreId, shiftRegistrations, setShiftRegistrations, shiftSwaps, setShiftSwaps, storeList, staffList, refreshData, isDataLoading, COLORS, isDarkMode } = useContext(AppContext);
+  const { currentUser, selectedStoreId, shiftRegistrations, setShiftRegistrations, shiftSwaps, setShiftSwaps, storeList, setStoreList, staffList, refreshData, isDataLoading, COLORS, isDarkMode } = useContext(AppContext);
   const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
 
   const isOwner = currentUser?.role === 'OWNER';
@@ -23,14 +24,14 @@ export default function ShiftScheduleScreen({ navigation }) {
   }
 
   let myStoreId = currentUser?.store_id;
-  if (isOwner || viewableStores.includes(selectedStoreId)) myStoreId = selectedStoreId;
+  if (canAccessStore(currentUser, selectedStoreId)) myStoreId = selectedStoreId;
   if (isOwner && selectedStoreId === 'ALL') myStoreId = 'ALL';
 
   const storeName = myStoreId === 'ALL'
     ? 'Tất cả chi nhánh'
     : storeList.find((store) => store.id === myStoreId)?.name || `Chi nhánh ${myStoreId || '--'}`;
 
-  const canScheduleShift = isOwner || (isManager && currentUser?.permissions?.can_schedule_shift === true);
+  const canScheduleShift = isOwner || (isManager && hasPermission(currentUser, 'can_schedule_shift'));
 
   const [activeTab, setActiveTab] = useState('PERSONAL');
   const [weekOffset, setWeekOffset] = useState(0);
@@ -228,6 +229,29 @@ export default function ShiftScheduleScreen({ navigation }) {
     return shiftRegistrations.filter(r => r.date === date && r.shift_type === shiftType && r.store_id === myStoreId && r.status === 'APPROVED');
   };
 
+  const getRequiredStaffCount = (storeId, shiftType) => {
+    const store = storeList.find((item) => String(item.id) === String(storeId));
+    const target = Number(store?.staffing_targets?.[shiftType]);
+    return Number.isFinite(target) && target >= 1 ? Math.min(4, Math.round(target)) : 2;
+  };
+
+  const adjustStaffingTarget = async (storeId, shiftType, delta) => {
+    const store = storeList.find((item) => String(item.id) === String(storeId));
+    if (!store) return;
+    const currentTarget = getRequiredStaffCount(storeId, shiftType);
+    const nextTarget = Math.max(1, Math.min(4, currentTarget + delta));
+    if (nextTarget === currentTarget) return;
+    const staffing_targets = { ...(store.staffing_targets || {}), [shiftType]: nextTarget };
+    const nextStore = { ...store, staffing_targets };
+    setStoreList((previous) => previous.map((item) => String(item.id) === String(storeId) ? nextStore : item));
+    try {
+      const { error } = await supabase.from('stores').update({ staffing_targets }).eq('id', storeId);
+      if (error) throw error;
+    } catch (error) {
+      await refreshData();
+      Alert.alert('Không thể lưu nhu cầu nhân sự', error?.message || 'Vui lòng thử lại.');
+    }
+  };
   const STORE_COLORS = ['#4CAF50', '#2196F3', '#9C27B0', '#E91E63', '#009688', '#795548', '#607D8B'];
   const getStoreColor = (storeId) => {
     const index = storeList.findIndex(s => s.id === storeId);
@@ -800,6 +824,20 @@ export default function ShiftScheduleScreen({ navigation }) {
               <Ionicons name="location" size={20} color={storeColor} style={{marginRight: 8}}/>
               <Text style={[styles.storeHeaderText, { color: storeColor }]}>{sName}</Text>
             </View>
+            <View style={styles.staffingBar}>
+              <Text style={styles.staffingLabel}>Đủ người/ca</Text>
+              {[{ type: 'MORNING', label: 'Sáng' }, { type: 'AFTERNOON', label: 'Chiều' }].map(({ type, label }) => {
+                const target = getRequiredStaffCount(storeId, type);
+                return (
+                  <View key={type} style={styles.staffingControl}>
+                    <Text style={styles.staffingShiftLabel}>{label}</Text>
+                    {canScheduleShift && <TouchableOpacity onPress={() => adjustStaffingTarget(storeId, type, -1)} style={styles.staffingStep}><Ionicons name="remove" size={14} color={COLORS.primary} /></TouchableOpacity>}
+                    <Text style={styles.staffingNumber}>{target}</Text>
+                    {canScheduleShift && <TouchableOpacity onPress={() => adjustStaffingTarget(storeId, type, 1)} style={styles.staffingStep}><Ionicons name="add" size={14} color={COLORS.primary} /></TouchableOpacity>}
+                  </View>
+                );
+              })}
+            </View>
 
             <ScrollView
         keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
@@ -836,13 +874,16 @@ export default function ShiftScheduleScreen({ navigation }) {
                 const renderShiftBox = (regs, shiftType, title, colorHex, bgColor, borderColor = '#f0f0f0') => {
                   const approved = regs.filter(r => r.status === 'APPROVED');
                   const pending = regs.filter(r => r.status === 'PENDING');
+                  const requiredStaff = getRequiredStaffCount(storeId, shiftType);
+                  const missingStaff = Math.max(0, requiredStaff - approved.length);
+                  const isCovered = missingStaff === 0;
 
                   return (
                     <View style={[styles.shiftBox, { borderColor, borderWidth: borderColor !== '#f0f0f0' ? 1.5 : 1 }]}>
-                      <View style={[styles.shiftBoxHeader, {backgroundColor: bgColor}]}>
-                        <Text style={[styles.shiftBoxTitle, {color: colorHex}]}>{title} ({approved.length}/4)</Text>
-                      </View>
-                      <View style={styles.shiftBoxContent}>
+                      <View style={[styles.shiftBoxHeader, {backgroundColor: bgColor, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}]}>
+                        <Text style={[styles.shiftBoxTitle, {color: colorHex}]}>{title} ({approved.length}/{requiredStaff})</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: isCovered ? '#15803d' : '#dc2626' }}>{isCovered ? 'Đủ người' : `Thiếu ${missingStaff}`}</Text>
+                      </View>                      <View style={styles.shiftBoxContent}>
                         {approved.length === 0 && pending.length === 0 ? <Text style={styles.emptyStaff}>-</Text> : null}
 
                         {approved.map(r => {
@@ -1156,7 +1197,12 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   storeCard: { backgroundColor: COLORS.card, borderRadius: 12, marginBottom: 20, elevation: 3, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.25 : 0.1, shadowRadius: 5, shadowOffset: {width: 0, height: 2}, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
   storeHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, padding: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   storeHeaderText: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
-  horizontalScroll: { padding: 10, paddingRight: 20 },
+  staffingBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: isDarkMode ? '#111827' : '#f8fafc', borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  staffingLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '800', marginRight: 2 },
+  staffingControl: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 5, paddingVertical: 3, borderRadius: 8 },
+  staffingShiftLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700' },
+  staffingStep: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? '#1e3a5f' : '#e8f3ff' },
+  staffingNumber: { minWidth: 14, textAlign: 'center', color: COLORS.text, fontSize: 12, fontWeight: '900' },  horizontalScroll: { padding: 10, paddingRight: 20 },
   dayColumn: { width: 160, marginRight: 10, backgroundColor: COLORS.card, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
   dayColHeader: { backgroundColor: '#1976d2', color: '#fff', textAlign: 'center', paddingVertical: 6, fontWeight: 'bold', fontSize: 12 },
   dayColBody: { padding: 5 },

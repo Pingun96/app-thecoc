@@ -9,6 +9,11 @@ import { exportToExcel } from '../utils/exportExcel';
 export default function PayrollScreen({ navigation }) {
   const { currentUser, attendanceHistory, staffList, payrollAdjustments, setPayrollAdjustments, payrollApprovals, setPayrollApprovals, refreshData, isDataLoading, COLORS, isDarkMode } = useContext(AppContext);
   const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
+  const isIosStandalonePwa = Platform.OS === 'web'
+    && typeof window !== 'undefined'
+    && /iPad|iPhone|iPod/.test(window.navigator.userAgent)
+    && (window.navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches);
+  const ScreenShell = isIosStandalonePwa ? View : SafeAreaView;
   
   const isOwner = currentUser?.role === 'OWNER';
   const isManager = currentUser?.role === 'MANAGER';
@@ -469,15 +474,15 @@ export default function PayrollScreen({ navigation }) {
 </html>`;
   };
 
-  const handlePrintPayslip = (item) => {
+  const handleViewPayslip = (item) => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') {
-      Alert.alert('In phiếu lương', 'Vui lòng mở bản PWA/Web để in trực tiếp phiếu lương A4.');
+      Alert.alert('Xem phiếu lương', 'Vui lòng mở bản PWA/Web để xem và in phiếu lương A4.');
       return;
     }
 
     const printWindow = window.open('', '_blank', 'width=900,height=1100');
     if (!printWindow) {
-      Alert.alert('Trình duyệt chặn cửa sổ in', 'Hãy cho phép popup cho app rồi bấm In phiếu lương lại.');
+      Alert.alert('Trình duyệt chặn cửa sổ xem', 'Hãy cho phép popup cho app rồi bấm Xem phiếu lương lại.');
       return;
     }
 
@@ -485,7 +490,6 @@ export default function PayrollScreen({ navigation }) {
     printWindow.document.write(buildPayslipHtml(item));
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => printWindow.print(), 450);
   };
 
   const handleExportExcel = async () => {
@@ -519,8 +523,8 @@ export default function PayrollScreen({ navigation }) {
     }
   };
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.stickyTopBar}>
+    <ScreenShell style={styles.container}>
+      <View style={[styles.stickyTopBar, isIosStandalonePwa && styles.stickyTopBarPwa]}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#1976d2" />
@@ -610,9 +614,9 @@ export default function PayrollScreen({ navigation }) {
                         <Text style={styles.salaryBreakdownTitle}>Tổng hợp phiếu lương</Text>
                         <Text style={styles.salaryModeText}>{getSalaryModeLabel(item)} • {getApprovalLabel(item)}</Text>
                       </View>
-                      <TouchableOpacity style={styles.printBtn} onPress={() => handlePrintPayslip(item)}>
-                        <Ionicons name="print-outline" size={16} color={COLORS.primary} />
-                        <Text style={styles.printBtnText}>In phiếu</Text>
+                      <TouchableOpacity style={styles.printBtn} onPress={() => handleViewPayslip(item)}>
+                        <Ionicons name="document-text-outline" size={16} color={COLORS.primary} />
+                        <Text style={styles.printBtnText}>Xem phiếu</Text>
                       </TouchableOpacity>
                     </View>
 
@@ -722,13 +726,14 @@ export default function PayrollScreen({ navigation }) {
         </KeyboardAvoidingView>
       </Modal>
 
-    </SafeAreaView>
+    </ScreenShell>
   );
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  stickyTopBar: { backgroundColor: COLORS.bg, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
+  stickyTopBar: { backgroundColor: COLORS.bg, zIndex: 40, flexShrink: 0 },
+  stickyTopBarPwa: { position: 'sticky', top: 0, paddingTop: 52, alignSelf: 'stretch', zIndex: 200, elevation: 20, shadowColor: '#0f172a', shadowOpacity: isDarkMode ? 0.28 : 0.09, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 10 },
   backBtn: { padding: 5, marginRight: 10 },
   header: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
@@ -810,3 +815,4 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   saveBtn: { backgroundColor: '#4CAF50', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   saveBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
 });
+

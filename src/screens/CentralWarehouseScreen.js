@@ -22,13 +22,16 @@ import {
 } from '../services/dataMappers';
 import {
   approveInventoryTicket,
+  createInventoryTicket,
   rejectInventoryTicket,
 } from '../services/inventoryService';
 import {
   buildInventoryStockRows,
   getCentralWarehouseStore,
+  getBusinessStores,
   getStoreName,
 } from '../utils/warehouse';
+import { hasPermission } from '../utils/permissions';
 
 const formatQuantity = (value) => Number(value || 0).toLocaleString('vi-VN', {
   maximumFractionDigits: 2,
@@ -84,10 +87,16 @@ export default function CentralWarehouseScreen({ navigation }) {
     safeLevel: '0',
     amount: '',
   });
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [dispatchStoreId, setDispatchStoreId] = useState('');
+  const [selectedDispatchItemId, setSelectedDispatchItemId] = useState('');
+  const [dispatchAmount, setDispatchAmount] = useState('');
+  const [dispatchCart, setDispatchCart] = useState([]);
 
-  const canAccess = currentUser?.role === 'OWNER' || currentUser?.permissions?.central_warehouse === true;
+  const canAccess = hasPermission(currentUser, 'central_warehouse');
   const warehouse = useMemo(() => getCentralWarehouseStore(storeList), [storeList]);
   const warehouseId = warehouse?.id;
+  const businessStores = useMemo(() => getBusinessStores(storeList), [storeList]);
 
   const warehouseItems = useMemo(() => inventoryItems.filter((item) => (
     warehouseId && String(item.store_id) === String(warehouseId)
@@ -114,6 +123,7 @@ export default function CentralWarehouseScreen({ navigation }) {
   const doneRequests = completedRequests.slice(0, 20);
 
   const stockById = useMemo(() => Object.fromEntries(stockRows.map((item) => [item.id, item])), [stockRows]);
+  const selectedDispatchItem = selectedDispatchItemId ? stockById[selectedDispatchItemId] : null;
   const tabs = useMemo(() => [
     { key: 'PENDING', label: 'Chờ duyệt', count: pendingRequests.length },
     { key: 'TRANSIT', label: 'Đang giao', count: inTransitRequests.length },
@@ -145,6 +155,149 @@ export default function CentralWarehouseScreen({ navigation }) {
   const closeStockModal = () => {
     setShowStockModal(false);
     resetStockForm();
+  };
+
+  const openDispatchModal = () => {
+    if (!warehouseId) {
+      Alert.alert('Chưa có Kho tổng', 'Vui lòng tạo Kho tổng trước khi xuất hàng.');
+      return;
+    }
+    if (businessStores.length === 0) {
+      Alert.alert('Chưa có cửa hàng nhận', 'Cần có ít nhất một cửa hàng kinh doanh để xuất hàng về.');
+      return;
+    }
+    if (stockRows.length === 0) {
+      Alert.alert('Kho tổng chưa có hàng', 'Vui lòng nhập tồn Kho tổng trước khi tạo phiếu xuất.');
+      return;
+    }
+    setDispatchStoreId((current) => current || String(businessStores[0]?.id || ''));
+    setSelectedDispatchItemId((current) => current || String(stockRows[0]?.id || ''));
+    setDispatchAmount('');
+    setDispatchCart([]);
+    setShowDispatchModal(true);
+  };
+
+  const closeDispatchModal = () => {
+    setShowDispatchModal(false);
+    setDispatchAmount('');
+    setDispatchCart([]);
+  };
+
+  const handleAddDispatchItem = () => {
+    const item = selectedDispatchItem;
+    const amount = parseQuantityInput(dispatchAmount);
+
+    if (!item) {
+      Alert.alert('Chưa chọn mặt hàng', 'Vui lòng chọn mặt hàng cần xuất.');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      Alert.alert('Sai số lượng', 'Số lượng xuất phải lớn hơn 0.');
+      return;
+    }
+
+    const existingAmount = dispatchCart
+      .filter((cartItem) => String(cartItem.itemId) === String(item.id))
+      .reduce((sum, cartItem) => sum + Number(cartItem.amount || 0), 0);
+
+    if (existingAmount + amount > Number(item.currentStock || 0)) {
+      Alert.alert(
+        'Không đủ tồn Kho tổng',
+        `${item.name} còn ${formatQuantity(item.currentStock)} ${item.unit}. Vui lòng giảm số lượng xuất.`,
+      );
+      return;
+    }
+
+    setDispatchCart((current) => {
+      const found = current.find((cartItem) => String(cartItem.itemId) === String(item.id));
+      if (found) {
+        return current.map((cartItem) => (
+          String(cartItem.itemId) === String(item.id)
+            ? { ...cartItem, amount: Number((Number(cartItem.amount || 0) + amount).toFixed(2)) }
+            : cartItem
+        ));
+      }
+      return [
+        ...current,
+        {
+          itemId: item.id,
+          name: item.name,
+          unit: item.unit,
+          amount,
+        },
+      ];
+    });
+    setDispatchAmount('');
+  };
+
+  const handleRemoveDispatchItem = (itemId) => {
+    setDispatchCart((current) => current.filter((item) => String(item.itemId) !== String(itemId)));
+  };
+
+  const handleSubmitDispatch = async () => {
+    if (!warehouseId) {
+      Alert.alert('Chưa có Kho tổng', 'Vui lòng tạo Kho tổng trước khi xuất hàng.');
+      return;
+    }
+    if (!dispatchStoreId) {
+      Alert.alert('Chưa chọn cửa hàng', 'Vui lòng chọn cửa hàng nhận hàng.');
+      return;
+    }
+    if (dispatchCart.length === 0) {
+      Alert.alert('Chưa có hàng xuất', 'Vui lòng thêm ít nhất một mặt hàng vào phiếu xuất.');
+      return;
+    }
+
+    for (const cartItem of dispatchCart) {
+      const stock = stockById[cartItem.itemId];
+      if (!stock || Number(cartItem.amount || 0) > Number(stock.currentStock || 0)) {
+        Alert.alert(
+          'Tồn kho đã thay đổi',
+          `${cartItem.name} không đủ tồn để xuất. Vui lòng tải lại và kiểm tra lại phiếu.`,
+        );
+        return;
+      }
+    }
+
+    setBusyKey('dispatch-stock');
+    try {
+      const now = new Date().toISOString();
+      const destinationName = getStoreName(storeList, dispatchStoreId);
+      const ticket = {
+        id: makeId('ticket'),
+        type: 'TRANSFER',
+        source_store_id: warehouseId,
+        destination_store_id: dispatchStoreId,
+        items: dispatchCart,
+        status: 'PENDING_SOURCE',
+        requested_by: currentUser?.id,
+        requested_by_name: currentUser?.name || 'Kho tổng',
+        created_at: now,
+        updated_at: now,
+        note: `Kho tổng xuất hàng về ${destinationName}`,
+      };
+
+      await createInventoryTicket(ticket);
+      await approveInventoryTicket(ticket, currentUser?.id, warehouseId);
+
+      setInventoryTickets((current) => [
+        {
+          ...ticket,
+          status: 'PENDING_DEST',
+          approved_by_source: currentUser?.id,
+          updated_at: new Date().toISOString(),
+        },
+        ...(current || []).filter((item) => item.id !== ticket.id),
+      ]);
+      await refreshData?.();
+      closeDispatchModal();
+      setActiveTab('TRANSIT');
+      Alert.alert('Đã xuất hàng', `Phiếu đang chờ ${destinationName} xác nhận nhận hàng.`);
+    } catch (error) {
+      Alert.alert('Không thể xuất hàng', error?.message || 'Đã có lỗi khi tạo phiếu xuất từ Kho tổng.');
+    } finally {
+      setBusyKey('');
+    }
   };
 
   const handleCreateWarehouse = async () => {
@@ -381,10 +534,16 @@ export default function CentralWarehouseScreen({ navigation }) {
             <Ionicons name="refresh" size={20} color={COLORS.primary} />
           </TouchableOpacity>
           {warehouseId && (
-            <TouchableOpacity onPress={() => openStockModal()} style={styles.addStockButton}>
-              <Ionicons name="add" size={19} color="#fff" />
-              <Text style={styles.addStockText}>Nhập tồn</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity onPress={openDispatchModal} style={styles.dispatchButton}>
+                <Ionicons name="paper-plane-outline" size={17} color="#fff" />
+                <Text style={styles.addStockText}>Xuất</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => openStockModal()} style={styles.addStockButton}>
+                <Ionicons name="add" size={18} color="#fff" />
+                <Text style={styles.addStockText}>Nhập</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
 
@@ -510,6 +669,127 @@ export default function CentralWarehouseScreen({ navigation }) {
 
       <Modal
         transparent
+        visible={showDispatchModal}
+        animationType="fade"
+        onRequestClose={closeDispatchModal}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Xuất hàng về cửa hàng</Text>
+                <Text style={styles.modalCaption}>Kho tổng xuất trước, cửa hàng xác nhận nhận hàng sau.</Text>
+              </View>
+              <TouchableOpacity onPress={closeDispatchModal} style={styles.modalClose}>
+                <Ionicons name="close" size={20} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inputLabel}>Cửa hàng nhận</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.storeChipRow}
+            >
+              {businessStores.map((store) => {
+                const active = String(dispatchStoreId) === String(store.id);
+                return (
+                  <TouchableOpacity
+                    key={store.id}
+                    style={[styles.storeChip, active && styles.storeChipActive]}
+                    onPress={() => setDispatchStoreId(String(store.id))}
+                  >
+                    <Text style={[styles.storeChipText, active && styles.storeChipTextActive]}>
+                      {store.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <ScrollView style={styles.dispatchBody} showsVerticalScrollIndicator={false}>
+              <Text style={styles.inputLabel}>Chọn hàng trong Kho tổng</Text>
+              <View style={styles.dispatchStockList}>
+                {stockRows.map((item) => {
+                  const active = String(selectedDispatchItemId) === String(item.id);
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[styles.dispatchStockCard, active && styles.dispatchStockCardActive]}
+                      onPress={() => setSelectedDispatchItemId(String(item.id))}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.dispatchStockName}>{item.name}</Text>
+                        <Text style={styles.dispatchStockMeta}>
+                          Còn {formatQuantity(item.currentStock)} {item.unit}
+                        </Text>
+                      </View>
+                      {active && <Ionicons name="checkmark-circle" size={20} color="#16a34a" />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.inputLabel}>Số lượng xuất</Text>
+              <View style={styles.dispatchAddRow}>
+                <TextInput
+                  style={[styles.input, styles.dispatchAmountInput]}
+                  value={dispatchAmount}
+                  onChangeText={setDispatchAmount}
+                  keyboardType="decimal-pad"
+                  placeholder={selectedDispatchItem ? `${formatQuantity(selectedDispatchItem.currentStock)} ${selectedDispatchItem.unit}` : '0'}
+                  placeholderTextColor={COLORS.textMuted}
+                />
+                <TouchableOpacity style={styles.addToCartButton} onPress={handleAddDispatchItem}>
+                  <Ionicons name="add" size={19} color="#fff" />
+                  <Text style={styles.addToCartText}>Thêm</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.dispatchCartBox}>
+                <Text style={styles.dispatchCartTitle}>Phiếu xuất ({dispatchCart.length})</Text>
+                {dispatchCart.length === 0 ? (
+                  <Text style={styles.dispatchEmptyText}>Chưa có mặt hàng nào trong phiếu.</Text>
+                ) : dispatchCart.map((item) => (
+                  <View key={item.itemId} style={styles.dispatchCartRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      <Text style={styles.itemMeta}>{formatQuantity(item.amount)} {item.unit}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removeCartButton}
+                      onPress={() => handleRemoveDispatchItem(item.itemId)}
+                    >
+                      <Ionicons name="trash-outline" size={17} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelButton} onPress={closeDispatchModal}>
+                <Text style={styles.cancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, styles.dispatchSubmitButton, busyKey === 'dispatch-stock' && styles.disabledButton]}
+                onPress={handleSubmitDispatch}
+                disabled={busyKey === 'dispatch-stock'}
+              >
+                {busyKey === 'dispatch-stock'
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.saveButtonText}>Tạo phiếu xuất</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        transparent
         visible={showStockModal}
         animationType="fade"
         onRequestClose={closeStockModal}
@@ -596,13 +876,14 @@ export default function CentralWarehouseScreen({ navigation }) {
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border, ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 40 } : null) },
+  stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border, zIndex: 40, flexShrink: 0 },
   headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, backgroundColor: COLORS.bg },
   backBtn: { padding: 8, marginLeft: -8, marginRight: 6 },
   header: { color: COLORS.text, fontSize: 22, fontWeight: '900' },
   headerCaption: { color: COLORS.textMuted, marginTop: 2, fontSize: 12 },
   refreshButton: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.border },
   addStockButton: { height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4, backgroundColor: '#7c3aed', paddingHorizontal: 10, marginLeft: 8 },
+  dispatchButton: { height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4, backgroundColor: '#16a34a', paddingHorizontal: 10, marginLeft: 8 },
   addStockText: { color: '#fff', fontSize: 12, fontWeight: '900' },
   tabScroller: { paddingHorizontal: 12, gap: 8 },
   tabButton: { minHeight: 36, borderRadius: 12, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.border },
@@ -665,9 +946,30 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   inputDisabled: { opacity: 0.72 },
   amountInput: { fontSize: 20, fontWeight: '900' },
   modalFieldRow: { flexDirection: 'row', gap: 10 },
+  storeChipRow: { gap: 8, paddingRight: 8, paddingBottom: 4 },
+  storeChip: { minHeight: 36, borderRadius: 12, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.border },
+  storeChipActive: { backgroundColor: '#dcfce7', borderColor: '#86efac' },
+  storeChipText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '900' },
+  storeChipTextActive: { color: '#15803d' },
+  dispatchBody: { maxHeight: 430, marginTop: 2 },
+  dispatchStockList: { gap: 8 },
+  dispatchStockCard: { minHeight: 52, borderRadius: 13, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.border },
+  dispatchStockCardActive: { backgroundColor: '#f0fdf4', borderColor: '#86efac' },
+  dispatchStockName: { color: COLORS.text, fontSize: 13, fontWeight: '900' },
+  dispatchStockMeta: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+  dispatchAddRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  dispatchAmountInput: { flex: 1, fontSize: 18, fontWeight: '900' },
+  addToCartButton: { minHeight: 46, borderRadius: 13, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#16a34a' },
+  addToCartText: { color: '#fff', fontSize: 12, fontWeight: '900' },
+  dispatchCartBox: { marginTop: 12, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.inputBg, padding: 10 },
+  dispatchCartTitle: { color: COLORS.text, fontSize: 13, fontWeight: '900', marginBottom: 6 },
+  dispatchEmptyText: { color: COLORS.textMuted, fontSize: 12, lineHeight: 17 },
+  dispatchCartRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderTopWidth: 1, borderTopColor: COLORS.border },
+  removeCartButton: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fee2e2', marginLeft: 8 },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
   cancelButton: { flex: 1, minHeight: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.border },
   cancelButtonText: { color: COLORS.textMuted, fontWeight: '900' },
   saveButton: { flex: 1.4, minHeight: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7c3aed' },
+  dispatchSubmitButton: { backgroundColor: '#16a34a' },
   saveButtonText: { color: '#fff', fontWeight: '900' },
 });

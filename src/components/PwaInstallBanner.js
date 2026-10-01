@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 14,
     right: 14,
-    top: 14,
+    bottom: 24,
     zIndex: 9999,
     borderRadius: 18,
     borderWidth: 1,
@@ -74,3 +74,4 @@ const styles = StyleSheet.create({
   body: { fontSize: 12, lineHeight: 17, marginTop: 2 },
   closeBtn: { padding: 8 },
 });
+

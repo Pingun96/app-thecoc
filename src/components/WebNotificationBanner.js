@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 14,
     right: 14,
-    top: 82,
+    bottom: 24,
     zIndex: 9998,
     borderRadius: 18,
     borderWidth: 1,
@@ -547,3 +547,4 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 });
+

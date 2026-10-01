@@ -1,0 +1,13 @@
+name = "thecoc-api"
+main = "src/index.js"
+compatibility_date = "2026-07-12"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "thecoc-data"
+database_id = "28da5e7a-2c8d-4f57-b8bd-a09a4feb8221"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "thecoc-media"

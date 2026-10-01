@@ -10,10 +10,17 @@ import { sendPushNotification } from '../services/NotificationService';
 import { getDailyRevenue } from '../services/financeService';
 import { getLocalDateKey } from '../utils/dateTime';
 import DateRangePickerModal from '../components/DateRangePickerModal';
+import { canAccessStore, hasPermission } from '../utils/permissions';
+import { getStaffRevenueAccess } from '../utils/revenueAccess';
 
 export default function ShiftScreen({ navigation }) {
-  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, inventoryLogs, setInventoryLogs, attendanceHistory, payrollAdjustments, setPayrollAdjustments, COLORS, isDarkMode, isDataLoading, refreshData } = useContext(AppContext);
+  const { currentUser, staffList, shifts, setShifts, selectedStoreId, storeList, inventoryItems, setInventoryItems, inventoryLogs, setInventoryLogs, payrollAdjustments, setPayrollAdjustments, COLORS, isDarkMode, isDataLoading, refreshData } = useContext(AppContext);
   const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
+  const isIosStandalonePwa = Platform.OS === 'web'
+    && typeof window !== 'undefined'
+    && /iPad|iPhone|iPod/.test(window.navigator.userAgent)
+    && (window.navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches);
+  const ScreenShell = isIosStandalonePwa ? View : SafeAreaView;
 
   const formatMoneyInput = (val) => {
     if (!val) return '';
@@ -52,13 +59,15 @@ export default function ShiftScreen({ navigation }) {
     }
   };
 
+  const formatCountInput = (value) => String(value ?? '').replace(/\D/g, '');
+
   const isOwner = currentUser?.role === 'OWNER';
   const isStaff = currentUser?.role === 'STAFF';
-  const hasCashierPerm = !isStaff || currentUser?.permissions?.cashier;
+  const hasCashierPerm = hasPermission(currentUser, 'cashier');
+  const canUseOchaCashBalancer = !isStaff;
 
-  const viewableStores = currentUser?.permissions?.viewable_stores || [];
   let storeIdToView = currentUser?.store_id;
-  if (isOwner || viewableStores.includes(selectedStoreId)) {
+  if (canAccessStore(currentUser, selectedStoreId)) {
     storeIdToView = selectedStoreId;
   }
   if (isOwner && selectedStoreId === 'ALL') {
@@ -100,16 +109,35 @@ export default function ShiftScreen({ navigation }) {
   const [expenses, setExpenses] = useState('');
   const [expensesNote, setExpensesNote] = useState('');
   const [actualCash, setActualCash] = useState('');
+  const [shopCupCount, setShopCupCount] = useState('');
+  const [stickerCount, setStickerCount] = useState('');
   const [reportImages, setReportImages] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [calculatorTarget, setCalculatorTarget] = useState(null);
   const [ochaRevenue, setOchaRevenue] = useState(null);
   const [isLoadingOcha, setIsLoadingOcha] = useState(false);
   const [detailReportImageUrls, setDetailReportImageUrls] = useState([]);
   const [isResolvingReportImage, setIsResolvingReportImage] = useState(false);
   const [reportImageLoadState, setReportImageLoadState] = useState({});
+  const [revenueClock, setRevenueClock] = useState(() => new Date());
 
   const CACHE_KEY = `SHIFT_DRAFT_${storeIdToView}`;
   const ochaDateKey = getLocalDateKey();
+  const staffRevenueAccess = getStaffRevenueAccess(currentUser, currentOpenShift, revenueClock);
+  const canViewOchaRevenue = staffRevenueAccess.allowed;
+
+  useEffect(() => {
+    let intervalId;
+    const refreshClock = () => setRevenueClock(new Date());
+    const timeoutId = setTimeout(() => {
+      refreshClock();
+      intervalId = setInterval(refreshClock, 60000);
+    }, 60000 - (Date.now() % 60000) + 100);
+    return () => {
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
 
   const getReportImagePath = (value) => {
     if (!value) return null;
@@ -207,6 +235,8 @@ export default function ShiftScreen({ navigation }) {
           if (data.expenses !== undefined) setExpenses(data.expenses);
           if (data.expensesNote !== undefined) setExpensesNote(data.expensesNote);
           if (data.actualCash !== undefined) setActualCash(data.actualCash);
+          if (data.shopCupCount !== undefined) setShopCupCount(data.shopCupCount);
+          if (data.stickerCount !== undefined) setStickerCount(data.stickerCount);
         } else if (currentOpenShift) {
           // Fallback to database values if no cache
           const initInv = {};
@@ -222,8 +252,10 @@ export default function ShiftScreen({ navigation }) {
           setExpenses(currentOpenShift.expenses ? String(currentOpenShift.expenses) : '');
           setExpensesNote(currentOpenShift.expenses_note || '');
           setActualCash(currentOpenShift.closing_cash_actual ? String(currentOpenShift.closing_cash_actual) : '');
+          setShopCupCount(currentOpenShift.shop_cup_count != null ? String(currentOpenShift.shop_cup_count) : '');
+          setStickerCount(currentOpenShift.sticker_count != null ? String(currentOpenShift.sticker_count) : '');
         } else {
-          setInventoryCheck({}); setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash('');
+          setInventoryCheck({}); setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setShopCupCount(''); setStickerCount('');
         }
       } catch(e) {
         console.log('Error loading cache', e);
@@ -239,7 +271,7 @@ export default function ShiftScreen({ navigation }) {
     if (!storeIdToView || storeIdToView === 'ALL') return;
     const saveCache = async () => {
       const data = {
-        inventoryCheck, revCash, revMomo, revGrab, revShopee, discount, expenses, expensesNote, actualCash
+        inventoryCheck, revCash, revMomo, revGrab, revShopee, discount, expenses, expensesNote, actualCash, shopCupCount, stickerCount
       };
       try {
         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
@@ -249,11 +281,12 @@ export default function ShiftScreen({ navigation }) {
     };
     const timeoutId = setTimeout(saveCache, 500);
     return () => clearTimeout(timeoutId);
-  }, [inventoryCheck, revCash, revMomo, revGrab, revShopee, discount, expenses, expensesNote, actualCash, storeIdToView]);
+  }, [inventoryCheck, revCash, revMomo, revGrab, revShopee, discount, expenses, expensesNote, actualCash, shopCupCount, stickerCount, storeIdToView]);
 
   useEffect(() => {
-    if (!storeIdToView || storeIdToView === 'ALL') {
+    if (!storeIdToView || storeIdToView === 'ALL' || !canViewOchaRevenue) {
       setOchaRevenue(null);
+      setIsLoadingOcha(false);
       return;
     }
 
@@ -275,7 +308,7 @@ export default function ShiftScreen({ navigation }) {
 
     fetchOchaRevenue();
     return () => { isMounted = false; };
-  }, [storeIdToView, ochaDateKey]);
+  }, [storeIdToView, ochaDateKey, canViewOchaRevenue]);
 
   useEffect(() => {
     let isMounted = true;
@@ -306,9 +339,13 @@ export default function ShiftScreen({ navigation }) {
   }, [selectedShiftForDetail?.report_image]);
 
   const todayStr = new Date().toLocaleDateString('vi-VN');
-  const todayAttendance = attendanceHistory.filter(a => a.date === todayStr); // Giả lập chấm công hôm nay
   const ochaAmount = Number(ochaRevenue?.total_amount || ochaRevenue?.amount || 0);
   const ochaOrders = Number(ochaRevenue?.order_count || ochaRevenue?.orders || 0);
+  const hasOchaCupCount = ochaRevenue?.cup_count !== null && ochaRevenue?.cup_count !== undefined;
+  const ochaCupCount = hasOchaCupCount ? Number(ochaRevenue.cup_count) : null;
+  const ochaCancelledOrders = ochaRevenue?.cancelled_order_count == null ? null : Number(ochaRevenue.cancelled_order_count);
+  const ochaCancelledCups = ochaRevenue?.cancelled_cup_count == null ? null : Number(ochaRevenue.cancelled_cup_count);
+  const ochaAccountedCups = ochaCupCount == null ? null : ochaCupCount + Number(ochaCancelledCups || 0);
   const manualCash = parseMoneyInput(revCash);
   const manualMomo = parseMoneyInput(revMomo);
   const manualGrab = parseMoneyInput(revGrab);
@@ -317,6 +354,8 @@ export default function ShiftScreen({ navigation }) {
   const manualDiscount = parseMoneyInput(discount);
   const manualExpenses = parseMoneyInput(expenses);
   const manualActualCash = parseMoneyInput(actualCash);
+  const manualShopCups = shopCupCount === '' ? null : Number(shopCupCount);
+  const manualStickers = stickerCount === '' ? null : Number(stickerCount);
   const manualTotalRevenue = manualCash + manualNonCash - manualDiscount;
   const revenueDiffVsOcha = ochaAmount > 0 ? manualTotalRevenue - ochaAmount : 0;
   const suggestedCashFromOcha = ochaAmount > 0 ? Math.max(0, ochaAmount + manualDiscount - manualNonCash) : 0;
@@ -558,7 +597,7 @@ export default function ShiftScreen({ navigation }) {
         result = await ImagePicker.launchImageLibraryAsync({
           ...compatibleImageOptions,
           allowsMultipleSelection: true,
-          selectionLimit: 6,
+          selectionLimit: 10,
           orderedSelection: true,
         });
       }
@@ -567,10 +606,10 @@ export default function ShiftScreen({ navigation }) {
         const newUris = result.assets.map((asset) => asset.uri).filter(Boolean);
         setReportImages((prev) => {
           const merged = [...prev, ...newUris].filter((uri, index, arr) => arr.indexOf(uri) === index);
-          if (merged.length > 6) {
-            Alert.alert('Giới hạn ảnh', 'Mỗi phiếu chốt ca nên tối đa 6 ảnh để tránh đầy dung lượng.');
+          if (merged.length > 10) {
+            Alert.alert('Giới hạn ảnh', 'Mỗi phiếu chốt ca nên tối đa 10 ảnh để tránh đầy dung lượng.');
           }
-          return merged.slice(0, 6);
+          return merged.slice(0, 10);
         });
       }
     } catch(e) {
@@ -644,6 +683,10 @@ export default function ShiftScreen({ navigation }) {
   };
 
   const handleCloseShift = () => {
+    if (shopCupCount === '' || stickerCount === '') {
+      Alert.alert('Thiếu số liệu ly/tem', 'Vui lòng nhập số ly thực tế tại quán và số tem đã sử dụng trước khi nộp báo cáo.');
+      return;
+    }
     const aCashStr = String(actualCash).trim();
     if (aCashStr === '') {
       Alert.alert('Lỗi', 'Vui lòng đếm két và nhập "TIỀN TRONG KÉT THỰC ĐẾM" (nhập 0 nếu két trống)!');
@@ -661,11 +704,18 @@ export default function ShiftScreen({ navigation }) {
     const expectedCash = currentOpenShift.opening_cash + rCash - exp;
     const discrepancy = aCash - expectedCash;
     const closeManualTotal = rCash + rMomo + rGrab + rShopee - disc;
-    const closeRevenueDiff = ochaAmount > 0 ? closeManualTotal - ochaAmount : 0;
+    const canReconcileNow = getStaffRevenueAccess(currentUser, currentOpenShift, new Date()).allowed;
+    const comparisonAmount = canReconcileNow ? ochaAmount : 0;
+    const closeRevenueDiff = comparisonAmount > 0 ? closeManualTotal - comparisonAmount : 0;
     const hasWarning = discrepancy !== 0 || closeRevenueDiff !== 0;
+    const ochaSummary = comparisonAmount > 0
+      ? `\nDoanh thu Ocha: ${formatCurrency(comparisonAmount)}\nLệch Ocha: ${formatCurrency(closeRevenueDiff)}`
+      : !canReconcileNow
+        ? '\nĐối chiếu Ocha: đang khóa ngoài khung giờ của ca'
+        : '\nDoanh thu Ocha: chưa có dữ liệu';
 
     const confirmMessage = hasWarning
-      ? `⚠️ Báo cáo cần kiểm tra lại trước khi nộp\n\nDoanh thu nhân viên nhập: ${formatCurrency(closeManualTotal)}${ochaAmount > 0 ? `\nDoanh thu Ocha: ${formatCurrency(ochaAmount)}\nLệch Ocha: ${formatCurrency(closeRevenueDiff)}` : '\nDoanh thu Ocha: chưa có dữ liệu'}\n\nKét lý thuyết: ${formatCurrency(expectedCash)}\nKét thực đếm: ${formatCurrency(aCash)}\nLệch két: ${formatCurrency(discrepancy)}\n\nBạn vẫn muốn nộp báo cáo không?`
+      ? `⚠️ Báo cáo cần kiểm tra lại trước khi nộp\n\nDoanh thu nhân viên nhập: ${formatCurrency(closeManualTotal)}${ochaSummary}\n\nKét lý thuyết: ${formatCurrency(expectedCash)}\nKét thực đếm: ${formatCurrency(aCash)}\nLệch két: ${formatCurrency(discrepancy)}\n\nBạn vẫn muốn nộp báo cáo không?`
       : `Doanh thu và két đang khớp.\n\nDoanh thu: ${formatCurrency(closeManualTotal)}\nKét thực đếm: ${formatCurrency(aCash)}\n\nBạn có chắc chắn muốn nộp báo cáo doanh thu và chốt két không?`;
 
     Alert.alert(
@@ -692,6 +742,7 @@ export default function ShiftScreen({ navigation }) {
                 rev_cash: rCash, rev_momo: rMomo, rev_grab: rGrab, rev_shopee: rShopee,
                 discount: disc, expenses: exp, expenses_note: expensesNote,
                 closing_cash_actual: aCash, discrepancy: discrepancy,
+                shop_cup_count: Number(shopCupCount), sticker_count: Number(stickerCount),
                 inventory_check: finalInvCheck,
                 report_image: imageUrl
               };
@@ -707,7 +758,7 @@ export default function ShiftScreen({ navigation }) {
               setShifts(shifts.map(s => s.id === currentOpenShift.id ? updatedShift : s));
 
               Alert.alert('Thành công', 'Đã nộp Báo Cáo Doanh Thu (Chốt Ca)!');
-              setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setInventoryCheck({}); setReportImages([]);
+              setRevCash(''); setRevMomo(''); setRevGrab(''); setRevShopee(''); setDiscount(''); setExpenses(''); setExpensesNote(''); setActualCash(''); setShopCupCount(''); setStickerCount(''); setInventoryCheck({}); setReportImages([]);
               setIsUploading(false);
               try { await AsyncStorage.removeItem(CACHE_KEY); } catch(e){}
             } catch(e) {
@@ -901,18 +952,156 @@ export default function ShiftScreen({ navigation }) {
     );
   };
 
+  const openCalculator = (label, value, setter) => {
+    setCalculatorTarget({
+      label,
+      value: String(value || '').replace(/\./g, ''),
+      setter,
+    });
+  };
+
+  const updateCalculatorValue = (nextValue) => {
+    setCalculatorTarget((current) => current ? { ...current, value: formatMoneyInput(nextValue) } : current);
+  };
+
+  const appendCalculatorKey = (key) => {
+    if (!calculatorTarget) return;
+    const raw = String(calculatorTarget.value || '').replace(/\./g, '');
+    if (key === 'clear') {
+      updateCalculatorValue('');
+      return;
+    }
+    if (key === 'back') {
+      updateCalculatorValue(raw.slice(0, -1));
+      return;
+    }
+    if (key === '=') {
+      const result = parseMoneyInput(raw);
+      updateCalculatorValue(result ? String(Math.round(result)) : '');
+      return;
+    }
+    if ((key === '+' || key === '-') && (!raw || /[+\-]$/.test(raw))) return;
+    updateCalculatorValue(raw + key);
+  };
+
+  const applyCalculatorValue = () => {
+    if (!calculatorTarget) return;
+    const result = parseMoneyInput(calculatorTarget.value);
+    calculatorTarget.setter(formatMoneyInput(result ? String(Math.round(result)) : '0'));
+    setCalculatorTarget(null);
+  };
+
+  const renderCalculatorModal = () => {
+    const keys = ['7', '8', '9', 'back', '4', '5', '6', '+', '1', '2', '3', '-', '0', '000', 'clear', '='];
+    return (
+      <Modal visible={!!calculatorTarget} transparent animationType="fade" onRequestClose={() => setCalculatorTarget(null)}>
+        <View style={styles.calcOverlay}>
+          <View style={styles.calcPanel}>
+            <View style={styles.calcHeader}>
+              <Text style={styles.calcTitle}>{calculatorTarget?.label || 'Máy tính'}</Text>
+              <TouchableOpacity onPress={() => setCalculatorTarget(null)} style={styles.calcCloseBtn}>
+                <Ionicons name="close" size={20} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.calcDisplay}>
+              <Text style={styles.calcDisplayText} numberOfLines={1}>{calculatorTarget?.value || '0'}</Text>
+            </View>
+            <View style={styles.calcGrid}>
+              {keys.map((key) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.calcKey, (key === '+' || key === '-' || key === '=') && styles.calcKeyAccent]}
+                  onPress={() => appendCalculatorKey(key)}
+                >
+                  {key === 'back' ? (
+                    <Ionicons name="backspace-outline" size={20} color={COLORS.text} />
+                  ) : (
+                    <Text style={[styles.calcKeyText, (key === '+' || key === '-' || key === '=') && styles.calcKeyAccentText]}>
+                      {key === 'clear' ? 'C' : key}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.calcApplyBtn} onPress={applyCalculatorValue}>
+              <Text style={styles.calcApplyText}>Áp dụng vào ô nhập</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   const renderMoneyInput = (label, value, setter, isHighlight = false, placeholder = '0') => (
-    <View style={{marginBottom: 10}}>
+    <View style={styles.moneyInputBlock}>
       <Text style={[styles.label, isHighlight && {color: '#f44336'}]}>{label}</Text>
+      <View style={styles.moneyInputRow}>
+        <TextInput
+          style={[styles.input, styles.moneyInput, isHighlight && {borderColor: '#f44336', borderWidth: 2}]}
+          keyboardType="numeric"
+          placeholder={placeholder}
+          value={value}
+          onChangeText={(v) => setter(formatMoneyInput(v))}
+        />
+        <TouchableOpacity
+          style={[styles.moneyCalcBtn, isHighlight && {borderColor: '#f44336'}]}
+          onPress={() => openCalculator(label, value, setter)}
+        >
+          <Ionicons name="calculator-outline" size={21} color={isHighlight ? '#f44336' : COLORS.primary} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderCountInput = (label, value, setter) => (
+    <View style={styles.moneyInputBlock}>
+      <Text style={styles.label}>{label}</Text>
       <TextInput
-        style={[styles.input, isHighlight && {borderColor: '#f44336', borderWidth: 2}]}
-        keyboardType="numeric"
-        placeholder={placeholder}
+        style={styles.input}
+        keyboardType="number-pad"
+        placeholder="0"
         value={value}
-        onChangeText={(v) => setter(formatMoneyInput(v))}
+        onChangeText={(nextValue) => setter(formatCountInput(nextValue))}
       />
     </View>
   );
+
+  const renderCupReconciliation = (report, compact = false) => {
+    if (isStaff) return null;
+    const hasOchaMetrics = report.ocha_cup_count !== null && report.ocha_cup_count !== undefined;
+    const shopCups = report.shop_cup_count;
+    const stickers = report.sticker_count;
+    const accounted = report.ocha_accounted_cup_count;
+    const cupDiff = report.cup_vs_ocha_diff;
+    const stickerDiff = report.sticker_vs_ocha_diff;
+    const diffColor = (value) => Number(value || 0) === 0 ? '#16a34a' : '#dc2626';
+    const metric = (label, value, color = COLORS.text) => (
+      <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5}}>
+        <Text style={{color: COLORS.text}}>{label}</Text>
+        <Text style={{fontWeight: '900', color}}>{value === null || value === undefined ? 'Chưa có' : Number(value).toLocaleString('vi-VN')}</Text>
+      </View>
+    );
+
+    return (
+      <View style={{backgroundColor: isDarkMode ? '#172554' : '#eff6ff', borderWidth: 1, borderColor: isDarkMode ? '#1d4ed8' : '#bfdbfe', borderRadius: 10, padding: 10, marginTop: 10}}>
+        <Text style={{fontWeight: '900', color: isDarkMode ? '#93c5fd' : '#1d4ed8', marginBottom: 8}}>ĐỐI CHIẾU LY · TEM · ĐƠN HỦY</Text>
+        {metric('Ly bán trên Ocha', report.ocha_cup_count)}
+        {metric('Đơn hủy trên Ocha', report.ocha_cancelled_order_count, Number(report.ocha_cancelled_order_count || 0) > 0 ? '#dc2626' : '#16a34a')}
+        {!compact && metric('Ly nằm trong đơn hủy', report.ocha_cancelled_cup_count, Number(report.ocha_cancelled_cup_count || 0) > 0 ? '#dc2626' : COLORS.text)}
+        {metric('Tổng ly cần giải trình', accounted)}
+        {metric('Số ly thực tế tại quán', shopCups)}
+        {metric('Số tem đã sử dụng', stickers)}
+        {hasOchaMetrics && (
+          <>
+            {metric('Lệch ly quán so với Ocha', cupDiff, diffColor(cupDiff))}
+            {metric('Lệch tem so với Ocha', stickerDiff, diffColor(stickerDiff))}
+          </>
+        )}
+        {!hasOchaMetrics && <Text style={{color: '#dc2626', fontWeight: '800', marginTop: 4}}>Ocha chưa đồng bộ số ly; không tự coi dữ liệu thiếu là 0.</Text>}
+        {report.ocha_metrics_basis === 'DAILY_CUMULATIVE' && <Text style={{color: '#d97706', fontWeight: '700', marginTop: 4}}>Chưa có mốc ca sáng để tách số liệu ca chiều; đang hiển thị lũy kế ngày.</Text>}
+      </View>
+    );
+  };
 
   const renderHistoryFilter = () => (
     <View style={styles.historyFilterCard}>
@@ -973,7 +1162,7 @@ export default function ShiftScreen({ navigation }) {
             <Text style={styles.hText}>Mở ca lúc: {openTimeStr} ({item.opened_by_name})</Text>
             <Text style={styles.hText}>Chốt ca lúc: {closeTimeStr} ({item.closed_by_name})</Text>
             <Text style={styles.hText}>Ngày nộp: {formatDateKey(submittedDateStr)}</Text>
-            <View style={{backgroundColor: '#f5f5f5', padding: 10, borderRadius: 8, marginTop: 10}}>
+              <View style={{backgroundColor: '#f5f5f5', padding: 10, borderRadius: 8, marginTop: 10}}>
               <Text style={{fontWeight: 'bold'}}>TỔNG DOANH THU: {(item.rev_cash + item.rev_momo + item.rev_grab + item.rev_shopee - item.discount).toLocaleString()}đ</Text>
               <Text style={styles.hText}>- Tiền mặt: {item.rev_cash.toLocaleString()}đ</Text>
               <Text style={styles.hText}>- Momo/Grab/Shopee: {(item.rev_momo+item.rev_grab+item.rev_shopee).toLocaleString()}đ</Text>
@@ -987,6 +1176,7 @@ export default function ShiftScreen({ navigation }) {
                   {item.discrepancy > 0 ? '+' : ''}{item.discrepancy.toLocaleString()}đ
                 </Text>
               </View>
+              {renderCupReconciliation(item, true)}
               {activeTab === 'PENDING' && (
                 <Text style={{textAlign: 'center', color: '#f59e0b', fontWeight: 'bold', marginTop: 15, fontSize: 14}}>Trạng thái: Đang chờ duyệt</Text>
               )}
@@ -1069,6 +1259,8 @@ export default function ShiftScreen({ navigation }) {
                 </View>
               </View>
 
+              {renderCupReconciliation(item)}
+
               {hasReportImages ? (
                 <>
                   <Text style={[styles.sectionTitle, {fontSize: 14, marginTop: 10}]}>HÌNH ẢNH BÁO CÁO ({detailReportImageUrls.length || parseReportImages(item.report_image).length})</Text>
@@ -1125,7 +1317,7 @@ export default function ShiftScreen({ navigation }) {
 
             </ScrollView>
 
-            {item.status === 'PENDING_APPROVAL' && (isOwner || currentUser?.permissions?.is_primary_manager) && (
+            {item.status === 'PENDING_APPROVAL' && hasPermission(currentUser, 'is_primary_manager') && (
               <>
                 <TouchableOpacity style={{backgroundColor: canApproveWithImage ? '#4caf50' : '#9ca3af', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
                   if (!canApproveWithImage) {
@@ -1152,7 +1344,7 @@ export default function ShiftScreen({ navigation }) {
               </TouchableOpacity>
             )}
 
-            {item.status === 'CLOSED' && (isOwner || currentUser?.permissions?.is_primary_manager) && (
+            {item.status === 'CLOSED' && hasPermission(currentUser, 'is_primary_manager') && (
               <TouchableOpacity style={{backgroundColor: '#ef4444', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10}} onPress={() => {
                 handleUndoApproveShiftReport(item);
               }}>
@@ -1170,37 +1362,41 @@ export default function ShiftScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
-          <Text style={styles.header}>Báo Cáo Mẫu 16</Text>
-        </View>
+    <ScreenShell style={styles.container}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1, position: 'relative'}}>
+        <View style={[styles.stickyTopBar, isIosStandalonePwa && styles.stickyTopBarPwa]}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Quay lai">
+              <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+            <Text style={styles.header}>Báo Cáo Giao Ca</Text>
+          </View>
 
-        <View style={styles.tabContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'INVENTORY' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('INVENTORY')}>
-              <Text style={[styles.tabText, activeTab === 'INVENTORY' && styles.tabTextActive]}>Kiểm Kho</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'CASH' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('CASH')}>
-              <Text style={[styles.tabText, activeTab === 'CASH' && styles.tabTextActive]}>Két & Doanh Thu</Text>
-            </TouchableOpacity>
-          {(!isStaff) && (
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'PENDING' && styles.tabBtnActive]} onPress={() => setActiveTab('PENDING')}>
-              <Text style={[styles.tabText, activeTab === 'PENDING' && styles.tabTextActive]}>Chờ Duyệt</Text>
-            </TouchableOpacity>
-          )}
-          {(!isStaff) && (
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'HISTORY' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('HISTORY')}>
-              <Text style={[styles.tabText, activeTab === 'HISTORY' && styles.tabTextActive]}>Lịch Sử</Text>
-            </TouchableOpacity>
-          )}
-          </ScrollView>
+          <View style={styles.tabContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <TouchableOpacity style={[styles.tabBtn, activeTab === 'INVENTORY' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('INVENTORY')}>
+                <Text style={[styles.tabText, activeTab === 'INVENTORY' && styles.tabTextActive]}>Kiểm Kho</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.tabBtn, activeTab === 'CASH' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('CASH')}>
+                <Text style={[styles.tabText, activeTab === 'CASH' && styles.tabTextActive]}>Két & Doanh Thu</Text>
+              </TouchableOpacity>
+            {(!isStaff) && (
+              <TouchableOpacity style={[styles.tabBtn, activeTab === 'PENDING' && styles.tabBtnActive]} onPress={() => setActiveTab('PENDING')}>
+                <Text style={[styles.tabText, activeTab === 'PENDING' && styles.tabTextActive]}>Chờ Duyệt</Text>
+              </TouchableOpacity>
+            )}
+            {(!isStaff) && (
+              <TouchableOpacity style={[styles.tabBtn, activeTab === 'HISTORY' && styles.tabBtnActive, {paddingHorizontal: 15}]} onPress={() => setActiveTab('HISTORY')}>
+                <Text style={[styles.tabText, activeTab === 'HISTORY' && styles.tabTextActive]}>Lịch Sử</Text>
+              </TouchableOpacity>
+            )}
+            </ScrollView>
+            </View>
         </View>
 
         <ScrollView 
           showsVerticalScrollIndicator={false} 
-          contentContainerStyle={{ paddingBottom: 80 }} 
+          contentContainerStyle={{ paddingBottom: 112 }}
           style={{ flex: 1, paddingHorizontal: 6 }}
           refreshControl={<RefreshControl refreshing={isDataLoading || false} onRefresh={refreshData} />}
         >
@@ -1294,6 +1490,7 @@ export default function ShiftScreen({ navigation }) {
                     <Text style={styles.sectionTitle}>PHẦN 2: DOANH THU & KÉT TIỀN</Text>
                     <Text style={styles.infoText}>Tiền đầu giờ (1): {currentOpenShift.opening_cash.toLocaleString()}đ</Text>
 
+                    {canViewOchaRevenue && (
                     <View style={styles.ochaCard}>
                       <View style={styles.ochaHeader}>
                         <View>
@@ -1321,21 +1518,40 @@ export default function ShiftScreen({ navigation }) {
                               </Text>
                             </View>
                           </View>
-                          <View style={styles.ochaSuggestion}>
-                            <View style={{flex: 1}}>
-                              <Text style={styles.ochaMetricLabel}>Tiền mặt gợi ý theo Ocha</Text>
-                              <Text style={styles.ochaMetricValue}>{formatCurrency(suggestedCashFromOcha)}</Text>
-                              <Text style={styles.ochaMetricSub}>Ocha + giảm bill - Momo/Grab/Shopee</Text>
+                          <View style={{backgroundColor: isDarkMode ? '#172554' : '#eff6ff', borderRadius: 9, padding: 8, marginTop: 8}}>
+                            <Text style={[styles.ochaMetricLabel, {marginBottom: 5}]}>SỐ LY & ĐƠN HỦY OCHA</Text>
+                            <Text style={styles.ochaDrawerText}>Ly bán: {hasOchaCupCount ? ochaCupCount.toLocaleString('vi-VN') : 'Chưa đồng bộ'}</Text>
+                            <Text style={[styles.ochaDrawerText, Number(ochaCancelledOrders || 0) > 0 && styles.dangerText]}>Đơn hủy: {ochaCancelledOrders == null ? 'Chưa đồng bộ' : ochaCancelledOrders.toLocaleString('vi-VN')}</Text>
+                            <Text style={[styles.ochaDrawerText, Number(ochaCancelledCups || 0) > 0 && styles.dangerText]}>Ly trong đơn hủy: {ochaCancelledCups == null ? 'Chưa đồng bộ' : ochaCancelledCups.toLocaleString('vi-VN')}</Text>
+                            {!isStaff && ochaAccountedCups != null && manualShopCups != null && manualStickers != null && (
+                              <>
+                                <Text style={styles.ochaDrawerText}>Ly cần giải trình: {ochaAccountedCups.toLocaleString('vi-VN')}</Text>
+                                <Text style={[styles.ochaDrawerText, manualShopCups === ochaAccountedCups ? styles.okText : styles.dangerText]}>Lệch ly quán: {(manualShopCups - ochaAccountedCups).toLocaleString('vi-VN')}</Text>
+                                <Text style={[styles.ochaDrawerText, manualStickers === ochaAccountedCups ? styles.okText : styles.dangerText]}>Lệch tem: {(manualStickers - ochaAccountedCups).toLocaleString('vi-VN')}</Text>
+                              </>
+                            )}
+                          </View>
+                          {canUseOchaCashBalancer && (
+                            <>
+                              <View style={styles.ochaSuggestion}>
+                              <View style={{flex: 1}}>
+                                <Text style={styles.ochaMetricLabel}>Tiền mặt gợi ý theo Ocha</Text>
+                                <Text style={styles.ochaMetricValue}>{formatCurrency(suggestedCashFromOcha)}</Text>
+                                <Text style={styles.ochaMetricSub}>Ocha + giảm bill - Momo/Grab/Shopee</Text>
+                              </View>
+                              <TouchableOpacity style={styles.ochaSyncBtn} onPress={syncCashToOcha}>
+                                <Ionicons name="sync" size={16} color="#fff" style={{marginRight: 6}} />
+                                <Text style={styles.ochaSyncBtnText}>Cân tiền mặt</Text>
+                              </TouchableOpacity>
+                              </View>
+                            </>
+                          )}
+                          {canUseOchaCashBalancer && (
+                            <View style={styles.ochaDrawerLine}>
+                              <Text style={styles.ochaDrawerText}>Két lý thuyết: {formatCurrency(currentExpectedCash)}</Text>
+                              <Text style={[styles.ochaDrawerText, currentCashDiff === 0 ? styles.okText : styles.dangerText]}>Lệch két hiện tại: {formatCurrency(currentCashDiff)}</Text>
                             </View>
-                            <TouchableOpacity style={styles.ochaSyncBtn} onPress={syncCashToOcha}>
-                              <Ionicons name="sync" size={16} color="#fff" style={{marginRight: 6}} />
-                              <Text style={styles.ochaSyncBtnText}>Cân tiền mặt</Text>
-                            </TouchableOpacity>
-                          </View>
-                          <View style={styles.ochaDrawerLine}>
-                            <Text style={styles.ochaDrawerText}>Két lý thuyết: {formatCurrency(currentExpectedCash)}</Text>
-                            <Text style={[styles.ochaDrawerText, currentCashDiff === 0 ? styles.okText : styles.dangerText]}>Lệch két hiện tại: {formatCurrency(currentCashDiff)}</Text>
-                          </View>
+                          )}
                         </>
                       ) : (
                         <View style={styles.ochaWarning}>
@@ -1344,6 +1560,7 @@ export default function ShiftScreen({ navigation }) {
                         </View>
                       )}
                     </View>
+                    )}
 
                     {renderMoneyInput('Doanh thu Tiền Mặt (3):', revCash, setRevCash)}
                     {renderMoneyInput('Tổng tiền giảm bill (4):', discount, setDiscount)}
@@ -1359,10 +1576,16 @@ export default function ShiftScreen({ navigation }) {
 
                     {renderMoneyInput('TIỀN TRONG KÉT THỰC ĐẾM (2):', actualCash, setActualCash, true, 'Đếm két...')}
 
+                    <View style={{backgroundColor: isDarkMode ? '#0f172a' : '#f8fafc', borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 10, marginBottom: 10}}>
+                      <Text style={[styles.sectionTitle, {fontSize: 14}]}>SỐ LY & TEM</Text>
+                      {renderCountInput('Số ly:', shopCupCount, setShopCupCount)}
+                      {renderCountInput('Số tem:', stickerCount, setStickerCount)}
+                    </View>
+
                     <View style={styles.previewBox}>
                       <Text style={styles.previewTitle}>Xem Trước Báo Cáo:</Text>
                       <Text style={styles.previewText}>Doanh thu tổng: {formatCurrency(manualTotalRevenue)}</Text>
-                      {ochaAmount > 0 && <Text style={[styles.previewText, revenueDiffVsOcha === 0 ? styles.okText : styles.dangerText]}>Lệch so với Ocha: {formatCurrency(revenueDiffVsOcha)}</Text>}
+                      {canViewOchaRevenue && ochaAmount > 0 && <Text style={[styles.previewText, revenueDiffVsOcha === 0 ? styles.okText : styles.dangerText]}>Lệch so với Ocha: {formatCurrency(revenueDiffVsOcha)}</Text>}
                       <Text style={styles.previewText}>Két lý thuyết: {formatCurrency(currentExpectedCash)}</Text>
                       <Text style={[styles.previewText, currentCashDiff === 0 ? styles.okText : styles.dangerText]}>Lệch két: {formatCurrency(currentCashDiff)}</Text>
                     </View>
@@ -1400,15 +1623,6 @@ export default function ShiftScreen({ navigation }) {
                   </View>
                   )}
 
-                  {/* PHẦN 3: CHẤM CÔNG */}
-                  {activeTab === 'CASH' && (
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>PHẦN 3: CHẤM CÔNG CA</Text>
-                    {todayAttendance.length > 0 ? todayAttendance.map(a => (
-                      <Text key={a.id} style={styles.attendanceText}>• Nhân viên {a.user_id}: Vào {a.checkIn} - Ra {a.checkOut || 'Chưa ra'}</Text>
-                    )) : <Text style={styles.emptyText}>Chưa có dữ liệu chấm công hôm nay.</Text>}
-                  </View>
-                  )}
                 </View>
               )}
             </View>
@@ -1439,6 +1653,7 @@ export default function ShiftScreen({ navigation }) {
           </View>
         )}
       </KeyboardAvoidingView>
+      {renderCalculatorModal()}
       {renderDetailModal()}
       <DateRangePickerModal
         visible={showHistoryDateModal}
@@ -1450,31 +1665,52 @@ export default function ShiftScreen({ navigation }) {
         isDarkMode={isDarkMode}
         title="Chọn ngày xem lịch sử chốt ca"
       />
-    </SafeAreaView>
+    </ScreenShell>
   );
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg, paddingHorizontal: 6 },
-  mathBtn: { backgroundColor: COLORS.inputBg, paddingVertical: 10, paddingHorizontal: 15, marginLeft: 8, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
-  mathBtnText: { fontSize: 20, fontWeight: 'bold', color: COLORS.text },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 15 },
-  backBtn: { padding: 5, marginRight: 10 },
+  stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border, zIndex: 50, flexShrink: 0 },
+  stickyTopBarPwa: { position: 'sticky', top: 0, paddingTop: 52, alignSelf: 'stretch', zIndex: 200, elevation: 20, shadowColor: '#0f172a', shadowOpacity: isDarkMode ? 0.28 : 0.09, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8 },
+  mathBtn: { backgroundColor: COLORS.inputBg, paddingVertical: 6, paddingHorizontal: 10, marginLeft: 7, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  mathBtnText: { fontSize: 17, fontWeight: 'bold', color: COLORS.text },
+  topNavRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 10 },
+  backBtn: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, marginRight: 10 },
   header: { fontSize: 24, fontWeight: 'bold', color: COLORS.text },
-  tabContainer: { flexDirection: 'row', backgroundColor: COLORS.inputBg, borderRadius: 8, padding: 4, marginBottom: 20, borderWidth: 1, borderColor: COLORS.border },
-  tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 6 },
+  tabContainer: { flexDirection: 'row', backgroundColor: COLORS.inputBg, borderRadius: 8, padding: 4, marginBottom: 0, borderWidth: 1, borderColor: COLORS.border },
+  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
   tabBtnActive: { backgroundColor: COLORS.card, elevation: 2 },
-  tabText: { fontWeight: 'bold', color: COLORS.textMuted },
+  tabText: { fontWeight: 'bold', color: COLORS.textMuted, fontSize: 13 },
   tabTextActive: { color: COLORS.primary },
-  section: { backgroundColor: COLORS.card, padding: 10, borderRadius: 12, marginBottom: 12, elevation: 3, borderWidth: 1, borderColor: COLORS.border },
-  sectionTitle: { fontSize: 16, fontWeight: '900', marginBottom: 15, color: COLORS.primary },
-  label: { fontSize: 13, fontWeight: 'bold', color: COLORS.text, marginBottom: 5, marginTop: 10 },
-  input: { borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: COLORS.inputBg, color: COLORS.text, marginBottom: 5 },
-  smallInput: { borderWidth: 1, borderColor: COLORS.inputBorder, backgroundColor: COLORS.inputBg, color: COLORS.text, borderRadius: 4, padding: 5, fontSize: 13, textAlign: 'center' },
-  openBtn: { backgroundColor: '#4caf50', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
-  fixedBottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 15, paddingHorizontal: 20, backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border, elevation: 10, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.25 : 0.1, shadowRadius: 5 },
-  closeBtnFixed: { backgroundColor: '#f44336', padding: 15, borderRadius: 8, alignItems: 'center' },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  section: { backgroundColor: COLORS.card, padding: 8, borderRadius: 10, marginBottom: 8, elevation: 2, borderWidth: 1, borderColor: COLORS.border },
+  sectionTitle: { fontSize: 15, fontWeight: '900', marginBottom: 7, color: COLORS.primary },
+  label: { fontSize: 12, fontWeight: 'bold', color: COLORS.text, marginBottom: 2, marginTop: 4 },
+  input: { borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6, minHeight: 38, fontSize: 13, backgroundColor: COLORS.inputBg, color: COLORS.text, marginBottom: 0 },
+  moneyInputBlock: { marginBottom: 4 },
+  moneyInputRow: { flexDirection: 'row', alignItems: 'center' },
+  moneyInput: { flex: 1 },
+  moneyCalcBtn: { width: 40, minHeight: 38, marginLeft: 7, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.inputBorder },
+  calcOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.35)' },
+  calcPanel: { backgroundColor: COLORS.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 14, borderWidth: 1, borderColor: COLORS.border },
+  calcHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  calcTitle: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: '900', paddingRight: 10 },
+  calcCloseBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.inputBg },
+  calcDisplay: { minHeight: 48, borderRadius: 12, backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.inputBorder, justifyContent: 'center', alignItems: 'flex-end', paddingHorizontal: 12, marginBottom: 10 },
+  calcDisplayText: { color: COLORS.text, fontSize: 24, fontWeight: '900' },
+  calcGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  calcKey: { width: '23%', minHeight: 46, marginBottom: 8, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1, borderColor: COLORS.border },
+  calcKeyAccent: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  calcKeyText: { color: COLORS.text, fontSize: 18, fontWeight: '900' },
+  calcKeyAccentText: { color: '#fff' },
+  calcApplyBtn: { minHeight: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10, backgroundColor: COLORS.accent },
+  calcApplyText: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  smallInput: { borderWidth: 1, borderColor: COLORS.inputBorder, backgroundColor: COLORS.inputBg, color: COLORS.text, borderRadius: 4, padding: 4, fontSize: 12, textAlign: 'center' },
+  openBtn: { backgroundColor: '#4caf50', padding: 13, borderRadius: 8, alignItems: 'center', marginTop: 8 },
+  fixedBottomBar: { position: Platform.OS === 'web' ? 'fixed' : 'absolute', bottom: 0, left: 0, right: 0, paddingTop: 12, paddingHorizontal: 20, paddingBottom: Platform.OS === 'web' ? 'max(24px, env(safe-area-inset-bottom, 0px))' : 15, backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border, elevation: 10, shadowColor: '#000', shadowOpacity: isDarkMode ? 0.25 : 0.1, shadowRadius: 5, zIndex: 100 },
+  closeBtnFixed: { backgroundColor: '#f44336', padding: 13, borderRadius: 8, alignItems: 'center' },
+  btnText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   historyFilterCard: { backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, padding: 12, borderRadius: 12, marginBottom: 14 },
   historyFilterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
   historyFilterTitle: { color: COLORS.text, fontWeight: '900', fontSize: 14 },
@@ -1489,33 +1725,33 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   emptyHistoryBox: { alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, marginBottom: 15 },
   emptyHistoryText: { color: COLORS.textMuted, marginTop: 10, fontWeight: '700', textAlign: 'center' },
   historyCard: { backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, padding: 15, borderRadius: 10, marginBottom: 15 },
-  hText: { color: COLORS.textMuted, marginBottom: 3, fontSize: 13 },
-  infoText: { fontSize: 14, fontWeight: 'bold', marginBottom: 10, color: COLORS.text },
-  ochaCard: { backgroundColor: isDarkMode ? '#0f172a' : '#f8fafc', borderWidth: 1, borderColor: isDarkMode ? '#334155' : '#e2e8f0', padding: 12, borderRadius: 12, marginBottom: 14 },
-  ochaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  ochaTitle: { color: COLORS.text, fontWeight: '900', fontSize: 15 },
-  ochaMeta: { color: COLORS.textMuted, marginTop: 3, fontSize: 12 },
+  hText: { color: COLORS.textMuted, marginBottom: 2, fontSize: 12 },
+  infoText: { fontSize: 13, fontWeight: 'bold', marginBottom: 7, color: COLORS.text },
+  ochaCard: { backgroundColor: isDarkMode ? '#0f172a' : '#f8fafc', borderWidth: 1, borderColor: isDarkMode ? '#334155' : '#e2e8f0', padding: 9, borderRadius: 10, marginBottom: 9 },
+  ochaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
+  ochaTitle: { color: COLORS.text, fontWeight: '900', fontSize: 14 },
+  ochaMeta: { color: COLORS.textMuted, marginTop: 2, fontSize: 11 },
   ochaHint: { color: COLORS.textMuted, fontStyle: 'italic' },
-  ochaGrid: { flexDirection: 'row', gap: 10 },
-  ochaMetric: { flex: 1, backgroundColor: isDarkMode ? '#111827' : '#fff', borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 10 },
-  ochaMetricLabel: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700' },
-  ochaMetricValue: { color: COLORS.text, fontSize: 18, fontWeight: '900', marginTop: 3 },
-  ochaMetricSub: { color: COLORS.textMuted, fontSize: 11, marginTop: 3 },
-  ochaSuggestion: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: isDarkMode ? '#052e16' : '#ecfdf5', borderWidth: 1, borderColor: isDarkMode ? '#166534' : '#bbf7d0', borderRadius: 10, padding: 10, marginTop: 10 },
-  ochaSyncBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#16a34a', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 9 },
-  ochaSyncBtnText: { color: '#fff', fontWeight: '900', fontSize: 12 },
-  ochaDrawerLine: { borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 10, paddingTop: 10, gap: 4 },
-  ochaDrawerText: { color: COLORS.text, fontWeight: '700' },
+  ochaGrid: { flexDirection: 'row', gap: 8 },
+  ochaMetric: { flex: 1, backgroundColor: isDarkMode ? '#111827' : '#fff', borderWidth: 1, borderColor: COLORS.border, borderRadius: 9, padding: 8 },
+  ochaMetricLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700' },
+  ochaMetricValue: { color: COLORS.text, fontSize: 16, fontWeight: '900', marginTop: 2 },
+  ochaMetricSub: { color: COLORS.textMuted, fontSize: 10, marginTop: 2 },
+  ochaSuggestion: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: isDarkMode ? '#052e16' : '#ecfdf5', borderWidth: 1, borderColor: isDarkMode ? '#166534' : '#bbf7d0', borderRadius: 9, padding: 8, marginTop: 8 },
+  ochaSyncBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#16a34a', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8 },
+  ochaSyncBtnText: { color: '#fff', fontWeight: '900', fontSize: 11 },
+  ochaDrawerLine: { borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 8, paddingTop: 8, gap: 3 },
+  ochaDrawerText: { color: COLORS.text, fontWeight: '700', fontSize: 12 },
   ochaWarning: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: isDarkMode ? '#451a03' : '#fffbeb', borderWidth: 1, borderColor: isDarkMode ? '#92400e' : '#fde68a', borderRadius: 10, padding: 10 },
   ochaWarningText: { flex: 1, color: isDarkMode ? '#fde68a' : '#92400e', fontWeight: '700', lineHeight: 18 },
   okText: { color: '#16a34a' },
   dangerText: { color: '#dc2626' },
   openShiftBanner: { backgroundColor: isDarkMode ? '#0f2a1d' : '#e8f5e9', borderColor: isDarkMode ? '#166534' : '#bbf7d0' },
   openShiftTitle: { color: isDarkMode ? '#86efac' : '#2e7d32', fontWeight: 'bold' },
-  openShiftMeta: { color: COLORS.textMuted, marginTop: 4 },
-  previewBox: { backgroundColor: isDarkMode ? '#3b2a11' : '#fff3e0', padding: 10, borderRadius: 8, marginTop: 15 },
-  previewTitle: { fontWeight: 'bold', marginBottom: 5, color: COLORS.text },
-  previewText: { color: COLORS.text, marginTop: 2 },
+  openShiftMeta: { color: COLORS.textMuted, marginTop: 3, fontSize: 12 },
+  previewBox: { backgroundColor: isDarkMode ? '#3b2a11' : '#fff3e0', padding: 8, borderRadius: 8, marginTop: 10 },
+  previewTitle: { fontWeight: 'bold', marginBottom: 4, color: COLORS.text, fontSize: 13 },
+  previewText: { color: COLORS.text, marginTop: 1, fontSize: 12 },
   mediaBtn: { flex: 1, backgroundColor: isDarkMode ? '#1e1b4b' : '#e0e7ff', padding: 12, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: isDarkMode ? '#3730a3' : '#c7d2fe' },
   mediaBtnText: { color: isDarkMode ? '#c7d2fe' : '#4f46e5', fontWeight: 'bold' },
   selectedImagesGrid: { gap: 12, marginTop: 10, marginBottom: 10 },
@@ -1524,11 +1760,10 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   selectedImageLabel: { position: 'absolute', left: 8, bottom: 8, backgroundColor: 'rgba(0,0,0,0.55)', color: '#fff', fontWeight: '900', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, overflow: 'hidden' },
   removeImageBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', padding: 8, borderRadius: 20 },
   imageHelperText: { color: COLORS.textMuted, fontSize: 12, marginTop: 8, fontStyle: 'italic' },
-  attendanceText: { marginBottom: 5, color: COLORS.text },
   emptyText: { color: COLORS.textMuted },
-  tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingBottom: 5, marginBottom: 5 },
-  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  cell: { fontSize: 13, color: COLORS.text },
+  tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingBottom: 4, marginBottom: 4 },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  cell: { fontSize: 12, color: COLORS.text },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   detailBox: { backgroundColor: isDarkMode ? '#f8fafc' : '#f9fafb', padding: 10, borderRadius: 8, marginBottom: 15 },
   reportImageLoading: { height: 160, borderRadius: 8, marginBottom: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? '#e2e8f0' : '#f1f5f9' },
@@ -1545,3 +1780,4 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   openImageInlineText: { color: COLORS.primary, fontWeight: '900' },
   modalContainer: { width: '100%', maxHeight: '80%', backgroundColor: isDarkMode ? '#f8fafc' : COLORS.card, borderRadius: 12, padding: 20, elevation: 5, borderWidth: 1, borderColor: COLORS.border }
 });
+

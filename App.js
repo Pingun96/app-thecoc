@@ -1,25 +1,26 @@
 import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
-import React, { useState, useEffect, useCallback, useContext } from 'react';
-import { Platform, View, Text, StyleSheet, TouchableOpacity, Pressable, useColorScheme, AppState, Animated } from 'react-native';
+import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
+import { Alert, Platform, View, Text, TouchableOpacity, StyleSheet, useColorScheme, AppState } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
 import FinanceScreen from './src/screens/FinanceScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import StaffHistoryScreen from './src/screens/StaffHistoryScreen';
 import StaffManagementScreen from './src/screens/StaffManagementScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
+import CentralWarehouseScreen from './src/screens/CentralWarehouseScreen';
 import StaffCheckinScreen from './src/screens/StaffCheckinScreen';
 import ShiftScheduleScreen from './src/screens/ShiftScheduleScreen';
 import PayrollScreen from './src/screens/PayrollScreen';
 import NotificationScreen from './src/screens/NotificationScreen';
 import AttendanceReviewScreen from './src/screens/AttendanceReviewScreen';
+import AttendanceCorrectionScreen from './src/screens/AttendanceCorrectionScreen';
 import PwaInstallBanner from './src/components/PwaInstallBanner';
 import WebNotificationBanner from './src/components/WebNotificationBanner';
-import { supabase } from './src/services/supabaseClient';
+import { supabase, clearAuthSession, setAuthFailureHandler } from './src/services/supabaseClient';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   getLastNotificationData,
@@ -40,219 +41,79 @@ import { AppContext } from './src/context/AppContext';
 import { getLocalDateKey } from './src/utils/dateTime';
 import { setupPwaExperience } from './src/services/pwaService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Floating Check-in Button Component
-const CustomTabBarButton = ({
-  children,
-  onPress,
-  style,
-  buttonColor = '#10B981',
-  shadowColor = '#10B981',
-  tabBarColor = '#fff',
-  label = '',
-}) => {
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.88,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 6,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 20,
-      bounciness: 10,
-    }).start();
-  };
-
-  return (
-    <View style={[style, { alignItems: 'center' }]}>
-      {/* Notch background behind the button */}
-      <View style={[styles.floatingButtonNotch, { backgroundColor: tabBarColor }]} />
-
-      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-        <Pressable
-          onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          style={[styles.floatingButtonContainer, {
-            shadowColor,
-            shadowOpacity: 0.55,
-            shadowOffset: { width: 0, height: 8 },
-            shadowRadius: 16,
-            elevation: 12,
-          }]}
-          android_ripple={{ color: 'rgba(255,255,255,0.3)', borderless: true, radius: 38 }}
-        >
-          {/* Outer glow ring */}
-          <View style={[styles.floatingButtonRing, {
-            borderColor: buttonColor,
-            opacity: 0.25,
-          }]} />
-          {/* Main circle */}
-          <View style={[styles.floatingButton, { backgroundColor: buttonColor }]}>
-            {/* Shine highlight */}
-            <View style={styles.floatingButtonShine} />
-            {/* Inner glow */}
-            <View style={[styles.floatingButtonInnerGlow, { backgroundColor: 'rgba(255,255,255,0.15)' }]} />
-            <View style={styles.floatingButtonIcon}>
-              {children}
-            </View>
-          </View>
-        </Pressable>
-      </Animated.View>
-
-      {/* Label below the button - absolute positioned to avoid offset */}
-      {label ? (
-        <Text style={[styles.floatingButtonLabel, {
-          color: buttonColor,
-          position: 'absolute',
-          bottom: -2,
-          left: -30,
-          right: -30,
-          textAlign: 'center',
-        }]}>{label}</Text>
-      ) : null}
-    </View>
-  );
-};
-
+import { canAccessRoute } from './src/utils/permissions';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 const navigationRef = createNavigationContainerRef();
 
-const navigateFromNotificationData = (data = {}) => {
+const navigateFromNotificationData = (data = {}, currentUser = null) => {
   if (!navigationRef.isReady()) return;
 
   const route = data?.route;
   if (route === 'Inventory') {
+    if (!canAccessRoute(currentUser, 'Inventory')) return;
     navigationRef.navigate('Inventory');
     return;
   }
   if (route === 'Payroll') {
+    if (!canAccessRoute(currentUser, 'Payroll')) return;
     navigationRef.navigate('Payroll');
     return;
   }
   if (route === 'Shifts') {
+    if (!canAccessRoute(currentUser, 'Shifts')) return;
     navigationRef.navigate('Shifts');
     return;
   }
   if (route === 'ScheduleTab') {
+    if (!currentUser) return;
     navigationRef.navigate('Dashboard', { screen: 'ScheduleTab' });
     return;
   }
 
-  navigationRef.navigate('Notifications');
+  if (currentUser) navigationRef.navigate('Notifications');
 };
 
+function ProtectedScreen({ component: Component, routeName, navigation, ...props }) {
+  const { currentUser, COLORS } = useContext(AppContext);
+
+  useEffect(() => {
+    if (!currentUser) navigation.replace('Login');
+  }, [currentUser, navigation]);
+
+  if (!currentUser) return null;
+  if (!canAccessRoute(currentUser, routeName)) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: COLORS.bg }}>
+        <Text style={{ fontSize: 42 }}>🔒</Text>
+        <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: '800', marginTop: 12, textAlign: 'center' }}>Bạn chưa được cấp quyền truy cập</Text>
+        <Text style={{ color: COLORS.textMuted, marginTop: 8, textAlign: 'center' }}>Quyền của tài khoản vừa được kiểm tra lại. Hãy liên hệ Chủ quán nếu bạn cần sử dụng chức năng này.</Text>
+        <TouchableOpacity onPress={() => navigation.replace('Dashboard')} style={{ marginTop: 18, backgroundColor: COLORS.primary, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 10 }}>
+          <Text style={{ color: '#fff', fontWeight: '800' }}>Về trang chủ</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  return <Component navigation={navigation} {...props} />;
+}
+
 function MainTabs() {
-  const {
-    COLORS,
-    isDarkMode,
-    currentUser,
-    attendanceHistory = [],
-  } = useContext(AppContext);
-
-  // Inject CSS để đảm bảo tab bar luôn đúng trên mọi thiết bị iOS PWA
-  React.useEffect(() => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const styleId = 'thecoc-tabbar-safe-area';
-      if (!document.getElementById(styleId)) {
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-          /* Tab bar safe area fix for iOS PWA */
-          [data-testid="tab-bar"], .css-view-175oi2r[style*="position: fixed"][style*="bottom: 0"] {
-            padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-            height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
-          }
-        `;
-        document.head.appendChild(style);
-      }
-    }
-  }, []);
-
-  const today = getLocalDateKey();
-  const hasOpenAttendance = Boolean(
-    currentUser?.id && attendanceHistory.some((record) => {
-      const recordUserId = record.user_id ?? record.userId ?? record.staff_id;
-      const isCurrentUser = String(recordUserId) === String(currentUser.id);
-      const isToday = record.date === today;
-      const hasCheckedOut = Boolean(record.checkOut || record.check_out || record.check_out_at);
-      return isCurrentUser && isToday && !hasCheckedOut;
-    })
-  );
-
-  const checkActionLabel = hasOpenAttendance ? 'Check-out' : 'Check-in';
-  const checkActionIcon = hasOpenAttendance ? 'log-out-outline' : 'log-in-outline';
-  const checkActionColor = hasOpenAttendance ? COLORS.danger : COLORS.accent;
-
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-          if (route.name === 'HomeTab') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'ScheduleTab') {
-            iconName = focused ? 'calendar' : 'calendar-outline';
-          }
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: isDarkMode ? COLORS.primary : '#e91e63',
-        tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: [
-          styles.tabBar,
-          {
-            backgroundColor: COLORS.card,
-            borderTopColor: COLORS.border,
-            shadowOpacity: isDarkMode ? 0.35 : 0.12,
-            // Dùng CSS env() trực tiếp - React Native Web pass thẳng vào browser CSS
-            height: Platform.OS === 'web' ? 'calc(56px + env(safe-area-inset-bottom, 0px))' : Platform.OS === 'ios' ? 84 : 62,
-            paddingBottom: Platform.OS === 'web' ? 'env(safe-area-inset-bottom, 0px)' : Platform.OS === 'ios' ? 22 : 7,
-          },
-        ],
-        tabBarLabelStyle: styles.tabBarLabel,
-      })}
+        // Navigation is provided by the feature buttons on the Dashboard.
+        // Removing the native tab bar eliminates iPhone PWA safe-area overlays.
+        tabBarStyle: { display: 'none' },
+      }}
     >
       <Tab.Screen name="HomeTab" component={DashboardScreen} options={{ title: 'Trang Chủ' }} />
-
-      {/* Nút Chấm Công Nổi */}
-      <Tab.Screen
-        name="StaffCheckin"
-        component={StaffCheckinScreen}
-        options={{
-          title: checkActionLabel,
-          tabBarLabel: () => null,
-          tabBarAccessibilityLabel: checkActionLabel,
-          tabBarIcon: () => (
-            <Ionicons name={checkActionIcon} size={32} color="#fff" />
-          ),
-          tabBarButton: (props) => (
-            <CustomTabBarButton
-              {...props}
-              buttonColor={checkActionColor}
-              shadowColor={checkActionColor}
-              tabBarColor={COLORS.card}
-              label={checkActionLabel}
-            />
-          )
-        }}
-      />
-
-      <Tab.Screen name="ScheduleTab" component={ShiftScheduleScreen} options={{ title: 'Lịch Làm' }} />
+      <Tab.Screen name="StaffCheckin" component={StaffCheckinScreen} options={{ title: 'Chấm công' }} />
+      <Tab.Screen name="ScheduleTab" component={ShiftScheduleScreen} options={{ title: 'Lịch làm' }} />
     </Tab.Navigator>
   );
 }
-
 const THEMES = {
   light: {
     bg: '#F8FAFC',
@@ -289,18 +150,6 @@ export default function App() {
 
   useEffect(() => {
     setupPwaExperience();
-    
-    // Fix iOS PWA Push Notification Layout Shift Bug
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
-          setTimeout(() => window.scrollTo(0, 0), 100);
-          setTimeout(() => window.scrollTo(0, 0), 500);
-        }
-      };
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }
   }, []);
 
   const [themeMode, setThemeMode] = useState('light');
@@ -311,6 +160,7 @@ export default function App() {
   const [selectedStoreId, setSelectedStoreId] = useState(1);
   const [staffList, setStaffList] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  const [navigationEpoch, setNavigationEpoch] = useState(0);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [inventoryLogs, setInventoryLogs] = useState([]);
   const [inventoryTickets, setInventoryTickets] = useState([]);
@@ -322,6 +172,8 @@ export default function App() {
   const [payrollApprovals, setPayrollApprovals] = useState([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [dataError, setDataError] = useState('');
+  // Background refresh must not make the login form look like it is loading again.
+  const hasLoadedDataRef = useRef(false);
 
   useEffect(() => {
     AsyncStorage.getItem('thecocThemeMode').then((savedMode) => {
@@ -345,8 +197,34 @@ export default function App() {
     changeThemeMode(isDarkMode ? 'light' : 'dark');
   }, [changeThemeMode, isDarkMode]);
 
+  const logout = useCallback(async () => {
+    try {
+      await AsyncStorage.removeItem('userPhone');
+      await clearAuthSession();
+    } finally {
+      setCurrentUser(null);
+      // Recreate the root navigator so nested tabs cannot retain a stale screen after logout.
+      setNavigationEpoch((current) => current + 1);
+    }
+  }, []);
+
+  useEffect(() => {
+    setAuthFailureHandler(() => {
+      setCurrentUser(null);
+      setNavigationEpoch((current) => current + 1);
+      Alert.alert('Phiên đăng nhập đã hết hạn', 'Vui lòng đăng nhập lại để tiếp tục.');
+    });
+    return () => setAuthFailureHandler(null);
+  }, []);
+
   const refreshData = useCallback(async () => {
-    setIsDataLoading(true);
+    if (!currentUser) {
+      hasLoadedDataRef.current = true;
+      setDataError('');
+      setIsDataLoading(false);
+      return;
+    }
+    if (!hasLoadedDataRef.current) setIsDataLoading(true);
     setDataError('');
 
     try {
@@ -385,8 +263,18 @@ export default function App() {
         return acc;
       }, {});
 
+      const normalizedUsers = (tableData.users || []).map(normalizeUser);
       setStoreList(tableData.stores || []);
-      setStaffList((tableData.users || []).map(normalizeUser));
+      setStaffList(normalizedUsers);
+      const freshCurrentUser = normalizedUsers.find((user) => String(user.id) === String(currentUser.id));
+      if (freshCurrentUser) {
+        setCurrentUser((previous) => {
+          if (!previous) return previous;
+          const oldAccessState = JSON.stringify([previous.role, previous.store_id, previous.permissions || {}, previous.hasAppAccess]);
+          const newAccessState = JSON.stringify([freshCurrentUser.role, freshCurrentUser.store_id, freshCurrentUser.permissions || {}, freshCurrentUser.hasAppAccess]);
+          return oldAccessState === newAccessState ? previous : { ...previous, ...freshCurrentUser };
+        });
+      }
       setInventoryItems((tableData.inventory_items || []).map(normalizeInventoryItem));
       setInventoryLogs((tableData.inventory_logs || []).map(normalizeInventoryLog));
       setInventoryTickets(tableData.inventory_tickets || []);
@@ -400,14 +288,16 @@ export default function App() {
       console.error('Lỗi khi tải dữ liệu từ Supabase:', error);
       setDataError(error?.message || 'Không thể tải dữ liệu. Vui lòng kiểm tra kết nối.');
     } finally {
+      hasLoadedDataRef.current = true;
       setIsDataLoading(false);
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     refreshData();
 
     // Subscribe to ALL real-time changes on the database
+    const refreshTimer = setInterval(refreshData, 30000);
     const channel = supabase.channel('global-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         refreshData();
@@ -415,6 +305,7 @@ export default function App() {
       .subscribe();
 
     return () => {
+      clearInterval(refreshTimer);
       supabase.removeChannel(channel);
     };
   }, [refreshData]);
@@ -438,7 +329,7 @@ export default function App() {
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
-    // iOS PWA: dùng visibilitychange vì AppState không fire trên web
+    // Web PWA: visibilitychange covers browser/app resume events.
     const handleVisibilityChange = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         const elapsed = Date.now() - lastActiveTime;
@@ -488,18 +379,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = observeNotificationResponses(navigateFromNotificationData);
+    const unsubscribe = observeNotificationResponses((data) => navigateFromNotificationData(data, currentUser));
 
     getLastNotificationData().then((data) => {
       if (data) {
-        setTimeout(() => navigateFromNotificationData(data), 600);
+        setTimeout(() => navigateFromNotificationData(data, currentUser), 600);
       }
     });
 
     // Nhận message từ Service Worker khi bấm notification → navigate
     const handleSwMessage = (event) => {
       if (event.data?.type === 'THECOC_NAVIGATE' && event.data?.route) {
-        setTimeout(() => navigateFromNotificationData({ route: event.data.route }), 300);
+        setTimeout(() => navigateFromNotificationData({ route: event.data.route }, currentUser), 300);
       }
     };
     if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.serviceWorker) {
@@ -512,7 +403,7 @@ export default function App() {
         navigator.serviceWorker.removeEventListener('message', handleSwMessage);
       }
     };
-  }, []);
+  }, [currentUser]);
 
   // Đăng ký Push Notification và Realtime Notification khi có currentUser
   useEffect(() => {
@@ -559,7 +450,7 @@ export default function App() {
       staffList, setStaffList,
       storeList, setStoreList,
       selectedStoreId, setSelectedStoreId,
-      currentUser, setCurrentUser,
+      currentUser, setCurrentUser, logout,
       attendanceHistory, setAttendanceHistory,
       shiftRegistrations, setShiftRegistrations,
       inventoryItems, setInventoryItems,
@@ -575,20 +466,22 @@ export default function App() {
     }}>
       <View style={[styles.webContainer, { backgroundColor: COLORS.bg }]}>
         <View style={[styles.webWrapper, { backgroundColor: COLORS.bg }]}>
-          <NavigationContainer ref={navigationRef}>
+          <NavigationContainer key={`thecoc-nav-${navigationEpoch}`} ref={navigationRef}>
             <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
               <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen name="Finance" component={FinanceScreen} />
-              <Stack.Screen name="Dashboard" component={MainTabs} />
-              <Stack.Screen name="StaffHistory" component={StaffHistoryScreen} />
-              <Stack.Screen name="StaffManagement" component={StaffManagementScreen} />
-              <Stack.Screen name="Inventory" component={InventoryScreen} />
-              <Stack.Screen name="StaffCheckin" component={StaffCheckinScreen} />
-              <Stack.Screen name="ShiftSchedule" component={ShiftScheduleScreen} />
-              <Stack.Screen name="Payroll" component={PayrollScreen} />
-              <Stack.Screen name="AttendanceReview" component={AttendanceReviewScreen} />
-              <Stack.Screen name="Notifications" component={NotificationScreen} />
-              <Stack.Screen name="Shifts" component={require('./src/screens/ShiftScreen').default} />
+              <Stack.Screen name="Finance">{(props) => <ProtectedScreen {...props} routeName="Finance" component={FinanceScreen} />}</Stack.Screen>
+              <Stack.Screen name="Dashboard">{(props) => <ProtectedScreen {...props} routeName="Dashboard" component={MainTabs} />}</Stack.Screen>
+              <Stack.Screen name="StaffHistory">{(props) => <ProtectedScreen {...props} routeName="StaffHistory" component={StaffHistoryScreen} />}</Stack.Screen>
+              <Stack.Screen name="StaffManagement">{(props) => <ProtectedScreen {...props} routeName="StaffManagement" component={StaffManagementScreen} />}</Stack.Screen>
+              <Stack.Screen name="Inventory">{(props) => <ProtectedScreen {...props} routeName="Inventory" component={InventoryScreen} />}</Stack.Screen>
+              <Stack.Screen name="CentralWarehouse">{(props) => <ProtectedScreen {...props} routeName="CentralWarehouse" component={CentralWarehouseScreen} />}</Stack.Screen>
+              <Stack.Screen name="StaffCheckin">{(props) => <ProtectedScreen {...props} routeName="StaffCheckin" component={StaffCheckinScreen} />}</Stack.Screen>
+              <Stack.Screen name="ShiftSchedule">{(props) => <ProtectedScreen {...props} routeName="ShiftSchedule" component={ShiftScheduleScreen} />}</Stack.Screen>
+              <Stack.Screen name="Payroll">{(props) => <ProtectedScreen {...props} routeName="Payroll" component={PayrollScreen} />}</Stack.Screen>
+              <Stack.Screen name="AttendanceReview">{(props) => <ProtectedScreen {...props} routeName="AttendanceReview" component={AttendanceReviewScreen} />}</Stack.Screen>
+              <Stack.Screen name="AttendanceCorrection">{(props) => <ProtectedScreen {...props} routeName="AttendanceCorrection" component={AttendanceCorrectionScreen} />}</Stack.Screen>
+              <Stack.Screen name="Notifications">{(props) => <ProtectedScreen {...props} routeName="Notifications" component={NotificationScreen} />}</Stack.Screen>
+              <Stack.Screen name="Shifts">{(props) => <ProtectedScreen {...props} routeName="Shifts" component={require('./src/screens/ShiftScreen').default} />}</Stack.Screen>
             </Stack.Navigator>
           </NavigationContainer>
         </View>
@@ -612,9 +505,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tabBar: {
-    height: Platform.OS === 'ios' ? 88 : Platform.OS === 'web' ? 80 : 64,
+    height: Platform.OS === 'ios' ? 88 : Platform.OS === 'web' ? 72 : 64,
     paddingTop: 6,
-    paddingBottom: Platform.OS === 'ios' ? 24 : Platform.OS === 'web' ? 18 : 8,
+    paddingBottom: Platform.OS === 'ios' ? 24 : Platform.OS === 'web' ? 10 : 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 14,
     shadowColor: '#000',
@@ -686,7 +579,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.3,
-    marginTop: Platform.OS === 'ios' ? 6 : 4,
+    marginTop: Platform.OS === 'web' ? 2 : Platform.OS === 'ios' ? 6 : 4,
     textTransform: 'uppercase',
   },
 });

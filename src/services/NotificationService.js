@@ -9,9 +9,6 @@ export const NOTIFICATION_CHANNEL_ID = 'thecoc-default';
 
 const EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
 
-// --- CẤU HÌNH ONESIGNAL WEB PUSH ---
-const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '1d7708c0-a945-4977-b447-ec3ce5b171bf';
-const ONESIGNAL_REST_API_KEY = 'os_v2_app_dv3qrqfjivexpnch5q6olmlrx5g7jc5bbdteysnf3jkviuylc35ibz5zyqvme7a5iyd22yqnum27fl5epbox7o47cnvbcl5ojqwv57i';
 const ONESIGNAL_EDGE_FUNCTION = 'send-onesignal-push';
 
 Notifications.setNotificationHandler({
@@ -47,7 +44,7 @@ const getPwaBasePath = () => {
   return segments.length ? `/${segments[0]}` : '';
 };
 
-const getWebNotificationIcon = () => `${getPwaBasePath()}/icons/thecoc-icon-512.png`;
+const getWebNotificationIcon = () => `${getPwaBasePath()}/icons/thecoc-icon-v4-512.png`;
 
 const isWebNotificationSupported = () => (
   Platform.OS === 'web'
@@ -413,7 +410,7 @@ const buildExpoPushMessage = (token, title, body, data = {}) => ({
   channelId: NOTIFICATION_CHANNEL_ID,
 });
 
-export const sendPushNotifications = async (expoPushTokens, title, body, data = {}) => {
+export const sendPushNotifications = async (expoPushTokens, title, body, data = {}, options = {}) => {
   const uniqueTokens = [...new Set((expoPushTokens || []).filter(Boolean))];
   const nativeTokens = uniqueTokens.filter((token) => !String(token).startsWith('web_push_'));
   const webTokens = uniqueTokens.filter((token) => String(token).startsWith('web_push_'));
@@ -421,42 +418,32 @@ export const sendPushNotifications = async (expoPushTokens, title, body, data = 
   let sentCount = 0;
   const tickets = [];
 
-  // 1. Gửi thông báo Web Push trực tiếp qua OneSignal REST API
-  if (webTokens.length > 0 && ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== "YOUR_ONESIGNAL_APP_ID") {
+  // Safari PWA registers legacy OneSignal player IDs. Sending them to the
+  // compatible endpoint is required for SafariPush notifications.
+  if (webTokens.length > 0) {
     try {
-      const subscriptionIds = webTokens
-        .map((token) => String(token).replace('web_push_', '').trim())
-        .filter(Boolean);
+      const playerIds = webTokens.map((token) => String(token).replace('web_push_', '').trim()).filter(Boolean);
+      const { data: webPushResult, error: webPushError } = await supabase.functions.invoke(
+        ONESIGNAL_EDGE_FUNCTION,
+        {
+          body: {
+            playerIds,
+            title,
+            body,
+            data: data || {},
+          },
+        }
+      );
 
-      const oneSignalResponse = await fetch('https://onesignal.com/api/v1/notifications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          Authorization: `Basic ${ONESIGNAL_REST_API_KEY}`,
-        },
-        body: JSON.stringify({
-          app_id: ONESIGNAL_APP_ID,
-          include_subscription_ids: subscriptionIds,
-          headings: { en: title, vi: title },
-          contents: { en: body, vi: body },
-          data: data || {},
-        }),
-      });
-      
-      const webPushResult = await oneSignalResponse.json().catch(() => null);
-
-      if (!oneSignalResponse.ok) {
-        console.log('OneSignal REST API failed:', webPushResult || oneSignalResponse.status);
-      } else {
-        sentCount += Number(webPushResult?.recipients || subscriptionIds.length || 0);
-        if (webPushResult) tickets.push({ provider: 'onesignal', ...webPushResult });
-      }
+      if (webPushError) throw webPushError;
+      sentCount += Number(webPushResult?.recipients ?? webPushResult?.sent ?? 0);
+      if (webPushResult) tickets.push({ provider: 'onesignal', ...webPushResult });
     } catch (err) {
-      console.log('Lỗi gửi Web Push qua OneSignal:', err.message);
+      console.log('Cannot send web push via Cloudflare:', err?.message || err);
     }
   }
 
-  // 2. Gửi thông báo Native qua Expo
+  // Native APK notifications remain delivered through Expo.
   if (nativeTokens.length > 0) {
     const messages = nativeTokens.map((token) => buildExpoPushMessage(token, title, body, data));
 
@@ -476,9 +463,7 @@ export const sendPushNotifications = async (expoPushTokens, title, body, data = 
         console.log('Expo push request failed:', payload || response.status);
       } else {
         sentCount += nativeTokens.length;
-        if (payload?.data) {
-          tickets.push(...payload.data);
-        }
+        if (payload?.data) tickets.push(...payload.data);
       }
     } catch (error) {
       console.log('Cannot send Expo push:', error?.message || error);
@@ -525,26 +510,6 @@ export const sendNotificationToUser = async (
 
   const tokens = await getUserPushTokens(userId);
   const result = await sendPushNotifications(tokens, title, body, data);
-
-  try {
-    await fetch('https://onesignal.com/api/v1/notifications', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        Authorization: `Basic ${ONESIGNAL_REST_API_KEY}`,
-      },
-      body: JSON.stringify({
-        app_id: ONESIGNAL_APP_ID,
-        include_aliases: { external_id: [userId] },
-        target_channel: 'push',
-        headings: { en: title, vi: title },
-        contents: { en: body, vi: body },
-        data: data || {},
-      }),
-    });
-  } catch (e) {
-    console.log('Error triggering external OneSignal push:', e);
-  }
 
   return result;
 };

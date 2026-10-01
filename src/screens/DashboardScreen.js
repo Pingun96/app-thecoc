@@ -1,15 +1,13 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, ActivityIndicator, Modal, TextInput, Platform } from 'react-native';
 import { Alert } from '../utils/alert';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Updates from 'expo-updates';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocalDateKey, isDateInCurrentMonth } from '../utils/dateTime';
-import { supabase } from '../services/supabaseClient';
-import SkeletonLoader from '../components/SkeletonLoader';
+import { supabase, updateMyProfile } from '../services/supabaseClient';
 import { getBusinessStores } from '../utils/warehouse';
+import { canAccessStore, getAllowedStoreIds, hasPermission as userHasPermission } from '../utils/permissions';
 
 const { width } = Dimensions.get('window');
 const APP_GRID_COLUMNS = 4;
@@ -17,12 +15,13 @@ const APP_GRID_MAX_WIDTH = 520;
 const APP_GRID_GAP = 10;
 
 export default function DashboardScreen({ navigation }) {
-  const insets = useSafeAreaInsets();
   const {
     currentUser,
     setCurrentUser,
+    logout,
     staffList,
     attendanceHistory,
+    shiftRegistrations = [],
     storeList,
     selectedStoreId,
     setSelectedStoreId,
@@ -36,26 +35,11 @@ export default function DashboardScreen({ navigation }) {
   } = useContext(AppContext);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  // Đọc safe-area-inset-top thật từ DOM vì useSafeAreaInsets trả 0 trên iOS PWA
-  const [safeAreaTop, setSafeAreaTop] = useState(insets.top || 0);
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const readSAT = () => {
-        // Cách duy nhất đọc env() ra số thật: tạo div, set padding, đọc computed
-        const el = document.createElement('div');
-        el.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;padding-top:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none;';
-        document.body.appendChild(el);
-        const sat = parseFloat(getComputedStyle(el).paddingTop) || 0;
-        document.body.removeChild(el);
-        setSafeAreaTop(sat > 0 ? sat : (insets.top || 0));
-      };
-      readSAT();
-      const t = setTimeout(readSAT, 300);
-      return () => clearTimeout(t);
-    } else {
-      setSafeAreaTop(insets.top || 0);
-    }
-  }, [insets.top]);
+  const isIosStandalone = Platform.OS === 'web'
+    && typeof window !== 'undefined'
+    && /iPad|iPhone|iPod/.test(window.navigator.userAgent)
+    && (window.navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches);
+  const hasDynamicIsland = isIosStandalone && (window.screen?.height >= 852 || window.screen?.width >= 852); const safeAreaTop = isIosStandalone ? (hasDynamicIsland ? 54 : 44) : (Platform.OS === 'web' ? 16 : 0);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -92,6 +76,41 @@ export default function DashboardScreen({ navigation }) {
   const theme = getThemeStyles();
 
   const styles = React.useMemo(() => getStyles(COLORS, isDarkMode, theme), [COLORS, isDarkMode, theme]);
+
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return undefined;
+
+    const root = document.documentElement;
+    const body = document.body;
+    const themeMeta = document.head.querySelector('meta[name="theme-color"]');
+    const defaultShellBg = '#F8FAFC';
+    const dashboardShellBg = COLORS.bg;
+    const defaultThemeColor = '#208AEF';
+
+    const applyHeaderShellColor = () => {
+      root.style.setProperty('--thecoc-shell-bg', dashboardShellBg);
+      root.style.backgroundColor = dashboardShellBg;
+      if (body) body.style.backgroundColor = dashboardShellBg;
+      themeMeta?.setAttribute('content', theme.headerBg);
+    };
+
+    const resetShellColor = () => {
+      root.style.setProperty('--thecoc-shell-bg', defaultShellBg);
+      root.style.backgroundColor = defaultShellBg;
+      if (body) body.style.backgroundColor = defaultShellBg;
+      themeMeta?.setAttribute('content', defaultThemeColor);
+    };
+
+    applyHeaderShellColor();
+    const unsubscribeFocus = navigation.addListener('focus', applyHeaderShellColor);
+    const unsubscribeBlur = navigation.addListener('blur', resetShellColor);
+
+    return () => {
+      unsubscribeFocus?.();
+      unsubscribeBlur?.();
+      resetShellColor();
+    };
+  }, [navigation, theme.headerBg, COLORS.bg]);
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -169,10 +188,6 @@ export default function DashboardScreen({ navigation }) {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const handleUpdateProfile = async () => {
-    if (currentUser?.role === 'OWNER') {
-      Alert.alert('Tính năng này', 'Tài khoản chủ cửa hàng hiện tại là tĩnh, không thay đổi được.');
-      return;
-    }
     setIsSavingProfile(true);
     try {
       const updates = {};
@@ -180,76 +195,146 @@ export default function DashboardScreen({ navigation }) {
       if (newAvatar.trim()) updates.avatar_url = newAvatar.trim();
 
       if (Object.keys(updates).length > 0) {
-        const { error } = await supabase.from('users').update(updates).eq('id', currentUser.id);
+        const { data: updatedUser, error } = await updateMyProfile(updates);
         if (error) throw error;
-
-        setCurrentUser({...currentUser, ...updates});
+        setCurrentUser({ ...currentUser, ...updatedUser });
+        setNewPassword('');
         Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
-        setShowProfileModal(false);
-      } else {
-        setShowProfileModal(false);
       }
+      setShowProfileModal(false);
     } catch (e) {
-      Alert.alert('Lỗi', e.message);
+      Alert.alert('Lỗi', e.message || 'Không thể cập nhật hồ sơ.');
     } finally {
       setIsSavingProfile(false);
     }
   };
-
   const isOwner = currentUser?.role === 'OWNER';
-  const viewableStores = currentUser?.permissions?.viewable_stores || [];
+  const viewableStores = getAllowedStoreIds(currentUser);
   const businessStores = React.useMemo(() => getBusinessStores(storeList), [storeList]);
 
   // Hiển thị thanh chọn store nếu là OWNER hoặc được cấp quyền xem nhiều hơn 1 chi nhánh
   const canShowStoreSelector = isOwner || viewableStores.length > 1;
 
   let displayStoreId = currentUser?.store_id;
-  if (isOwner || viewableStores.includes(selectedStoreId)) {
+  if (canAccessStore(currentUser, selectedStoreId)) {
     displayStoreId = selectedStoreId;
   }
   if (isOwner && selectedStoreId === 'ALL') {
     displayStoreId = 'ALL';
   }
 
-  const filteredStaff = staffList.filter(s => displayStoreId === 'ALL' || s.store_id === displayStoreId || s.permissions?.viewable_stores?.includes(displayStoreId));
+  const filteredStaff = staffList.filter(s => displayStoreId === 'ALL' || String(s.store_id) === String(displayStoreId) || s.permissions?.viewable_stores?.some((storeId) => String(storeId) === String(displayStoreId)));
   const activeStaffCount = filteredStaff.length;
 
   const today = getLocalDateKey();
-  const todaysHistory = attendanceHistory.filter(r => r.date === today && filteredStaff.some(s => s.id === r.user_id));
-  const todaysEstimatedCost = todaysHistory.reduce((sum, record) => {
-    const staff = filteredStaff.find(s => s.id === record.user_id);
-    return sum + ((record.hours || 0) * (staff?.wage || 0));
+  const todaysHistory = attendanceHistory.filter((record) => (
+    record.date === today && filteredStaff.some((staff) => staff.id === record.user_id)
+  ));
+  const isOpenAttendance = (record) => !Boolean(record.checkOut || record.check_out || record.check_out_at);
+  const workingStaff = filteredStaff.filter((staff) => (
+    todaysHistory.some((record) => record.user_id === staff.id && isOpenAttendance(record))
+  ));
+  const isScheduledShift = (shift) => !['REJECTED', 'CANCELLED', 'CANCELED'].includes(String(shift.status || '').toUpperCase());
+  const todaysScheduledShifts = shiftRegistrations.filter((shift) => (
+    shift.date === today && isScheduledShift(shift) && filteredStaff.some((staff) => staff.id === shift.user_id)
+  ));
+  const staffWithShiftToday = filteredStaff.filter((staff) => (
+    todaysScheduledShifts.some((shift) => shift.user_id === staff.id)
+  ));
+  const myTodayShift = todaysScheduledShifts.find((shift) => shift.user_id === currentUser?.id);
+  const hasCheckedIn = (record) => Boolean(record?.checkIn || record?.check_in || record?.checkInAt || record?.check_in_at);
+  const missingCheckInStaff = staffWithShiftToday.filter((staff) => !todaysHistory.some((record) => (
+    record.user_id === staff.id && hasCheckedIn(record)
+  )));
+  const missingCheckOutStaff = staffWithShiftToday.filter((staff) => todaysHistory.some((record) => (
+    record.user_id === staff.id && hasCheckedIn(record) && isOpenAttendance(record)
+  )));
+  const previewStaffNames = (staff) => {
+    const names = staff.map((item) => item.name || 'Nhân viên').filter(Boolean);
+    if (names.length <= 2) return names.join(', ');
+    return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
+  };
+  const managerStoreIds = isOwner
+    ? businessStores.map((store) => store.id)
+    : (viewableStores.length > 0 ? viewableStores : [currentUser?.store_id]).filter(Boolean);
+  const uncoveredShiftsToday = currentUser?.role === 'STAFF' ? [] : managerStoreIds.flatMap((storeId) => (
+    ['MORNING', 'AFTERNOON'].flatMap((shiftType) => {
+      const store = storeList.find((item) => String(item.id) === String(storeId));
+      const configuredTarget = Number(store?.staffing_targets?.[shiftType]);
+      const requiredStaff = Number.isFinite(configuredTarget) && configuredTarget >= 1 ? Math.min(4, Math.round(configuredTarget)) : 2;
+      const assignedStaff = shiftRegistrations.filter((shift) => (
+        shift.date === today
+        && String(shift.store_id) === String(storeId)
+        && shift.shift_type === shiftType
+        && shift.status === 'APPROVED'
+      )).length;
+      return assignedStaff < requiredStaff ? [{ storeId, shiftType, missing: requiredStaff - assignedStaff }] : [];
+    })
+  ));
+  const coverageReminderText = uncoveredShiftsToday.length
+    ? uncoveredShiftsToday.slice(0, 2).map((item) => {
+      const storeName = storeList.find((store) => String(store.id) === String(item.storeId))?.name || `CN ${item.storeId}`;
+      return `${storeName} ${item.shiftType === 'MORNING' ? 'sáng' : 'chiều'} thiếu ${item.missing}`;
+    }).join(', ')
+    : '';
+  const managerReminderParts = [
+    coverageReminderText ? `Ca thiếu người: ${coverageReminderText}` : '',
+    missingCheckInStaff.length ? `Chưa check-in: ${previewStaffNames(missingCheckInStaff)}` : '',
+    missingCheckOutStaff.length ? `Chưa check-out: ${previewStaffNames(missingCheckOutStaff)}` : '',
+  ].filter(Boolean);
+  const managerNeedsReminder = managerReminderParts.length > 0;
+  const shiftLabel = String(myTodayShift?.shift_type || myTodayShift?.shiftType || 'Ca làm việc')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+  const monthlyHistory = attendanceHistory.filter((record) => (
+    isDateInCurrentMonth(record.date) && filteredStaff.some((staff) => staff.id === record.user_id)
+  ));
+  const totalMonthlyHours = monthlyHistory.reduce((sum, record) => sum + (Number(record.hours) || 0), 0);
+  const totalMonthlyWage = monthlyHistory.reduce((sum, record) => {
+    const staff = filteredStaff.find((item) => item.id === record.user_id);
+    return sum + ((Number(record.hours) || 0) * (Number(staff?.wage) || 0));
   }, 0);
 
-  const myHistory = attendanceHistory.filter(
-    r => r.user_id === currentUser?.id && isDateInCurrentMonth(r.date)
-  );
-  const totalMyHours = myHistory.reduce((sum, r) => sum + (r.hours || 0), 0);
-  const totalMyWage = totalMyHours * (currentUser?.wage || 0);
+  const myHistory = attendanceHistory.filter((record) => (
+    record.user_id === currentUser?.id && isDateInCurrentMonth(record.date)
+  ));
+  const totalMyHours = myHistory.reduce((sum, record) => sum + (Number(record.hours) || 0), 0);
+  const totalMyWage = totalMyHours * (Number(currentUser?.wage) || 0);
+  const myOpenAttendance = todaysHistory.find((record) => (
+    record.user_id === currentUser?.id && isOpenAttendance(record)
+  ));
+  const getCheckInDate = (record) => {
+    const timestamp = record?.checkInAt || record?.check_in_at;
+    if (timestamp) {
+      const parsed = new Date(timestamp);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+
+    const time = record?.checkIn || record?.check_in;
+    if (record?.date && time && /^\d{1,2}:\d{2}/.test(String(time))) {
+      const parsed = new Date(`${record.date}T${String(time).slice(0, 5)}:00`);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+    return null;
+  };
+  const myCheckInDate = getCheckInDate(myOpenAttendance);
+  const myCheckInTime = myCheckInDate
+    ? myCheckInDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+    : (myOpenAttendance?.checkIn || myOpenAttendance?.check_in || '--:--');
+  const minutesWorked = myCheckInDate ? Math.max(0, Math.floor((Date.now() - myCheckInDate.getTime()) / 60000)) : 0;
+  const workedTodayText = minutesWorked >= 60
+    ? `${Math.floor(minutesWorked / 60)} giờ${minutesWorked % 60 ? ` ${minutesWorked % 60} phút` : ''}`
+    : `${minutesWorked} phút`;
+  const dashboardHours = currentUser?.role === 'STAFF' ? totalMyHours : totalMonthlyHours;
+  const dashboardWage = currentUser?.role === 'STAFF' ? totalMyWage : totalMonthlyWage;
 
   // Hàm kiểm tra quyền
   const hasPermission = (featureKey) => {
-    if (currentUser?.role === 'OWNER') return true;
-
-    const permissions = currentUser?.permissions || {};
-    const hasExplicitPermissions = Object.keys(permissions).length > 0;
-
-    if (featureKey === 'central_warehouse') {
-      return permissions.central_warehouse === true;
-    }
-
-    // Tương thích tài khoản quản lý cũ chưa có object permissions.
-    if (currentUser?.role === 'MANAGER' && !hasExplicitPermissions) return true;
-
-    if (featureKey === 'finance') {
-      return permissions.finance === true || permissions.reports === true;
-    }
-
     if (featureKey === 'hr') {
-      return permissions.hr === true || permissions.manage_permissions === true;
+      return userHasPermission(currentUser, 'hr') || userHasPermission(currentUser, 'manage_permissions');
     }
-
-    return permissions[featureKey] === true;
+    return userHasPermission(currentUser, featureKey);
   };
 
   const handleNav = (featureKey, routeName, staffRouteName, fallbackAction) => {
@@ -272,6 +357,8 @@ export default function DashboardScreen({ navigation }) {
 
   const renderGridItem = (title, subTitle, iconName, iconLib, bgColor, featureKey, routeName, staffRouteName, fallbackAction, iconColor) => {
     const allowed = hasPermission(featureKey);
+    if (!allowed) return null;
+
     const compactTitleMap = {
       cashier: 'Giao ca',
       inventory: 'Kho hàng',
@@ -292,35 +379,30 @@ export default function DashboardScreen({ navigation }) {
       finance: '#7c3aed',
       hr: routeName === 'AttendanceReview' ? '#0d9488' : '#2563eb',
     };
-    const safeIconColor = allowed ? (iconColor || iconColorMap[featureKey] || COLORS.primary) : '#9ca3af';
+    const safeIconColor = iconColor || iconColorMap[featureKey] || COLORS.primary;
 
     return (
       <TouchableOpacity
-        style={[styles.gridItem, !allowed && styles.gridItemDisabled]}
-        activeOpacity={allowed ? 0.7 : 1}
+        style={styles.gridItem}
+        activeOpacity={0.7}
         onPress={() => handleNav(featureKey, routeName, staffRouteName, fallbackAction)}
         accessibilityRole="button"
         accessibilityLabel={`${compactTitle}. ${subTitle}`}
       >
-        <View style={[styles.gridIconBox, { backgroundColor: allowed ? bgColor : '#e5e7eb' }]}>
+        <View style={[styles.gridIconBox, { backgroundColor: bgColor }]}>
           {iconLib === 'Ionicons' ? (
             <Ionicons name={iconName} size={width <= 360 ? 34 : 36} color={safeIconColor} />
           ) : (
             <MaterialCommunityIcons name={iconName} size={width <= 360 ? 34 : 36} color={safeIconColor} />
           )}
         </View>
-        <Text style={[styles.gridItemTitle, !allowed && {color: '#9ca3af'}]} numberOfLines={2}>
+        <Text style={styles.gridItemTitle} numberOfLines={2}>
           {compactTitle}
         </Text>
-
-        {!allowed && (
-          <View style={styles.lockIcon}>
-            <Ionicons name="lock-closed" size={12} color="#ef4444" />
-          </View>
-        )}
       </TouchableOpacity>
     );
   };
+
 
   return (
     <View style={styles.container}>
@@ -364,11 +446,7 @@ export default function DashboardScreen({ navigation }) {
 
           <TouchableOpacity
             style={styles.logoutBtn}
-            onPress={async () => {
-              await AsyncStorage.removeItem('userPhone');
-              setCurrentUser(null);
-              navigation.replace('Login');
-            }}
+            onPress={logout}
           >
             <MaterialCommunityIcons name="logout" size={24} color="#ff5252" />
           </TouchableOpacity>
@@ -392,7 +470,7 @@ export default function DashboardScreen({ navigation }) {
             )}
 
             {/* CÁC CHI NHÁNH ĐƯỢC PHÉP XEM */}
-            {businessStores.filter(s => isOwner || viewableStores.includes(s.id)).map(store => (
+            {businessStores.filter(s => isOwner || canAccessStore(currentUser, s.id)).map(store => (
               <TouchableOpacity
                 key={store.id}
                 style={[styles.storeChip, selectedStoreId === store.id && styles.storeChipActive]}
@@ -413,52 +491,98 @@ export default function DashboardScreen({ navigation }) {
         </TouchableOpacity>
       ) : null}
 
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
         {/* QUICK STATS */}
-        <Text style={styles.sectionTitle}>Tổng quan {currentUser?.role === 'STAFF' ? 'cá nhân' : 'hôm nay'}</Text>
-        <View style={styles.statsRow}>
-          {isDataLoading && staffList.length === 0 ? (
-            <>
-              <SkeletonLoader width={(width - 55) / 2} height={125} borderRadius={16} isDarkMode={isDarkMode} />
-              <SkeletonLoader width={(width - 55) / 2} height={125} borderRadius={16} isDarkMode={isDarkMode} />
-            </>
-          ) : (
-            <>
-              <View style={styles.statCard}>
-                <View style={[styles.iconBox, { backgroundColor: '#e3f2fd' }]}>
-                  <Ionicons name={currentUser?.role === 'STAFF' ? "time" : "people"} size={24} color="#1976d2" />
-                </View>
-                <Text style={styles.statValue}>
-                  {currentUser?.role === 'STAFF' ? totalMyHours.toFixed(1) + 'h' : activeStaffCount}
-                </Text>
-                <Text style={styles.statLabel}>
-                  {currentUser?.role === 'STAFF' ? 'Tổng giờ làm' : 'Nhân sự'}
-                </Text>
-              </View>
+        <Text style={styles.sectionTitle}>Tổng quan hôm nay</Text>
+        <View style={[styles.quickStatusCard, {
+          backgroundColor: currentUser?.role === 'STAFF' && !myTodayShift ? (isDarkMode ? '#1e3a5f' : '#eff6ff') : (currentUser?.role !== 'STAFF' && managerNeedsReminder ? (isDarkMode ? '#3f2a0b' : '#fff7ed') : (isDarkMode ? '#123529' : '#ecfdf3')),
+          borderColor: currentUser?.role === 'STAFF' && !myTodayShift ? (isDarkMode ? '#1d4ed8' : '#bfdbfe') : (currentUser?.role !== 'STAFF' && managerNeedsReminder ? (isDarkMode ? '#854d0e' : '#fed7aa') : (isDarkMode ? '#166534' : '#a7f3d0')),
+        }]}>
+          <View style={[styles.quickStatusIcon, { backgroundColor: currentUser?.role === 'STAFF' && !myTodayShift ? '#2563eb' : (currentUser?.role !== 'STAFF' && managerNeedsReminder ? '#f59e0b' : '#16a34a') }]}>
+            <Ionicons name={currentUser?.role === 'STAFF' && !myTodayShift ? 'calendar-outline' : (currentUser?.role !== 'STAFF' && managerNeedsReminder ? 'notifications-outline' : 'checkmark-circle-outline')} size={26} color="#fff" />
+          </View>
+          <View style={styles.quickStatusContent}>
+            <Text style={styles.quickStatusTitle}>
+              {isDataLoading
+                ? 'Đang cập nhật lịch làm...'
+                : currentUser?.role === 'STAFF'
+                  ? (myOpenAttendance ? 'Bạn đang trong ca làm việc' : myTodayShift ? `Hôm nay bạn có ${shiftLabel}` : 'Hôm nay bạn không có ca làm việc')
+                  : (managerNeedsReminder ? `${missingCheckInStaff.length + missingCheckOutStaff.length} nhân viên cần nhắc chấm công` : (staffWithShiftToday.length ? `${staffWithShiftToday.length}/${activeStaffCount} nhân viên có ca hôm nay` : 'Hôm nay chưa có nhân viên có ca làm việc'))}
+            </Text>
+            <Text style={styles.quickStatusSubtitle}>
+              {currentUser?.role === 'STAFF'
+                ? (myOpenAttendance ? `Đã check-in lúc ${myCheckInTime} · Đã làm ${workedTodayText}` : myTodayShift ? 'Bạn chưa check-in ca này' : 'Lịch làm hôm nay đang trống')
+                : (managerNeedsReminder ? managerReminderParts.join(' · ') : `${workingStaff.length} nhân viên đang check-in trong ca`)}
+            </Text>
+          </View>
+        </View>
 
-              <View style={styles.statCard}>
-                <View style={[styles.iconBox, { backgroundColor: '#fff3e0' }]}>
-                  <MaterialCommunityIcons name="currency-usd" size={24} color="#ff9800" />
-                </View>
-                <Text style={styles.statValue}>
-                  {currentUser?.role === 'STAFF' ? totalMyWage.toLocaleString() : todaysEstimatedCost.toLocaleString()}đ
-                </Text>
-                <Text style={styles.statLabel}>
-                  {currentUser?.role === 'STAFF' ? 'Lương tạm tính' : 'Chi phí lương'}
-                </Text>
-              </View>
-            </>
-          )}
+        <Text style={styles.monthlyStatsTitle}>Thống kê tháng này</Text>
+        <View style={styles.monthlyStatsRow}>
+          <View style={styles.monthlyStatCard}>
+            <View style={[styles.monthlyStatIcon, { backgroundColor: '#e3f2fd' }]}>
+              <Ionicons name="time-outline" size={20} color="#1976d2" />
+            </View>
+            <View style={styles.monthlyStatContent}>
+              <Text style={styles.monthlyStatValue}>{dashboardHours.toFixed(1)}h</Text>
+              <Text style={styles.monthlyStatLabel}>Giờ làm</Text>
+            </View>
+          </View>
+          <View style={styles.monthlyStatCard}>
+            <View style={[styles.monthlyStatIcon, { backgroundColor: '#fff3e0' }]}>
+              <MaterialCommunityIcons name="currency-usd" size={20} color="#ff9800" />
+            </View>
+            <View style={styles.monthlyStatContent}>
+              <Text style={styles.monthlyStatValue}>{dashboardWage.toLocaleString()}đ</Text>
+              <Text style={styles.monthlyStatLabel}>Lương tạm tính</Text>
+            </View>
+          </View>
         </View>
 
         {/* 2x2 GRID MENU */}
         <Text style={styles.sectionTitle}>Tính năng {currentUser?.role === 'STAFF' ? 'làm việc' : 'quản lý'}</Text>
         <View style={styles.gridContainer}>
+          <TouchableOpacity
+            style={styles.gridItem}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('StaffCheckin')}
+            accessibilityRole="button"
+            accessibilityLabel="Chấm công"
+          >
+            <View style={[styles.gridIconBox, { backgroundColor: '#E8F8F0' }]}>
+              <Ionicons name="log-in-outline" size={width <= 360 ? 34 : 36} color="#16A34A" />
+            </View>
+            <Text style={styles.gridItemTitle}>Chấm công</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.gridItem}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('ScheduleTab')}
+            accessibilityRole="button"
+            accessibilityLabel="Lịch làm"
+          >
+            <View style={[styles.gridIconBox, { backgroundColor: '#EAF2FF' }]}>
+              <Ionicons name="calendar-outline" size={width <= 360 ? 34 : 36} color="#2563EB" />
+            </View>
+            <Text style={styles.gridItemTitle}>Lịch làm</Text>
+          </TouchableOpacity>          <TouchableOpacity
+            style={styles.gridItem}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('AttendanceCorrection')}
+            accessibilityRole="button"
+            accessibilityLabel="Bổ sung công"
+          >
+            <View style={[styles.gridIconBox, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="document-text-outline" size={width <= 360 ? 34 : 36} color="#B45309" />
+            </View>
+            <Text style={styles.gridItemTitle}>{currentUser?.role === 'STAFF' ? 'Bổ sung công' : 'Yêu cầu công'}</Text>
+          </TouchableOpacity>
           {renderGridItem('Giao Ca & Doanh Thu', 'Quản lý Két & Chốt Ca', 'cash-register', 'Material', '#e8f5e9', 'cashier', 'Shifts', 'Shifts')}
           {renderGridItem('Kho Hàng', 'Tồn kho & Yêu cầu', 'warehouse', 'Material', '#fff3e0', 'inventory', 'Inventory', 'Inventory')}
           {renderGridItem('Kho Tổng', 'Duyệt xuất hàng', 'package-variant-closed', 'Material', '#ede9fe', 'central_warehouse', 'CentralWarehouse', 'CentralWarehouse')}
-          {renderGridItem(currentUser?.role === 'STAFF' ? 'Chấm Công' : 'Nhân Sự', currentUser?.role === 'STAFF' ? 'Định vị GPS / Camera' : 'Hồ sơ & Phân quyền', currentUser?.role === 'STAFF' ? "scan-circle" : "id-card", 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
+          {currentUser?.role !== 'STAFF' && renderGridItem('Nhân Sự', 'Hồ sơ & Phân quyền', 'id-card', 'Ionicons', '#e0f7fa', 'hr', 'StaffManagement', 'StaffCheckin')}
           {currentUser?.role !== 'STAFF' && renderGridItem('Đối Chiếu Công', 'Lịch làm vs chấm công', 'clipboard-check-outline', 'Material', '#dcfce7', 'hr', 'AttendanceReview', 'AttendanceReview')}
           {renderGridItem('Bảng Lương', 'Bảng lương chi tiết', 'wallet-outline', 'Material', '#fff8e1', 'payroll', 'Payroll', 'Payroll')}
           {renderGridItem('Tài Chính', 'Doanh thu & Lợi nhuận', 'chart-line', 'Material', '#ede9fe', 'finance', 'Finance', 'Finance')}
@@ -526,11 +650,18 @@ const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
   updateButton: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', backgroundColor: isDarkMode ? '#1e293b' : '#e8f1ff', borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9, marginBottom: 16 },
   updateButtonText: { color: '#1565c0', fontWeight: '800', fontSize: 12, marginLeft: 7 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 15, marginTop: 5 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
-  statCard: { backgroundColor: COLORS.card, width: (width - 55) / 2, padding: 15, borderRadius: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, alignItems: 'center', justifyContent: 'center', minHeight: 125 },
-  iconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 10, alignSelf: 'center' },
-  statValue: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, textAlign: 'center' },
-  statLabel: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginTop: 3 },
+  quickStatusCard: { minHeight: 78, borderWidth: 1, borderRadius: 16, padding: 13, flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  quickStatusIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  quickStatusContent: { flex: 1 },
+  quickStatusTitle: { color: COLORS.text, fontSize: 15, fontWeight: '900' },
+  quickStatusSubtitle: { color: COLORS.textMuted, fontSize: 12, marginTop: 3 },
+  monthlyStatsTitle: { color: COLORS.textMuted, fontSize: 12, fontWeight: '800', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 },
+  monthlyStatsRow: { flexDirection: 'row', gap: 10, marginBottom: 22 },
+  monthlyStatCard: { flex: 1, minHeight: 72, backgroundColor: COLORS.card, borderRadius: 14, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  monthlyStatIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
+  monthlyStatContent: { flex: 1, minWidth: 0 },
+  monthlyStatValue: { color: COLORS.text, fontWeight: '900', fontSize: 16 },
+  monthlyStatLabel: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
   badge: {
     position: 'absolute',
     top: -4,
@@ -609,3 +740,4 @@ const getStyles = (COLORS, isDarkMode, theme) => StyleSheet.create({
   modalBtn: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
   modalBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
 });
+

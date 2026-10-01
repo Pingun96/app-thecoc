@@ -29,10 +29,13 @@ const upsertStyle = () => {
   style.id = id;
   style.textContent = `
     :root {
-      --sat: env(safe-area-inset-top, 0px);
-      --sab: env(safe-area-inset-bottom, 0px);
-      --sar: env(safe-area-inset-right, 0px);
-      --sal: env(safe-area-inset-left, 0px);
+      --thecoc-page-bg: #F8FAFC;
+      --thecoc-shell-bg: #F8FAFC;
+      --thecoc-pwa-height: 100dvh;
+    }
+    html {
+      height: -webkit-fill-available;
+      background: var(--thecoc-page-bg);
     }
     html, body, #root {
       height: 100%;
@@ -40,35 +43,81 @@ const upsertStyle = () => {
       width: 100%;
       margin: 0;
       padding: 0;
-      background: #FFFFFF;
+      background: var(--thecoc-shell-bg);
       overscroll-behavior: none;
       -webkit-tap-highlight-color: transparent;
-      -webkit-touch-callout: none;
-      touch-action: manipulation;
+    }
+    html, body {
+      overflow-x: hidden;
+      overflow-y: auto;
+      touch-action: auto;
     }
     @supports (height: 100dvh) {
       html, body, #root {
-        height: 100dvh;
-        min-height: 100dvh;
+        height: var(--thecoc-pwa-height);
+        min-height: var(--thecoc-pwa-height);
+        background: var(--thecoc-shell-bg);
       }
     }
     body {
-      overflow: hidden;
-      position: fixed;
-      inset: 0;
+      position: static;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
     }
     #root {
       display: flex;
-      overflow: hidden;
+      overflow: visible;
       isolation: isolate;
+    }
+    [style*="overflow"] {
+      -webkit-overflow-scrolling: touch;
     }
     input, textarea, select {
       font-size: 16px !important;
+      -webkit-user-select: auto;
+      user-select: auto;
+    }
+    a, img {
+      -webkit-touch-callout: none;
+    }
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    * {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      box-sizing: border-box;
     }
   `;
   document.head.appendChild(style);
 };
 
+
+const syncStandaloneIosViewportHeight = () => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  const isIosStandalone = /iPad|iPhone|iPod/.test(window.navigator.userAgent)
+    && (window.navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches);
+  if (!isIosStandalone) return;
+
+  const syncHeight = () => {
+    const screenHeight = Number(window.screen?.height || 0);
+    const viewportHeight = Math.max(
+      Number(window.innerHeight || 0),
+      Number(document.documentElement.clientHeight || 0)
+    );
+    const appHeight = Math.max(screenHeight, viewportHeight);
+    if (appHeight > 0) {
+      document.documentElement.style.setProperty('--thecoc-pwa-height', `${appHeight}px`);
+    }
+  };
+
+  syncHeight();
+  window.addEventListener('resize', syncHeight);
+  window.addEventListener('orientationchange', syncHeight);
+  window.visualViewport?.addEventListener?.('resize', syncHeight);
+};
 export const setupPwaExperience = () => {
   if (Platform.OS !== 'web' || typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -79,6 +128,7 @@ export const setupPwaExperience = () => {
   document.documentElement.lang = 'vi';
   document.title = 'The Cốc';
   upsertStyle();
+  syncStandaloneIosViewportHeight();
 
   upsertMeta('meta[name="viewport"]', {
     name: 'viewport',
@@ -95,28 +145,18 @@ export const setupPwaExperience = () => {
   upsertMeta('meta[name="format-detection"]', { name: 'format-detection', content: 'telephone=no' });
 
   upsertLink('link[rel="manifest"]', { rel: 'manifest', href: assetPath('/manifest.webmanifest') });
-  upsertLink('link[rel="apple-touch-icon"]', { rel: 'apple-touch-icon', href: assetPath('/icons/apple-touch-icon.png') });
+  upsertLink('link[rel="apple-touch-icon"]', { rel: 'apple-touch-icon', href: assetPath('/icons/thecoc-apple-v4.png') });
   upsertLink('link[rel="icon"][sizes="512x512"]', {
     rel: 'icon',
     type: 'image/png',
     sizes: '512x512',
-    href: assetPath('/icons/thecoc-icon-512.png'),
+    href: assetPath('/icons/thecoc-icon-v4-512.png'),
   });
 
   if ('serviceWorker' in navigator) {
-    const SW_RELOAD_KEY = 'thecoc-sw-reload-v2.6.4';
+    // Do not force a browser reload when a new service worker activates.
+    // A forced reload made the login page visibly mount twice on PWA startup.
     const skipWaiting = (worker) => worker?.postMessage?.({ type: 'SKIP_WAITING' });
-    const reloadOnceForNewWorker = () => {
-      try {
-        if (window.sessionStorage?.getItem(SW_RELOAD_KEY) === '1') return;
-        window.sessionStorage?.setItem(SW_RELOAD_KEY, '1');
-      } catch (error) {
-        console.log('Cannot mark service worker reload:', error?.message || error);
-      }
-      window.location.reload();
-    };
-
-    navigator.serviceWorker.addEventListener('controllerchange', reloadOnceForNewWorker);
     navigator.serviceWorker
       .register(assetPath('/pwa-service-worker.js'), { scope: `${basePath || ''}/` })
       .then((registration) => {
@@ -136,6 +176,11 @@ export const setupPwaExperience = () => {
   }
 
   const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || '1d7708c0-a945-4977-b447-ec3ce5b171bf';
+  const oneSignalAllowedHosts = (process.env.EXPO_PUBLIC_ONESIGNAL_ALLOWED_HOSTS || 'app-thecoc.pages.dev')
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean);
+  const canInitOneSignal = oneSignalAllowedHosts.includes(window.location.hostname.toLowerCase());
   const oneSignalWorkerPath = `${basePath || ''}/pwa-service-worker.js`;
   const oneSignalWorkerScope = `${basePath || ''}/`;
 
@@ -166,7 +211,7 @@ export const setupPwaExperience = () => {
     });
   };
 
-  if (ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== 'YOUR_ONESIGNAL_APP_ID') {
+  if (canInitOneSignal && ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== 'YOUR_ONESIGNAL_APP_ID') {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     initOneSignal();
     if (!document.getElementById('onesignal-sdk')) {

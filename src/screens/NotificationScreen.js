@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, Activ
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 import { AppContext } from '../context/AppContext';
+import { canAccessRoute } from '../utils/permissions';
 
 export default function NotificationScreen({ navigation }) {
   const { currentUser, COLORS, isDarkMode } = useContext(AppContext);
@@ -72,9 +73,9 @@ export default function NotificationScreen({ navigation }) {
     const title = item.title.toLowerCase();
     
     if (title.includes('lương')) {
-      navigation.navigate('Payroll');
+      if (canAccessRoute(currentUser, 'Payroll')) navigation.navigate('Payroll');
     } else if (title.includes('chốt ca')) {
-      navigation.navigate('Shifts');
+      if (canAccessRoute(currentUser, 'Shifts')) navigation.navigate('Shifts');
     } else if (title.includes('lịch') || title.includes('ca') || title.includes('điều động')) {
       navigation.navigate('Dashboard', { screen: 'ScheduleTab' });
     }

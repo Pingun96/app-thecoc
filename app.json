@@ -4,7 +4,7 @@
     "slug": "thecoc-mobile",
     "version": "2.1.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/thecoc-app-icon.png",
     "scheme": "thecocmobile",
     "userInterfaceStyle": "automatic",
     "android": {
@@ -26,9 +26,8 @@
         "USE_FINGERPRINT"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
+        "backgroundColor": "#0F172A",
+        "foregroundImage": "./assets/images/thecoc-adaptive-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false

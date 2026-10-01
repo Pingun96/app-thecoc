@@ -5,6 +5,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,8 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import * as Updates from 'expo-updates';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { signInWithPassword, restoreAuthSession } from '../services/supabaseClient';
 
 export default function LoginScreen({ navigation }) {
   const [phone, setPhone] = useState('');
@@ -35,33 +36,14 @@ export default function LoginScreen({ navigation }) {
   useEffect(() => {
     const autoLogin = async () => {
       if (isDataLoading) return;
-      try {
-        const storedPhone = await AsyncStorage.getItem('userPhone');
-        if (!storedPhone) return;
-
-        if (storedPhone === '0900000000') {
-          setCurrentUser({
-            id: 'owner_1',
-            name: 'Chủ Cửa Hàng',
-            role: 'OWNER',
-            store_id: null,
-            permissions: {},
-          });
-          navigation.replace('Dashboard');
-          return;
-        }
-
-        const user = staffList.find((staff) => staff.phone === storedPhone);
-        if (user && user.hasAppAccess !== false) {
-          setCurrentUser({ ...user, role: user.role || 'STAFF' });
-          navigation.replace('Dashboard');
-        }
-      } catch (e) {
-        console.log('Lỗi auto login:', e);
+      const { data: user } = await restoreAuthSession();
+      if (user) {
+        setCurrentUser({ ...user, role: user.role || 'STAFF' });
+        navigation.replace('Dashboard');
       }
     };
     autoLogin();
-  }, [isDataLoading, staffList]);
+  }, [isDataLoading, navigation, setCurrentUser]);
 
   const handleLogin = async () => {
     const normalizedPhone = phone.replace(/\s/g, '');
@@ -72,55 +54,38 @@ export default function LoginScreen({ navigation }) {
 
     setIsSigningIn(true);
     try {
-      if (normalizedPhone === '0900000000' && password === '123') {
-        setCurrentUser({
-          id: 'owner_1',
-          name: 'Chủ Cửa Hàng',
-          role: 'OWNER',
-          store_id: null,
-          permissions: {},
-        });
-        await AsyncStorage.setItem('userPhone', normalizedPhone);
-        navigation.replace('Dashboard');
+      const { data: user, error } = await signInWithPassword(normalizedPhone, password);
+      if (error) {
+        Alert.alert('Đăng nhập thất bại', error.message);
         return;
       }
-
-      const user = staffList.find((staff) => staff.phone === normalizedPhone);
-      if (!user) {
-        Alert.alert('Không tìm thấy tài khoản', 'Số điện thoại chưa được đăng ký trong hệ thống.');
-        return;
-      }
-      if (password !== (user.password || '123')) {
-        Alert.alert('Đăng nhập thất bại', 'Mật khẩu không đúng.');
-        return;
-      }
-      if (user.hasAppAccess === false) {
-        Alert.alert('Tài khoản bị khóa', 'Vui lòng liên hệ quản lý để được cấp quyền truy cập.');
-        return;
-      }
-
       setCurrentUser({ ...user, role: user.role || 'STAFF' });
-      await AsyncStorage.setItem('userPhone', normalizedPhone);
       navigation.replace('Dashboard');
     } finally {
       setIsSigningIn(false);
     }
   };
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.brand}>
-        <View style={styles.logoBox}>
+        <View style={styles.brandPanel}>
           <Image
-            source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3003/3003984.png' }}
+            source={require('../../assets/images/thecoc-wordmark.png')}
             style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="Tiệm trà, cafe TheCoc"
           />
+          <View style={styles.brandLine} />
+          <Text style={styles.brandCaption}>Hệ thống vận hành nội bộ</Text>
         </View>
-        <Text style={styles.title}>The Cốc</Text>
-        <Text style={styles.subtitle}>Vận hành cửa hàng nội bộ</Text>
       </View>
 
       <View style={styles.formCard}>
@@ -174,20 +139,22 @@ export default function LoginScreen({ navigation }) {
       </View>
 
       <Text style={styles.footer}>
-        Dữ liệu vận hành được đồng bộ bảo mật qua Supabase.{'\n'}
+        Dữ liệu vận hành được đồng bộ bảo mật qua Cloudflare.{'\n'}
         {Updates.updateId ? `Phiên bản: v${Constants?.expoConfig?.version || '2.0.0'} (OTA: ${Updates.updateId.substring(0,8)})` : `Phiên bản: v${Constants?.expoConfig?.version || '2.0.0'} (Gốc)`}
       </Text>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const getStyles = (COLORS) => StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: COLORS.bg },
-  brand: { alignItems: 'center', marginBottom: 25 },
-  logoBox: { width: 86, height: 86, borderRadius: 25, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 10, elevation: 3 },
-  logo: { width: 62, height: 62 },
-  title: { fontSize: 30, fontWeight: '900', color: COLORS.primary, marginTop: 13 },
-  subtitle: { color: COLORS.textMuted, marginTop: 3 },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  content: { flexGrow: 1, justifyContent: 'center', padding: 20, paddingVertical: 28 },
+  brand: { alignItems: 'center', marginBottom: 20 },
+  brandPanel: { width: '100%', maxWidth: 410, alignItems: 'center', backgroundColor: '#000000', borderRadius: 24, paddingHorizontal: 18, paddingVertical: 16, shadowColor: '#020617', shadowOpacity: 0.23, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
+  logo: { width: '100%', height: 118 },
+  brandLine: { width: 42, height: 2, backgroundColor: '#86efac', borderRadius: 99, marginTop: 1, marginBottom: 8 },
+  brandCaption: { color: '#cbd5e1', fontSize: 13, fontWeight: '700', letterSpacing: 0.2 },
   formCard: { backgroundColor: COLORS.card, borderRadius: 20, padding: 20, shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   welcome: { color: COLORS.text, fontSize: 23, fontWeight: '900' },
   formCaption: { color: COLORS.textMuted, marginTop: 4, marginBottom: 13 },

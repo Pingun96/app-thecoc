@@ -20,8 +20,11 @@ import { AppContext } from '../context/AppContext';
 import { getDailyRevenue } from '../services/financeService';
 import { exportToExcel } from '../utils/exportExcel';
 import DateRangePickerModal from '../components/DateRangePickerModal';
+import { canAccessStore, getAllowedStoreIds } from '../utils/permissions';
 
 const screenWidth = Dimensions.get('window').width;
+const CONTENT_GUTTER = 8;
+const CARD_INSET = 12;
 
 // Lấy ngày theo giờ Việt Nam (UTC+7)
 function getVNDateStr(date = new Date()) {
@@ -54,10 +57,10 @@ function CustomBarChart({ data, labels, COLORS }) {
   if (!data || data.length === 0) return null;
   const maxVal = Math.max(...data, 1);
   const CHART_HEIGHT = 160;
-  const barWidth = Math.max(18, Math.min(36, (screenWidth - 80) / data.length - 4));
+  const barWidth = Math.max(20, Math.min(38, (screenWidth - (CONTENT_GUTTER * 2 + CARD_INSET * 2)) / data.length - 4));
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: CARD_INSET, paddingBottom: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: CHART_HEIGHT + 36 }}>
         {data.map((val, idx) => {
           const barH = Math.max(4, Math.round((val / maxVal) * CHART_HEIGHT));
@@ -87,7 +90,7 @@ function CustomPieBars({ data, COLORS }) {
   if (!data || data.length === 0) return null;
   const total = data.reduce((s, d) => s + d.population, 0);
   return (
-    <View style={{ paddingHorizontal: 20 }}>
+    <View style={{ paddingHorizontal: CARD_INSET }}>
       {data.map((item, idx) => {
         const pct = total > 0 ? (item.population / total) * 100 : 0;
         return (
@@ -314,7 +317,14 @@ export default function FinanceScreen({ navigation }) {
     modalBg: isDarkMode ? 'rgba(2,6,23,0.78)' : 'rgba(15,23,42,0.35)',
   }), [appColors, isDarkMode]);
   const styles = useMemo(() => getStyles(COLORS), [COLORS]);
+  const isIosStandalonePwa = Platform.OS === 'web'
+    && typeof window !== 'undefined'
+    && /iPad|iPhone|iPod/.test(window.navigator.userAgent)
+    && (window.navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches);
+  const ScreenShell = isIosStandalonePwa ? View : SafeAreaView;
   const isOwner = currentUser?.role === 'OWNER';
+  const allowedStoreIds = getAllowedStoreIds(currentUser);
+  const canShowStoreSelector = isOwner || allowedStoreIds.length > 1;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [revenues, setRevenues] = useState([]);
@@ -476,50 +486,52 @@ export default function FinanceScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.header}>Tài chính & Doanh thu</Text>
-          <Text style={styles.headerCaption}>{storeName}</Text>
-        </View>
-        <TouchableOpacity onPress={handleExportFinance} style={{ padding: 5 }}>
-          <Ionicons name="download-outline" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Branch Selector */}
-      {isOwner && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} style={{ flexGrow: 0, height: 50 }}>
-          <TouchableOpacity style={[styles.filterBtn, storeIdToView === 'ALL' && styles.filterBtnActive]} onPress={() => setStoreIdToView('ALL')}>
-            <Text style={[styles.filterBtnText, storeIdToView === 'ALL' && styles.filterBtnTextActive]}>Tất cả</Text>
+    <ScreenShell style={styles.container}>
+      <View style={[styles.stickyTopBar, isIosStandalonePwa && styles.stickyTopBarPwa]}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
-          {storeList.map(s => (
-            <TouchableOpacity key={s.id} style={[styles.filterBtn, storeIdToView === s.id && styles.filterBtnActive]} onPress={() => setStoreIdToView(s.id)}>
-              <Text style={[styles.filterBtnText, storeIdToView === s.id && styles.filterBtnTextActive]}>{s.name}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.header}>Tài chính & Doanh thu</Text>
+            <Text style={styles.headerCaption}>{storeName}</Text>
+          </View>
+          <TouchableOpacity onPress={handleExportFinance} style={{ padding: 5 }}>
+            <Ionicons name="download-outline" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Branch Selector */}
+        {canShowStoreSelector && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} style={{ flexGrow: 0, height: 50 }}>
+            {isOwner && <TouchableOpacity style={[styles.filterBtn, storeIdToView === 'ALL' && styles.filterBtnActive]} onPress={() => setStoreIdToView('ALL')}>
+              <Text style={[styles.filterBtnText, storeIdToView === 'ALL' && styles.filterBtnTextActive]}>Tất cả</Text>
+            </TouchableOpacity>}
+            {storeList.filter((store) => isOwner || canAccessStore(currentUser, store.id)).map(s => (
+              <TouchableOpacity key={s.id} style={[styles.filterBtn, storeIdToView === s.id && styles.filterBtnActive]} onPress={() => setStoreIdToView(s.id)}>
+                <Text style={[styles.filterBtnText, storeIdToView === s.id && styles.filterBtnTextActive]}>{s.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Period Selector */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRow} style={{ flexGrow: 0, height: 45 }}>
+          {[['today', 'Hôm nay'], ['yesterday', 'Hôm qua'], ['week', 'Tuần này'], ['month', 'Tháng này'], ['7', '7 ngày'], ['30', '30 ngày']].map(([val, label]) => (
+            <TouchableOpacity key={val} style={[styles.periodBtn, period === val && styles.periodBtnActive]} onPress={() => setPeriod(val)}>
+              <Text style={[styles.periodText, period === val && styles.periodTextActive]}>{label}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
-      )}
-
-      {/* Period Selector */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRow} style={{ flexGrow: 0, height: 45 }}>
-        {[['today', 'Hôm nay'], ['yesterday', 'Hôm qua'], ['week', 'Tuần này'], ['month', 'Tháng này'], ['7', '7 ngày'], ['30', '30 ngày']].map(([val, label]) => (
-          <TouchableOpacity key={val} style={[styles.periodBtn, period === val && styles.periodBtnActive]} onPress={() => setPeriod(val)}>
-            <Text style={[styles.periodText, period === val && styles.periodTextActive]}>{label}</Text>
+          <TouchableOpacity style={[styles.periodBtn, period === 'custom' && styles.periodBtnActive]} onPress={() => setShowDateModal(true)}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="calendar-outline" size={13} color={period === 'custom' ? COLORS.primary : COLORS.textMuted} style={{ marginRight: 4 }} />
+              <Text style={[styles.periodText, period === 'custom' && styles.periodTextActive]}>
+                {period === 'custom' ? periodLabel : 'Tùy chọn'}
+              </Text>
+            </View>
           </TouchableOpacity>
-        ))}
-        <TouchableOpacity style={[styles.periodBtn, period === 'custom' && styles.periodBtnActive]} onPress={() => setShowDateModal(true)}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="calendar-outline" size={13} color={period === 'custom' ? COLORS.primary : COLORS.textMuted} style={{ marginRight: 4 }} />
-            <Text style={[styles.periodText, period === 'custom' && styles.periodTextActive]}>
-              {period === 'custom' ? periodLabel : 'Tùy chọn'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={COLORS.primary} /></View>
@@ -554,13 +566,13 @@ export default function FinanceScreen({ navigation }) {
 
           {storeIdToView === 'ALL' && pieData.length > 0 && (
             <View style={styles.chartCard}>
-              <Text style={[styles.sectionTitle, { paddingHorizontal: 20, marginBottom: 15 }]}>Tỷ trọng chi nhánh</Text>
+              <Text style={[styles.sectionTitle, { paddingHorizontal: CARD_INSET, marginBottom: 15 }]}>Tỷ trọng chi nhánh</Text>
               <CustomPieBars data={pieData} COLORS={COLORS} />
             </View>
           )}
 
           <View style={styles.listCard}>
-            <Text style={[styles.sectionTitle, { paddingHorizontal: 20, marginBottom: 15 }]}>Lịch sử chi tiết</Text>
+            <Text style={[styles.sectionTitle, { paddingHorizontal: CARD_INSET, marginBottom: 15 }]}>Lịch sử chi tiết</Text>
             {revenues.length === 0 ? (
               <Text style={styles.emptyText}>Không có dữ liệu</Text>
             ) : (
@@ -603,45 +615,47 @@ export default function FinanceScreen({ navigation }) {
         isDarkMode={isDarkMode}
         title="Chọn ngày xem báo cáo"
       />
-    </SafeAreaView>
+    </ScreenShell>
   );
 }
 
 const getStyles = (COLORS) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
+  stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: COLORS.border, zIndex: 50, flexShrink: 0 },
+  stickyTopBarPwa: { position: 'sticky', top: 0, paddingTop: 52, alignSelf: 'stretch', zIndex: 200, elevation: 20, shadowColor: '#0f172a', shadowOpacity: 0.09, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
   backBtn: { marginRight: 15, padding: 5 },
   header: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
   headerCaption: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  filterRow: { flexDirection: 'row', paddingHorizontal: 20, alignItems: 'center' },
-  filterBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.border, marginRight: 10 },
-  filterBtnActive: { backgroundColor: COLORS.primary },
-  filterBtnText: { color: COLORS.textMuted, fontWeight: '600', fontSize: 13 },
+  filterRow: { flexDirection: 'row', paddingHorizontal: 12, alignItems: 'center' },
+  filterBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#DCFCE7', borderWidth: 1, borderColor: '#BBF7D0', marginRight: 10 },
+  filterBtnActive: { backgroundColor: '#16A34A', borderColor: '#16A34A' },
+  filterBtnText: { color: '#166534', fontWeight: '700', fontSize: 13 },
   filterBtnTextActive: { color: '#FFF' },
-  periodRow: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 4, alignItems: 'center' },
-  periodBtn: { paddingVertical: 6, paddingHorizontal: 12, marginRight: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  periodBtnActive: { borderBottomColor: COLORS.primary },
-  periodText: { color: COLORS.textMuted, fontWeight: '600', fontSize: 13 },
-  periodTextActive: { color: COLORS.primary },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
-  mainCard: { backgroundColor: COLORS.primary, padding: 24, borderRadius: 20, marginBottom: 15, elevation: 5 },
+  periodRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 4, alignItems: 'center' },
+  periodBtn: { paddingVertical: 7, paddingHorizontal: 12, marginRight: 8, borderRadius: 16, borderWidth: 1, borderColor: '#BBF7D0', backgroundColor: '#DCFCE7' },
+  periodBtnActive: { backgroundColor: '#16A34A', borderColor: '#16A34A' },
+  periodText: { color: '#166534', fontWeight: '700', fontSize: 13 },
+  periodTextActive: { color: '#FFF' },
+  scrollContent: { paddingHorizontal: CONTENT_GUTTER, paddingTop: 10 },
+  mainCard: { backgroundColor: COLORS.primary, padding: 22, borderRadius: 16, marginBottom: 12, elevation: 5 },
   mainCardLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginBottom: 8, fontWeight: '600' },
   mainCardValue: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
   mainCardSync: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 8, fontWeight: '500' },
-  metricsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  metricCard: { width: '48%', backgroundColor: COLORS.card, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border },
+  metricsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+  metricCard: { width: '49%', backgroundColor: COLORS.card, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border },
   metricIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(59,130,246,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   metricLabel: { color: COLORS.textMuted, fontSize: 12, marginBottom: 4 },
   metricValue: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
-  chartCard: { backgroundColor: COLORS.card, paddingTop: 20, paddingBottom: 8, borderRadius: 20, marginBottom: 20, borderWidth: 1, borderColor: COLORS.border },
-  chartTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, marginBottom: 15 },
+  chartCard: { backgroundColor: COLORS.card, paddingTop: 16, paddingBottom: 8, borderRadius: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
+  chartTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: CARD_INSET, marginBottom: 15 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
   chartTotalBadge: { alignItems: 'flex-end' },
   chartTotalText: { fontSize: 14, fontWeight: 'bold', color: COLORS.accent },
   chartTotalSub: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   emptyText: { textAlign: 'center', color: COLORS.textMuted, fontStyle: 'italic', paddingVertical: 20 },
-  listCard: { backgroundColor: COLORS.card, paddingVertical: 20, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  listCard: { backgroundColor: COLORS.card, paddingVertical: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: CARD_INSET, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   rowToday: { backgroundColor: 'rgba(59,130,246,0.07)' },
   todayBadge: { backgroundColor: COLORS.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   todayBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
@@ -653,3 +667,4 @@ const getStyles = (COLORS) => StyleSheet.create({
   rowMetaRight: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' }
 });
+

@@ -428,7 +428,7 @@ export default function StaffCheckinScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.stickyTopBar}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#1565c0" />
@@ -439,6 +439,8 @@ export default function StaffCheckinScreen({ navigation }) {
           </View>
         </View>
 
+      </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.statusCard}>
           <View style={styles.statusHeader}>
             <View>
@@ -537,8 +539,9 @@ export default function StaffCheckinScreen({ navigation }) {
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
+  stickyTopBar: { backgroundColor: COLORS.bg, borderBottomWidth: 1, borderBottomColor: COLORS.border, zIndex: 50, flexShrink: 0 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 22 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12 },
   backBtn: { padding: 8, marginRight: 8, marginLeft: -8 },
   header: { fontSize: 26, fontWeight: '800', color: COLORS.text },
   headerCaption: { color: COLORS.textMuted, marginTop: 2 },

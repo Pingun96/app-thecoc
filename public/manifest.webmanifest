@@ -7,21 +7,21 @@
   "start_url": ".?source=pwa",
   "scope": ".",
   "display": "standalone",
-  "display_override": ["standalone", "fullscreen", "browser"],
+  "display_override": ["standalone", "browser"],
   "orientation": "portrait",
-  "background_color": "#FFFFFF",
-  "theme_color": "#208AEF",
+  "background_color": "#0F172A",
+  "theme_color": "#0F172A",
   "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "icons/thecoc-icon-512.png",
+      "src": "icons/thecoc-icon-v4-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icons/apple-touch-icon.png",
-      "sizes": "512x512",
+      "src": "icons/thecoc-apple-v4.png",
+      "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     }

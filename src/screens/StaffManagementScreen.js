@@ -4,6 +4,7 @@ import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 import { getBusinessStores } from '../utils/warehouse';
+import { canAccessStore, hasPermission } from '../utils/permissions';
 
 const MODULE_PERMISSIONS = [
   { key: 'cashier', icon: '💵', title: 'Giao ca / Thu ngân', desc: 'Mở ca, kiểm két, nhập doanh thu và chốt ca.' },
@@ -62,6 +63,7 @@ const normalizePermissions = (permissions = {}, role = 'STAFF', homeStoreId) => 
   if (merged.finance === true) {
     merged.reports = true;
   }
+  if (merged.is_primary_manager === true) merged.cashier = true;
 
   const viewableStores = Array.isArray(merged.viewable_stores) ? merged.viewable_stores : [];
   merged.viewable_stores = [...new Set([...(homeStoreId ? [homeStoreId] : []), ...viewableStores])];
@@ -73,12 +75,16 @@ export default function StaffManagementScreen({ navigation }) {
   const { staffList, setStaffList, storeList, currentUser, selectedStoreId, refreshData, isDataLoading, COLORS, isDarkMode } = useContext(AppContext);
   const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
   const businessStores = useMemo(() => getBusinessStores(storeList), [storeList]);
-  const currentPermissions = currentUser?.permissions || {};
-  const canEditPermissions = currentUser?.role === 'OWNER' || currentPermissions.manage_permissions === true || currentPermissions.hr === true;
+  const isOwner = currentUser?.role === 'OWNER';
+  const canEditPermissions = isOwner || hasPermission(currentUser, 'manage_permissions');
+  const managedBusinessStores = useMemo(
+    () => isOwner ? businessStores : businessStores.filter((store) => canAccessStore(currentUser, store.id)),
+    [businessStores, currentUser, isOwner],
+  );
 
   // OWNER luôn được thấy ALL. Quản lý thì tùy thuộc viewable_stores
   let displayStoreId = currentUser?.store_id;
-  if (currentUser?.role === 'OWNER' || currentUser?.permissions?.viewable_stores?.includes(selectedStoreId)) {
+  if (canAccessStore(currentUser, selectedStoreId)) {
     displayStoreId = selectedStoreId;
   }
   if (currentUser?.role === 'OWNER' && selectedStoreId === 'ALL') {
@@ -90,10 +96,10 @@ export default function StaffManagementScreen({ navigation }) {
 
   // Lọc danh sách nhân sự theo chi nhánh được phép xem và chỉ lấy người còn hoạt động
   const activeStaffList = staffList.filter(s => s.is_active !== false);
-  let baseFilteredStaffList = activeStaffList.filter(s => displayStoreId === 'ALL' || s.store_id === displayStoreId || s.permissions?.viewable_stores?.includes(displayStoreId));
+  let baseFilteredStaffList = activeStaffList.filter(s => displayStoreId === 'ALL' || String(s.store_id) === String(displayStoreId) || s.permissions?.viewable_stores?.some((storeIdValue) => String(storeIdValue) === String(displayStoreId)));
   
   if (localStoreFilter !== 'ALL') {
-    baseFilteredStaffList = baseFilteredStaffList.filter(s => s.store_id === localStoreFilter || s.permissions?.viewable_stores?.includes(localStoreFilter));
+    baseFilteredStaffList = baseFilteredStaffList.filter(s => String(s.store_id) === String(localStoreFilter) || s.permissions?.viewable_stores?.some((storeIdValue) => String(storeIdValue) === String(localStoreFilter)));
   }
 
   if (searchQuery.trim() !== '') {
@@ -108,7 +114,7 @@ export default function StaffManagementScreen({ navigation }) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [wage, setWage] = useState('');
-  const [storeId, setStoreId] = useState(businessStores[0]?.id || storeList[0]?.id || 1);
+  const [storeId, setStoreId] = useState(managedBusinessStores[0]?.id || currentUser?.store_id || 1);
   const [role, setRole] = useState('STAFF');
   const [isPartTime, setIsPartTime] = useState(true);
   const [, setIsLoading] = useState(false);
@@ -118,9 +124,9 @@ export default function StaffManagementScreen({ navigation }) {
   const handleCreateStaff = async () => {
     const cleanName = fullName.trim();
     const cleanPhone = phone.replace(/\s/g, '');
-    const numericWage = Number(wage);
-    if (!cleanName || !cleanPhone || !Number.isFinite(numericWage) || numericWage <= 0) {
-      Alert.alert('Thông tin chưa hợp lệ', 'Vui lòng nhập đầy đủ họ tên, số điện thoại và mức lương.');
+    const numericWage = isOwner ? Number(wage) : 0;
+    if (!cleanName || !cleanPhone || (isOwner && (!Number.isFinite(numericWage) || numericWage <= 0))) {
+      Alert.alert('Thông tin chưa hợp lệ', isOwner ? 'Vui lòng nhập đầy đủ họ tên, số điện thoại và mức lương.' : 'Vui lòng nhập đầy đủ họ tên và số điện thoại.');
       return;
     }
     if (staffList.some((staff) => staff.phone === cleanPhone)) {
@@ -203,11 +209,13 @@ export default function StaffManagementScreen({ navigation }) {
       ? MODULE_PERMISSIONS
       : MODULE_PERMISSIONS.filter((item) => !['can_schedule_shift', 'is_primary_manager', 'manage_permissions'].includes(item.key));
 
-    if (currentUser?.role === 'OWNER') return roleOptions;
+    if (currentUser?.role === 'OWNER' || hasPermission(currentUser, 'manage_permissions')) {
+      return roleOptions;
+    }
 
     return roleOptions.filter((item) => {
-      if (item.key === 'finance') return currentPermissions.finance === true || currentPermissions.reports === true;
-      return currentPermissions[item.key] === true;
+      if (item.key === 'finance') return hasPermission(currentUser, 'finance');
+      return hasPermission(currentUser, item.key);
     });
   };
 
@@ -241,15 +249,21 @@ export default function StaffManagementScreen({ navigation }) {
   const [editingStaff, setEditingStaff] = useState(null);
 
   const openEditModal = (staff) => {
+    const permissionsWithLegacyFlags = {
+      ...(staff.permissions || {}),
+      ...(staff.is_primary_manager === true && staff.permissions?.is_primary_manager == null
+        ? { is_primary_manager: true }
+        : {}),
+    };
     setEditingStaff({
       ...staff,
-      permissions: normalizePermissions(staff.permissions, staff.role, staff.store_id)
+      permissions: normalizePermissions(permissionsWithLegacyFlags, staff.role, staff.store_id)
     });
   };
 
   const saveEditStaff = async () => {
-    if (!editingStaff.name || !editingStaff.phone || !editingStaff.wage) {
-      Alert.alert('Lỗi', 'Không được để trống thông tin!');
+    if (!editingStaff.name || !editingStaff.phone || (isOwner && !editingStaff.wage)) {
+      Alert.alert('Lỗi', isOwner ? 'Không được để trống thông tin!' : 'Không được để trống họ tên và số điện thoại!');
       return;
     }
     const cleanPhone = editingStaff.phone.replace(/\s/g, '');
@@ -258,8 +272,10 @@ export default function StaffManagementScreen({ navigation }) {
       return;
     }
 
+    const originalStaff = staffList.find((staff) => staff.id === editingStaff.id);
     const finalStaff = {
       ...editingStaff,
+      wage: isOwner ? editingStaff.wage : (originalStaff?.wage || 0),
       permissions: normalizePermissions(editingStaff.permissions, editingStaff.role, editingStaff.store_id)
     };
 
@@ -376,7 +392,7 @@ export default function StaffManagementScreen({ navigation }) {
                 >
                   <Text style={[styles.filterChipText, localStoreFilter === 'ALL' && styles.filterChipTextActive]}>Tất cả</Text>
                 </TouchableOpacity>
-                {businessStores.map(store => (
+                {managedBusinessStores.map(store => (
                   <TouchableOpacity
                     key={store.id}
                     style={[styles.filterChip, localStoreFilter === store.id && styles.filterChipActive]}
@@ -468,7 +484,13 @@ export default function StaffManagementScreen({ navigation }) {
                 </View>
 
                 <Text style={styles.label}>Mức lương (VNĐ/h):</Text>
-                <TextInput style={styles.input} keyboardType="numeric" value={wage} onChangeText={setWage} />
+                {isOwner ? (
+                  <TextInput style={styles.input} keyboardType="numeric" value={wage} onChangeText={setWage} />
+                ) : (
+                  <View style={[styles.input, styles.readOnlyWage]}>
+                    <Text style={styles.readOnlyWageText}>Chỉ chủ quán được thiết lập lương giờ.</Text>
+                  </View>
+                )}
 
                 <Text style={styles.label}>Loại hình làm việc:</Text>
                 <View style={styles.roleRow}>
@@ -482,7 +504,7 @@ export default function StaffManagementScreen({ navigation }) {
 
                 <Text style={styles.label}>Chi nhánh gốc (Trực thuộc):</Text>
                 <View style={styles.storeSelectRow}>
-                  {businessStores.map(store => (
+                  {managedBusinessStores.map(store => (
                     <TouchableOpacity key={store.id} style={[styles.storeChip, storeId === store.id && styles.storeChipActive]} onPress={() => setStoreId(store.id)}>
                       <Text style={[styles.storeChipText, storeId === store.id && styles.storeChipTextActive]}>{store.name}</Text>
                     </TouchableOpacity>
@@ -494,7 +516,7 @@ export default function StaffManagementScreen({ navigation }) {
                     <Text style={{fontWeight: 'bold', color: role === 'MANAGER' ? '#e91e63' : '#1976d2', marginBottom: 10}}>
                       {role === 'MANAGER' ? '🌐 Cấp quyền xem dữ liệu chi nhánh khác:' : '🌐 Cấp quyền làm việc tại chi nhánh khác:'}
                     </Text>
-                    {businessStores.map(store => {
+                    {managedBusinessStores.map(store => {
                       const isHomeStore = store.id === storeId;
                       return (
                         <View key={store.id} style={styles.permRow}>
@@ -571,7 +593,13 @@ export default function StaffManagementScreen({ navigation }) {
                   <TextInput style={styles.input} keyboardType="phone-pad" value={editingStaff.phone} onChangeText={(t) => setEditingStaff({...editingStaff, phone: t})} />
 
                   <Text style={styles.label}>Lương (đ/h):</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" value={String(editingStaff.wage || '')} onChangeText={(t) => setEditingStaff({...editingStaff, wage: Number(t)})} />
+                  {isOwner ? (
+                    <TextInput style={styles.input} keyboardType="numeric" value={String(editingStaff.wage || '')} onChangeText={(t) => setEditingStaff({...editingStaff, wage: Number(t)})} />
+                  ) : (
+                    <View style={[styles.input, styles.readOnlyWage]}>
+                      <Text style={styles.readOnlyWageText}>{Number(editingStaff.wage || 0).toLocaleString()}đ/h · Chỉ xem</Text>
+                    </View>
+                  )}
 
                   <Text style={styles.label}>Chức vụ:</Text>
                   {editingStaff.role === 'OWNER' ? (
@@ -595,7 +623,7 @@ export default function StaffManagementScreen({ navigation }) {
 
                   <Text style={styles.label}>Chi nhánh gốc (Trực thuộc):</Text>
                   <View style={styles.storeSelectRow}>
-                    {businessStores.map(store => (
+                    {managedBusinessStores.map(store => (
                       <TouchableOpacity key={store.id} style={[styles.storeChip, editingStaff.store_id === store.id && styles.storeChipActive]} onPress={() => setEditingStaff({...editingStaff, store_id: store.id})}>
                         <Text style={[styles.storeChipText, editingStaff.store_id === store.id && styles.storeChipTextActive]}>{store.name}</Text>
                       </TouchableOpacity>
@@ -622,7 +650,7 @@ export default function StaffManagementScreen({ navigation }) {
                       <Text style={{fontWeight: 'bold', color: editingStaff.role === 'MANAGER' ? '#e91e63' : '#1976d2', marginBottom: 10}}>
                         {editingStaff.role === 'MANAGER' ? '🌐 Cấp quyền xem dữ liệu chi nhánh khác:' : '🌐 Cấp quyền làm việc tại chi nhánh khác:'}
                       </Text>
-                      {businessStores.map(store => {
+                      {managedBusinessStores.map(store => {
                         const isHomeStore = store.id === editingStaff.store_id;
                         return (
                           <View key={store.id} style={styles.permRow}>
@@ -730,6 +758,8 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   filterChipTextActive: { color: '#fff' },
   label: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 5, marginTop: 10 },
   input: { borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 8, padding: 12, backgroundColor: COLORS.inputBg, color: COLORS.text, height: 45 },
+  readOnlyWage: { justifyContent: 'center', backgroundColor: isDarkMode ? '#1e293b' : '#f1f5f9', borderStyle: 'dashed' },
+  readOnlyWageText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '700' },
   passwordHint: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDarkMode ? '#0f2a44' : '#eff6ff', borderRadius: 8, padding: 12, marginTop: 12 },
   passwordHintText: { color: '#1d4ed8', fontWeight: '700', marginLeft: 8 },
   roleRow: { flexDirection: 'row', marginBottom: 10 },

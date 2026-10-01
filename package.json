@@ -64,6 +64,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "test:permissions": "node cloudflare/thecoc-api/tests/authorization.test.mjs",
     "build:pwa": "expo export --platform web && node scripts/inject-ios-meta.js",
     "deploy": "expo export --platform web && node scripts/inject-ios-meta.js && npx gh-pages -d dist"
   },

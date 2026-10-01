@@ -15,6 +15,7 @@ import {
 import { Alert } from '../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
+import { canAccessStore } from '../utils/permissions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createInventoryItem,
@@ -26,6 +27,10 @@ import {
 import {
   normalizeInventoryItem,
 } from '../services/dataMappers';
+import {
+  buildInventoryStockRows,
+  getCentralWarehouseStore,
+} from '../utils/warehouse';
 
 const ACTIONS = {
   IMPORT: { label: 'Nhập kho', shortLabel: 'NHẬP', color: '#16a34a', sign: '+' },
@@ -143,13 +148,16 @@ export default function InventoryScreen({ navigation }) {
     isDarkMode,
   } = useContext(AppContext);
   const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
+  const isIosStandalonePwa = Platform.OS === 'web'
+    && typeof window !== 'undefined'
+    && /iPad|iPhone|iPod/.test(window.navigator.userAgent)
+    && (window.navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches);
+  const ScreenShell = isIosStandalonePwa ? View : SafeAreaView;
 
   const isOwner = currentUser?.role === 'OWNER';
   const isStaff = currentUser?.role === 'STAFF';
-  const viewableStores = currentUser?.permissions?.viewable_stores || [];
-
   let storeIdToView = currentUser?.store_id;
-  if (isOwner || viewableStores.includes(selectedStoreId)) storeIdToView = selectedStoreId;
+  if (canAccessStore(currentUser, selectedStoreId)) storeIdToView = selectedStoreId;
   if (isOwner && selectedStoreId === 'ALL') storeIdToView = 'ALL';
 
   const storeName = storeIdToView === 'ALL'
@@ -181,6 +189,16 @@ export default function InventoryScreen({ navigation }) {
       isLowStock: currentStock <= Number(item.safeLevel || 0),
     };
   }), [inventoryLogs, myItems]);
+
+  const centralWarehouse = useMemo(() => getCentralWarehouseStore(storeList), [storeList]);
+  const centralWarehouseId = centralWarehouse?.id;
+  const centralWarehouseItems = useMemo(() => inventoryItems.filter((item) => (
+    centralWarehouseId && String(item.store_id) === String(centralWarehouseId)
+  )), [inventoryItems, centralWarehouseId]);
+  const centralStockData = useMemo(
+    () => buildInventoryStockRows(centralWarehouseItems, inventoryLogs),
+    [centralWarehouseItems, inventoryLogs],
+  );
 
   const stockByItemId = useMemo(
     () => Object.fromEntries(stockData.map((item) => [item.id, item])),
@@ -250,7 +268,7 @@ export default function InventoryScreen({ navigation }) {
       setBusyKey('sync-offline');
       for (const ticket of offlineTickets) {
         await createInventoryTicket(ticket);
-        if (isOwner) {
+        if (isOwner && ticket.type !== 'TRANSFER') {
           await approveInventoryTicket(ticket, currentUser.id, ticket.source_store_id || ticket.destination_store_id);
         }
         successCount++;
@@ -275,14 +293,29 @@ export default function InventoryScreen({ navigation }) {
   const [newItemUnit, setNewItemUnit] = useState('kg');
   const [newItemSafeLevel, setNewItemSafeLevel] = useState('5');
 
-  const effectiveSelectedItemId = myItems.some((item) => item.id === selectedItemId)
+  const actionStockData = actionType === 'TRANSFER' ? centralStockData : stockData;
+  const actionStockByItemId = useMemo(
+    () => Object.fromEntries(actionStockData.map((item) => [item.id, item])),
+    [actionStockData],
+  );
+  const effectiveSelectedItemId = actionStockData.some((item) => item.id === selectedItemId)
     ? selectedItemId
-    : myItems[0]?.id || '';
+    : actionStockData[0]?.id || '';
   const filteredStock = stockData.filter((item) => (
     item.name.toLowerCase().includes(searchText.trim().toLowerCase())
   ));
   const lowStockCount = stockData.filter((item) => item.isLowStock).length;
-  const selectedStock = stockByItemId[effectiveSelectedItemId];
+  const selectedStock = actionStockByItemId[effectiveSelectedItemId];
+  const actionOptions = useMemo(() => {
+    const options = [
+      { key: 'IMPORT', label: 'Nhập hàng', color: '#16a34a' },
+      { key: 'EXPORT', label: 'Xuất hủy', color: '#dc2626' },
+    ];
+    if (centralWarehouseId) {
+      options.push({ key: 'TRANSFER', label: 'Lấy Kho tổng', color: '#7c3aed' });
+    }
+    return options;
+  }, [centralWarehouseId]);
   const inventoryComparisonRows = useMemo(() => {
     const scopedShifts = (shifts || [])
       .filter((shift) => storeIdToView === 'ALL' || String(shift.store_id) === String(storeIdToView))
@@ -497,6 +530,14 @@ export default function InventoryScreen({ navigation }) {
     }
     
     const existingIndex = cartItems.findIndex(i => i.itemId === selectedStock.id);
+    const existingAmount = existingIndex > -1 ? Number(cartItems[existingIndex].amount || 0) : 0;
+    if (['EXPORT', 'TRANSFER'].includes(actionType) && existingAmount + numericAmount > Number(selectedStock.currentStock || 0)) {
+      return Alert.alert(
+        'Không đủ tồn',
+        `${selectedStock.name} chỉ còn ${formatQuantity(selectedStock.currentStock)} ${selectedStock.unit}.`,
+      );
+    }
+
     if (existingIndex > -1) {
       const newCart = [...cartItems];
       newCart[existingIndex].amount += numericAmount;
@@ -518,35 +559,40 @@ export default function InventoryScreen({ navigation }) {
   const handleSubmitAction = () => runOperation('submit-action', async () => {
     if (cartItems.length === 0) throw new Error('Giỏ hàng trống. Vui lòng thêm ít nhất 1 mặt hàng.');
     if (storeIdToView === 'ALL') throw new Error('Vui lòng chọn một chi nhánh cụ thể.');
+    if (actionType === 'TRANSFER' && !centralWarehouseId) throw new Error('Chưa có Kho tổng để gửi đề xuất lấy hàng.');
 
-    if (actionType === 'EXPORT') {
+    if (['EXPORT', 'TRANSFER'].includes(actionType)) {
       for (const item of cartItems) {
         if (item.amount > item.currentStock) {
-          throw new Error(`Không thể xuất ${item.name}. Tồn kho hiện tại chỉ còn ${formatQuantity(item.currentStock)} ${item.unit}.`);
+          throw new Error(`Không thể xuất ${item.name}. Tồn khả dụng chỉ còn ${formatQuantity(item.currentStock)} ${item.unit}.`);
         }
       }
     }
 
     let initialStatus = 'PENDING_SOURCE';
     if (actionType === 'IMPORT') initialStatus = 'PENDING_DEST';
+    const isTransferFromCentral = actionType === 'TRANSFER';
 
     const ticket = {
       id: makeId('ticket'),
       type: actionType,
-      source_store_id: actionType === 'EXPORT' ? storeIdToView : null,
-      destination_store_id: actionType === 'IMPORT' ? storeIdToView : null,
+      source_store_id: isTransferFromCentral ? centralWarehouseId : (actionType === 'EXPORT' ? storeIdToView : null),
+      destination_store_id: (actionType === 'IMPORT' || isTransferFromCentral) ? storeIdToView : null,
       items: cartItems,
       status: initialStatus,
       requested_by: currentUser?.id,
       requested_by_name: currentUser?.name || 'Nhân viên',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      note: isTransferFromCentral ? `Đề xuất lấy hàng từ ${centralWarehouse?.name || 'Kho tổng'} về ${storeName}` : undefined,
     };
 
     try {
       await createInventoryTicket(ticket);
-      if (isOwner) {
+      if (isOwner && !isTransferFromCentral) {
          await approveInventoryTicket(ticket, currentUser.id, storeIdToView);
          Alert.alert('Thành công', 'Phiếu đã được tạo và tự động duyệt vì bạn là Chủ Cửa Hàng.');
+      } else if (isTransferFromCentral) {
+         Alert.alert('Đã gửi Kho tổng', 'Đề xuất lấy hàng đã được gửi sang Kho tổng để xác nhận xuất.');
       } else {
          Alert.alert('Đã gửi phiếu', 'Yêu cầu đã được gửi đến quản lý để phê duyệt.');
       }
@@ -712,12 +758,13 @@ export default function InventoryScreen({ navigation }) {
       ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenShell style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        <View style={styles.headerRow}>
+        <View style={[styles.stickyTopBar, isIosStandalonePwa && styles.stickyTopBarPwa]}>
+          <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#1565c0" />
           </TouchableOpacity>
@@ -748,6 +795,19 @@ export default function InventoryScreen({ navigation }) {
             </TouchableOpacity>
           ))}
         </View>
+        </View>
+
+        {activeTab === 'KHO' && (
+          <View style={styles.createTicketBar}>
+            <TouchableOpacity
+              style={styles.fab}
+              onPress={() => { setShowActionModal(true); setCartItems([]); setAmount(''); setSelectedItemId(''); }}
+            >
+              <Ionicons name="add" size={22} color="#fff" />
+              <Text style={styles.fabText}>Tạo phiếu</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <ScrollView
           style={{ flex: 1 }}
@@ -822,14 +882,7 @@ export default function InventoryScreen({ navigation }) {
                 </View>
               )}
 
-              {/* FAB - Tạo phiếu kho */}
-              <TouchableOpacity
-                style={styles.fab}
-                onPress={() => { setShowActionModal(true); setCartItems([]); setAmount(''); setSelectedItemId(''); }}
-              >
-                <Ionicons name="add" size={22} color="#fff" />
-                <Text style={styles.fabText}>Tạo phiếu</Text>
-              </TouchableOpacity>
+
             </>
           )}
 
@@ -974,24 +1027,38 @@ export default function InventoryScreen({ navigation }) {
                 </View>
 
                 <View style={styles.actionGrid}>
-                  {['IMPORT', 'EXPORT'].map((type) => (
+                  {actionOptions.map((option) => (
                     <TouchableOpacity
-                      key={type}
+                      key={option.key}
                       style={[
                         styles.actionButton,
-                        actionType === type && { backgroundColor: type === 'IMPORT' ? '#16a34a' : '#dc2626', borderColor: type === 'IMPORT' ? '#16a34a' : '#dc2626' },
+                        actionType === option.key && { backgroundColor: option.color, borderColor: option.color },
                       ]}
-                      onPress={() => { setActionType(type); setCartItems([]); }}
+                      onPress={() => {
+                        setActionType(option.key);
+                        setCartItems([]);
+                        setAmount('');
+                        setSelectedItemId('');
+                        setIsItemDropdownOpen(false);
+                      }}
                     >
-                      <Text style={[styles.actionButtonText, actionType === type && { color: '#fff' }]}>
-                        {type === 'IMPORT' ? '📥 Nhập Hàng' : '📤 Xuất Hủy'}
+                      <Text style={[styles.actionButtonText, actionType === option.key && { color: '#fff' }]}>
+                        {option.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
                 <View style={{ height: 1, backgroundColor: COLORS.border, marginVertical: 10 }} />
 
-                <Text style={styles.fieldLabel}>Chọn nguyên liệu</Text>
+                {actionType === 'TRANSFER' && (
+                  <Text style={styles.transferHint}>
+                    Phiếu sẽ gửi sang Kho tổng duyệt xuất, sau đó cửa hàng xác nhận nhận hàng.
+                  </Text>
+                )}
+
+                <Text style={styles.fieldLabel}>
+                  {actionType === 'TRANSFER' ? 'Chọn hàng từ Kho tổng' : 'Chọn nguyên liệu'}
+                </Text>
                 <TouchableOpacity
                   style={styles.dropdownButton}
                   onPress={() => setIsItemDropdownOpen(!isItemDropdownOpen)}
@@ -1005,7 +1072,7 @@ export default function InventoryScreen({ navigation }) {
                 {isItemDropdownOpen && (
                   <View style={styles.dropdownList}>
                     <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled>
-                      {myItems.map((item) => (
+                      {actionStockData.map((item) => (
                         <TouchableOpacity
                           key={item.id}
                           style={[styles.dropdownItem, effectiveSelectedItemId === item.id && styles.dropdownItemActive]}
@@ -1127,12 +1194,14 @@ export default function InventoryScreen({ navigation }) {
           </View>
         </Modal>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenShell>
   );
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
+  stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border, zIndex: 50, flexShrink: 0 },
+  stickyTopBarPwa: { position: 'sticky', top: 0, paddingTop: 52, alignSelf: 'stretch', zIndex: 200, elevation: 20, shadowColor: '#0f172a', shadowOpacity: isDarkMode ? 0.28 : 0.09, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14 },
   backBtn: { padding: 8, marginRight: 8, marginLeft: -8 },
   header: { fontSize: 20, fontWeight: '800', color: COLORS.text },
@@ -1179,7 +1248,8 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   currentStockValue: { color: '#1d4ed8', fontWeight: '900', fontSize: 17 },
   actionGrid: { flexDirection: 'row', gap: 10 },
   actionButton: { flex: 1, minHeight: 48, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  actionButtonText: { color: COLORS.textMuted, fontWeight: '800', marginLeft: 6 },
+  actionButtonText: { color: COLORS.textMuted, fontWeight: '800', fontSize: 12, textAlign: 'center' },
+  transferHint: { color: '#6d28d9', backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#ddd6fe', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, fontSize: 12, fontWeight: '700', lineHeight: 17, marginBottom: 10 },
   stocktakeButton: { minHeight: 48, borderWidth: 1, borderColor: '#c4b5fd', backgroundColor: '#f5f3ff', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   stocktakeButtonActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
   stocktakeButtonText: { color: '#6d28d9', fontWeight: '800', marginLeft: 7 },
@@ -1263,7 +1333,8 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   usageDelta: { fontSize: 15, fontWeight: '900', marginTop: 4, textAlign: 'right' },
   usageFooter: { backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 10, marginTop: 10, gap: 4 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  fab: { flexDirection: 'row', alignItems: 'center', gap: 6, position: 'absolute', bottom: 20, right: 20, backgroundColor: '#1565c0', paddingVertical: 12, paddingHorizontal: 18, borderRadius: 30, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, elevation: 6 },
+  createTicketBar: { alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 4 },
+  fab: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1565c0', paddingVertical: 12, paddingHorizontal: 18, borderRadius: 30, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, elevation: 6 },
   fabText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   actionSheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 36, maxHeight: '88%' },
   modalContent: { backgroundColor: COLORS.card, borderRadius: 18, padding: 20, borderWidth: 1, borderColor: COLORS.border },
@@ -1273,3 +1344,4 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   modalFieldRow: { flexDirection: 'row', gap: 10 },
   modalField: { flex: 1 },
 });
+

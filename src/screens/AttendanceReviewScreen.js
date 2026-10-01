@@ -1,8 +1,9 @@
 import React, { useContext, useMemo, useState } from 'react';
-import { RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Alert } from '../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
+import { canAccessStore } from '../utils/permissions';
 import { getLocalDateKey, formatDate } from '../utils/dateTime';
 import { buildAttendanceReview, getShiftLabel, getShiftWindow } from '../utils/attendanceRules';
 import { supabase } from '../services/supabaseClient';
@@ -68,6 +69,11 @@ export default function AttendanceReviewScreen({ navigation }) {
   } = useContext(AppContext);
 
   const styles = useMemo(() => getStyles(COLORS, isDarkMode), [COLORS, isDarkMode]);
+  const isIosStandalonePwa = Platform.OS === 'web'
+    && typeof window !== 'undefined'
+    && /iPad|iPhone|iPod/.test(window.navigator.userAgent)
+    && (window.navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches);
+  const ScreenShell = isIosStandalonePwa ? View : SafeAreaView;
   const todayKey = getLocalDateKey();
   const [rangeStart, setRangeStart] = useState(getMonthStart());
   const [rangeEnd, setRangeEnd] = useState(todayKey);
@@ -77,9 +83,8 @@ export default function AttendanceReviewScreen({ navigation }) {
   const [storeFilter, setStoreFilter] = useState('ALL');
 
   const isOwner = currentUser?.role === 'OWNER';
-  const viewableStores = currentUser?.permissions?.viewable_stores || [];
   let displayStoreId = currentUser?.store_id;
-  if (isOwner || viewableStores.includes(selectedStoreId)) displayStoreId = selectedStoreId;
+  if (canAccessStore(currentUser, selectedStoreId)) displayStoreId = selectedStoreId;
   if (isOwner && selectedStoreId === 'ALL') displayStoreId = 'ALL';
 
   const availableStores = useMemo(() => {
@@ -108,6 +113,9 @@ export default function AttendanceReviewScreen({ navigation }) {
     const priority = { danger: 0, warning: 1, info: 2 };
     return reviewRows
       .filter((row) => {
+        if (typeFilter === 'DANGER') return row.severity === 'danger';
+        if (typeFilter === 'WARNING') return row.severity === 'warning';
+        if (typeFilter === 'INFO') return row.severity === 'info';
         if (typeFilter === 'ALL') return true;
         if (typeFilter === 'ACTION') return row.severity === 'danger' || row.severity === 'warning';
         return row.type === typeFilter;
@@ -226,14 +234,16 @@ export default function AttendanceReviewScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.header}>Đối chiếu công</Text>
-          <Text style={styles.caption}>Lọc vi phạm theo quán để chốt lương minh bạch</Text>
+    <ScreenShell style={styles.container}>
+      <View style={[styles.stickyTopBar, isIosStandalonePwa && styles.stickyTopBarPwa]}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.header}>Đối chiếu công</Text>
+            <Text style={styles.caption}>Ưu tiên các trường hợp ảnh hưởng bảng lương</Text>
+          </View>
         </View>
       </View>
 
@@ -242,11 +252,51 @@ export default function AttendanceReviewScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={isDataLoading} onRefresh={refreshData} tintColor={COLORS.primary} />}
         keyboardShouldPersistTaps="handled"
       >
+
+        <View style={styles.summaryGrid}>
+          <TouchableOpacity
+            style={[styles.summaryBox, styles.severityDanger, typeFilter === 'DANGER' && styles.summaryBoxActive]}
+            onPress={() => setTypeFilter(typeFilter === 'DANGER' ? 'ACTION' : 'DANGER')}
+          >
+            <Ionicons name="alert-circle" size={20} color={isDarkMode ? '#fecaca' : '#b91c1c'} />
+            <Text style={styles.summaryNumber}>{summary.danger}</Text>
+            <Text style={styles.summaryLabel}>Khẩn cấp</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.summaryBox, styles.severityWarning, typeFilter === 'WARNING' && styles.summaryBoxActive]}
+            onPress={() => setTypeFilter(typeFilter === 'WARNING' ? 'ACTION' : 'WARNING')}
+          >
+            <Ionicons name="warning" size={20} color={isDarkMode ? '#fde68a' : '#b45309'} />
+            <Text style={styles.summaryNumber}>{summary.warning}</Text>
+            <Text style={styles.summaryLabel}>Cảnh báo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.summaryBox, styles.severityInfo, typeFilter === 'INFO' && styles.summaryBoxActive]}
+            onPress={() => setTypeFilter(typeFilter === 'INFO' ? 'ACTION' : 'INFO')}
+          >
+            <Ionicons name="time" size={20} color={isDarkMode ? '#bfdbfe' : '#1d4ed8'} />
+            <Text style={styles.summaryNumber}>{summary.info}</Text>
+            <Text style={styles.summaryLabel}>Tăng ca</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.payrollCard}>
+          <View style={styles.payrollRow}>
+            <Text style={styles.payrollLabel}>Ảnh hưởng chốt lương</Text>
+            <Text style={styles.payrollValue}>{summary.payrollRisk} mục</Text>
+          </View>
+          <View style={styles.payrollMiniGrid}>
+            <Text style={styles.payrollMini}>Trễ: {formatMinutes(summary.lateMinutes)}</Text>
+            <Text style={styles.payrollMini}>Về sớm: {formatMinutes(summary.earlyMinutes)}</Text>
+            <Text style={styles.payrollMini}>Tăng ca: {formatMinutes(summary.overtimeMinutes)}</Text>
+          </View>
+        </View>
+
         <View style={styles.controlCard}>
           <TouchableOpacity style={styles.rangeButton} onPress={() => setShowDateModal(true)}>
             <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.rangeLabel}>Khoảng thời gian</Text>
+              <Text style={styles.rangeLabel}>Khoảng đối chiếu</Text>
               <Text style={styles.rangeValue}>{rangeLabel}</Text>
             </View>
             <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
@@ -257,7 +307,7 @@ export default function AttendanceReviewScreen({ navigation }) {
             <TextInput
               value={searchText}
               onChangeText={setSearchText}
-              placeholder="Tìm nhân viên, quán, lỗi..."
+              placeholder="Tìm nhân viên, quán hoặc lỗi..."
               placeholderTextColor="#94a3b8"
               style={styles.searchInput}
             />
@@ -278,33 +328,12 @@ export default function AttendanceReviewScreen({ navigation }) {
           </ScrollView>
         </View>
 
-        <View style={styles.summaryGrid}>
-          <View style={[styles.summaryBox, styles.severityDanger]}>
-            <Text style={styles.summaryNumber}>{summary.danger}</Text>
-            <Text style={styles.summaryLabel}>Cần xử lý</Text>
-          </View>
-          <View style={[styles.summaryBox, styles.severityWarning]}>
-            <Text style={styles.summaryNumber}>{summary.warning}</Text>
-            <Text style={styles.summaryLabel}>Cảnh báo</Text>
-          </View>
-          <View style={[styles.summaryBox, styles.severityInfo]}>
-            <Text style={styles.summaryNumber}>{summary.info}</Text>
-            <Text style={styles.summaryLabel}>Tăng ca</Text>
+        <View style={styles.resultHeader}>
+          <View>
+            <Text style={styles.resultTitle}>Danh sách cần kiểm tra</Text>
+            <Text style={styles.resultCaption}>{filteredRows.length} trường hợp đang hiển thị</Text>
           </View>
         </View>
-
-        <View style={styles.payrollCard}>
-          <View style={styles.payrollRow}>
-            <Text style={styles.payrollLabel}>Ảnh hưởng chốt lương</Text>
-            <Text style={styles.payrollValue}>{summary.payrollRisk} mục</Text>
-          </View>
-          <View style={styles.payrollMiniGrid}>
-            <Text style={styles.payrollMini}>Trễ: {formatMinutes(summary.lateMinutes)}</Text>
-            <Text style={styles.payrollMini}>Về sớm: {formatMinutes(summary.earlyMinutes)}</Text>
-            <Text style={styles.payrollMini}>Tăng ca: {formatMinutes(summary.overtimeMinutes)}</Text>
-          </View>
-        </View>
-
         {filteredRows.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="checkmark-circle-outline" size={42} color={COLORS.accent} />
@@ -363,18 +392,23 @@ export default function AttendanceReviewScreen({ navigation }) {
         isDarkMode={isDarkMode}
         title="Chọn khoảng đối chiếu công"
       />
-    </SafeAreaView>
+    </ScreenShell>
   );
 }
 
 const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
+  stickyTopBar: { backgroundColor: COLORS.bg, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border, zIndex: 50, flexShrink: 0 },
+  stickyTopBarPwa: { position: 'sticky', top: 0, paddingTop: 52, alignSelf: 'stretch', zIndex: 200, elevation: 20, shadowColor: '#0f172a', shadowOpacity: isDarkMode ? 0.28 : 0.09, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 10 },
   backBtn: { padding: 6, marginRight: 10 },
   header: { color: COLORS.text, fontSize: 22, fontWeight: '900' },
   caption: { color: COLORS.textMuted, marginTop: 3, lineHeight: 19 },
-  scrollContent: { padding: 20, paddingTop: 8, paddingBottom: 50 },
-  controlCard: { backgroundColor: COLORS.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 14 },
+  scrollContent: { padding: 20, paddingTop: 12, paddingBottom: 50 },
+  resultHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 10 },
+  resultTitle: { color: COLORS.text, fontSize: 16, fontWeight: '900' },
+  resultCaption: { color: COLORS.textMuted, fontSize: 12, marginTop: 2, fontWeight: '700' },
+  controlCard: { backgroundColor: COLORS.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: COLORS.border, marginHorizontal: 20, marginBottom: 0 },
   rangeButton: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.inputBg, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: COLORS.inputBorder },
   rangeLabel: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700' },
   rangeValue: { color: COLORS.text, fontWeight: '900', fontSize: 15, marginTop: 2 },
@@ -417,3 +451,4 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
   approveBtn: { marginTop: 12, backgroundColor: COLORS.accent, borderRadius: 10, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   approveBtnText: { color: '#fff', fontWeight: '900', marginLeft: 6 },
 });
+
